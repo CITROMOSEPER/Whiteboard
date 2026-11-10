@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff">
+<title>Whiteboard</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+<script>
+  // Resolve the theme before first paint so there is no light/dark flash.
+  (function () {
+    var s = {}, t;
+    try { s = JSON.parse(localStorage.getItem('wb.settings')) || {}; } catch (e) {}
+    t = s.theme || 'system';
+    if (t === 'system') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.dataset.theme = t;
+    var c = s.canvas === 'light' ? '#ffffff' : s.canvas === 'dark' ? '#1c1c1e' : s.canvas === 'custom' ? s.canvasCustom : '';
+    if (c) document.documentElement.style.setProperty('--canvas', c);
+  })();
+</script>
+</head>
+<body>
+
+<main id="board" data-grid="dots">
+  <canvas id="canvas" aria-label="Whiteboard canvas"></canvas>
+  <textarea id="text-edit" rows="1" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Text"></textarea>
+  <div id="brush-cursor" aria-hidden="true"></div>
+  <p id="hint" class="gone">Draw anywhere. Pinch or scroll to move around.<br>Hold still at the end of a stroke to snap it into a clean shape.<br>Drag a color out of the dock into a closed shape to fill it.</p>
+</main>
+
+<!-- Top left: file -->
+<header class="glass bar" id="bar-file">
+  <button class="ibtn" id="btn-menu" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">
+    <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <input id="doc-title" type="text" value="Untitled" aria-label="Board name" spellcheck="false" autocomplete="off" maxlength="80">
+</header>
+
+<!-- Top right: history + zoom -->
+<div class="glass bar" id="bar-view">
+  <button class="ibtn" id="btn-undo" aria-label="Undo" title="Undo (Ctrl+Z)" disabled>
+    <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+  </button>
+  <button class="ibtn" id="btn-redo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" disabled>
+    <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+  </button>
+  <span class="sep"></span>
+  <button class="tbtn" id="btn-zoom" aria-label="Zoom" aria-haspopup="menu" aria-expanded="false">100%</button>
+</div>
+
+<!-- Left: size + opacity -->
+<aside class="glass" id="side" aria-label="Brush">
+  <div class="vslider" id="sl-size" role="slider" tabindex="0" aria-label="Thickness" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100">
+    <div class="vslider-fill"></div>
+    <svg class="vslider-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/></svg>
+  </div>
+  <div class="vslider" id="sl-opacity" role="slider" tabindex="0" aria-label="Opacity" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100">
+    <div class="vslider-fill"></div>
+    <svg class="vslider-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 5a7 7 0 0 1 0 14z" fill="currentColor" stroke="none"/></svg>
+  </div>
+</aside>
+<div class="glass" id="preview" aria-hidden="true">
+  <div id="preview-stage"><div id="preview-dot"></div></div>
+  <div id="preview-label">4 px</div>
+</div>
+
+<!-- Bottom: tools + colours -->
+<nav class="glass" id="dock" aria-label="Tools">
+  <button class="ibtn tool" data-tool="pen" aria-label="Pen" title="Pen (P)" aria-pressed="true">
+    <svg viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+  </button>
+  <button class="ibtn tool" data-tool="eraser" aria-label="Eraser" title="Eraser (E)" aria-pressed="false">
+    <svg viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
+  </button>
+  <button class="ibtn tool" data-tool="text" aria-label="Text" title="Text (T)" aria-pressed="false">
+    <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+  </button>
+  <button class="ibtn tool" data-tool="select" aria-label="Select" title="Select (V)" aria-pressed="false">
+    <svg viewBox="0 0 24 24"><path d="M3 11 22 2l-9 19-2-8-8-2z"/></svg>
+  </button>
+  <button class="ibtn tool" data-tool="hand" aria-label="Move" title="Move (H, or hold Space)" aria-pressed="false">
+    <svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+  </button>
+  <span class="sep"></span>
+  <div id="swatches" role="radiogroup" aria-label="Pen colour"></div>
+  <button class="swatch custom" id="btn-custom" title="Custom color" aria-label="Custom color" aria-haspopup="dialog"></button>
+</nav>
+
+<!-- Text formatting bar (floats above the text being edited) -->
+<div class="glass" id="text-bar" role="toolbar" aria-label="Text formatting">
+  <button class="tbtn" id="tb-font" aria-haspopup="menu" aria-label="Font">Sans</button>
+  <span class="sep"></span>
+  <button class="ibtn" id="tb-smaller" aria-label="Smaller text"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+  <output id="tb-size" aria-label="Text size">24</output>
+  <button class="ibtn" id="tb-bigger" aria-label="Larger text"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
+  <span class="sep"></span>
+  <button class="swatch" id="tb-color" aria-label="Text color" aria-haspopup="dialog"></button>
+</div>
+<div class="glass menu" id="font-menu" role="menu" aria-label="Font"></div>
+
+<!-- Selection bar -->
+<div class="glass" id="sel-bar" role="status">
+  <span id="sel-count"></span>
+  <button id="sel-delete">Delete</button>
+</div>
+
+<!-- Popovers -->
+<div class="glass menu" id="menu" role="menu" aria-label="File">
+  <button class="mi" role="menuitem" data-act="new">New board</button>
+  <button class="mi" role="menuitem" data-act="open">Open…<kbd>Ctrl O</kbd></button>
+  <button class="mi" role="menuitem" data-act="save">Save<kbd>Ctrl S</kbd></button>
+  <button class="mi" role="menuitem" data-act="export">Export…<kbd>Ctrl E</kbd></button>
+  <hr>
+  <button class="mi" role="menuitem" data-act="clear">Clear board</button>
+  <hr>
+  <button class="mi" role="menuitem" data-act="settings">Settings…</button>
+</div>
+
+<div class="glass menu" id="zoom-menu" role="menu" aria-label="Zoom">
+  <button class="mi" role="menuitem" data-act="zoom-in">Zoom in<kbd>Ctrl +</kbd></button>
+  <button class="mi" role="menuitem" data-act="zoom-out">Zoom out<kbd>Ctrl −</kbd></button>
+  <button class="mi" role="menuitem" data-act="zoom-100">Actual size<kbd>Ctrl 0</kbd></button>
+  <button class="mi" role="menuitem" data-act="zoom-fit">Fit to content<kbd>Ctrl 1</kbd></button>
+</div>
+
+<!-- Settings -->
+<div class="scrim" id="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="settings-title">Settings</h2>
+      <button class="pill-btn" data-close>Done</button>
+    </div>
+
+    <h3>Appearance</h3>
+    <div class="group">
+      <div class="row col">
+        <span id="lbl-theme">Theme</span>
+        <div class="seg" data-seg="theme" role="radiogroup" aria-labelledby="lbl-theme">
+          <button role="radio" data-value="light">Light</button>
+          <button role="radio" data-value="dark">Dark</button>
+          <button role="radio" data-value="system">System</button>
+        </div>
+      </div>
+      <div class="row col">
+        <span id="lbl-canvas">Canvas color</span>
+        <div class="seg" data-seg="canvas" role="radiogroup" aria-labelledby="lbl-canvas">
+          <button role="radio" data-value="dark">Dark</button>
+          <button role="radio" data-value="light">Light</button>
+          <button role="radio" data-value="theme">Theme</button>
+          <button role="radio" data-value="custom">Custom</button>
+        </div>
+        <div class="color-row" id="canvas-custom" hidden>
+          <span id="lbl-cc">Custom color</span>
+          <button class="color-well" id="canvas-color" aria-labelledby="lbl-cc" aria-haspopup="dialog"></button>
+        </div>
+      </div>
+    </div>
+
+    <h3>Drawing</h3>
+    <div class="group">
+      <div class="row col">
+        <div class="row-top"><label for="smoothing">Stroke smoothing</label><output id="smoothing-out">Off</output></div>
+        <input type="range" id="smoothing" min="0" max="100" step="any" value="0">
+        <p class="note">Off keeps every stroke exactly as you drew it.</p>
+      </div>
+      <div class="row">
+        <div><span id="lbl-snap">Hold to snap shapes</span><p class="note">Pause at the end of a stroke and it becomes a clean shape.</p></div>
+        <button class="switch" role="switch" data-switch="snap" aria-labelledby="lbl-snap"></button>
+      </div>
+      <div class="row">
+        <div><label for="snap-delay">Snap delay</label><p class="note">Seconds to hold still before a stroke snaps.</p></div>
+        <span class="num"><input type="number" id="snap-delay" min="0.2" max="10" step="0.1" value="1" inputmode="decimal"><i>s</i></span>
+      </div>
+      <div class="row">
+        <div><span id="lbl-finger">Draw with finger</span><p class="note">Turn off to draw with a stylus only; one finger then moves the board.</p></div>
+        <button class="switch" role="switch" data-switch="fingerDraw" aria-labelledby="lbl-finger"></button>
+      </div>
+    </div>
+
+    <h3>Canvas</h3>
+    <div class="group">
+      <div class="seg" data-seg="grid" role="radiogroup" aria-label="Canvas background">
+        <button role="radio" data-value="none">Plain</button>
+        <button role="radio" data-value="dots">Dots</button>
+        <button role="radio" data-value="lines">Grid</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Export -->
+<div class="scrim" id="export" role="dialog" aria-modal="true" aria-labelledby="export-title">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="export-title">Export</h2>
+      <button class="pill-btn quiet" data-close>Cancel</button>
+    </div>
+
+    <h3>Format</h3>
+    <div class="group">
+      <div class="seg" data-seg="format" role="radiogroup" aria-label="Format">
+        <button role="radio" data-value="png">PNG</button>
+        <button role="radio" data-value="jpeg">JPEG</button>
+        <button role="radio" data-value="webp">WebP</button>
+        <button role="radio" data-value="bmp">BMP</button>
+        <button role="radio" data-value="svg">SVG</button>
+        <button role="radio" data-value="pdf">PDF</button>
+      </div>
+      <p class="note" id="format-note"></p>
+    </div>
+
+    <div id="scale-block">
+      <h3>Resolution</h3>
+      <div class="group">
+        <div class="seg" data-seg="scale" role="radiogroup" aria-label="Resolution">
+          <button role="radio" data-value="1">1×</button>
+          <button role="radio" data-value="2">2×</button>
+          <button role="radio" data-value="4">4×</button>
+        </div>
+      </div>
+    </div>
+
+    <h3>Background</h3>
+    <div class="group">
+      <div class="seg" data-seg="bg" role="radiogroup" aria-label="Background">
+        <button role="radio" data-value="theme">Board</button>
+        <button role="radio" data-value="white">White</button>
+        <button role="radio" data-value="none">Transparent</button>
+      </div>
+    </div>
+
+    <button class="primary" id="btn-export">Export</button>
+  </div>
+</div>
+
+<div class="glass" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button id="toast-action" hidden></button></div>
+<div id="drop-blob" aria-hidden="true"><i></i></div>
+<input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json" hidden>
+
+<script src="js/geometry.js"></script>
+<script src="js/io.js"></script>
+<script src="js/fill.js"></script>
+<script src="js/picker.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
