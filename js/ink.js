@@ -385,13 +385,43 @@
     if (done) done();
   }
 
+  /* At most n points of a stroke, evenly picked, always keeping both ends. */
+  function sparse(p, n) {
+    const count = p.length >> 1;
+    if (count <= n) return p;
+    const out = [];
+    for (let k = 0; k < n; k++) { const i = Math.round((k * (count - 1)) / (n - 1)); out.push(p[2 * i], p[2 * i + 1]); }
+    return out;
+  }
+  /* Do two polylines cross, or come within `reach` of each other? */
+  function touches(a, b, reach) {
+    const one = a.length === 2, r2 = reach * reach;
+    const d2 = (px, py, x0, y0, x1, y1) => {      // squared distance from a point to a segment
+      const dx = x1 - x0, dy = y1 - y0, l2 = dx * dx + dy * dy;
+      let t = l2 ? ((px - x0) * dx + (py - y0) * dy) / l2 : 0;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      return (px - x0 - t * dx) ** 2 + (py - y0 - t * dy) ** 2;
+    };
+    const side = (x0, y0, x1, y1, px, py) => (x1 - x0) * (py - y0) - (y1 - y0) * (px - x0);
+    for (let i = 0; i < (one ? 2 : a.length - 2); i += 2) {
+      const a0 = a[i], a1 = a[i + 1], a2 = one ? a0 : a[i + 2], a3 = one ? a1 : a[i + 3];
+      for (let j = 0; j < Math.max(2, b.length - 2); j += 2) {
+        const b0 = b[j], b1 = b[j + 1], b2 = b.length === 2 ? b0 : b[j + 2], b3 = b.length === 2 ? b1 : b[j + 3];
+        if (d2(a0, a1, b0, b1, b2, b3) <= r2 || d2(a2, a3, b0, b1, b2, b3) <= r2 || d2(b0, b1, a0, a1, a2, a3) <= r2 || d2(b2, b3, a0, a1, a2, a3) <= r2) return true;
+        if (side(a0, a1, a2, a3, b0, b1) * side(a0, a1, a2, a3, b2, b3) < 0 && side(b0, b1, b2, b3, a0, a1) * side(b0, b1, b2, b3, a2, a3) < 0) return true;   // they cross
+      }
+    }
+    return false;
+  }
+
   /* Split what was written into characters, left to right.
-     1. Strokes are gathered into pieces that certainly belong together: they overlap
-        horizontally (the two strokes of an x, the bars of =), or one is a small mark
-        sitting above or below the other (the dot of an i, an accent, the dot of !).
-     2. Neighbouring pieces that touch or nearly touch may still be one character written
-        in several strokes (the stem and arms of K, the stem and bowl of P). Every way of
-        joining such neighbours is tried, and the reading that fits best overall wins. */
+     1. Lines that touch or cross on top of each other are one character (the two strokes of
+        an x, the bar of a T). Lines that do not touch belong together only when one sits
+        above the other: the bars of =, or a small mark over or under a letter (i, ö, !).
+        Lines that are merely next to each other, however close, are separate: ( x ).
+     2. Pieces that touch at the side may be one character written in several strokes (the
+        stem and bowl of P) or two letters that ran into each other. Both readings are
+        tried, and the one that fits best overall wins. */
   function segment(strokes, script) {
     script = script || 'latin';
     cache.clear();
@@ -400,27 +430,47 @@
     for (const o of items) { H = Math.max(H, o.b.h); big = Math.max(big, o.b.size); }
     H = Math.max(H, 0.4 * big, 1e-6);                                  // height of the line of writing
     const floor = 0.08 * H;                                            // an upright stroke still has some "width"
-    let atoms = [];
-    for (const o of items) {
-      const w = Math.max(o.b.w, floor), cx = (o.b.x0 + o.b.x1) / 2, cy = (o.b.y0 + o.b.y1) / 2;
-      const hits = atoms.filter((a) => {
-        const aw = Math.max(a.x1 - a.x0, floor), acx = (a.x0 + a.x1) / 2;
-        const overlap = Math.min(cx + w / 2, acx + aw / 2) - Math.max(cx - w / 2, acx - aw / 2);
-        if (overlap >= 0.35 * Math.min(w, aw)) return true;
-        if (o.b.size >= 0.4 * Math.max(a.y1 - a.y0, a.x1 - a.x0)) return false;
-        const ah = a.y1 - a.y0;
-        if (cy < a.y0 + 0.2 * ah) return cx > a.x0 - 0.15 * H && cx < a.x1 + 0.15 * H;   // a mark above
-        return cy > a.y1 - 0.05 * ah && cx > a.x0 && cx < a.x1;                          // a mark directly below
-      });
-      const atom = { strokes: [o.s], x0: o.b.x0, y0: o.b.y0, x1: o.b.x1, y1: o.b.y1 };
-      for (const a of hits) {
-        atom.strokes = a.strokes.concat(atom.strokes);
-        atom.x0 = Math.min(atom.x0, a.x0); atom.y0 = Math.min(atom.y0, a.y0); atom.x1 = Math.max(atom.x1, a.x1); atom.y1 = Math.max(atom.y1, a.y1);
+    // Decide, for every pair of strokes, whether they are certainly one character ("joined"),
+    // possibly one character ("linked": they touch, but sit side by side), or unrelated.
+    const m = items.length, parent = items.map((_, i) => i), links = [];
+    const find = (i) => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
+    const range = (lo, hi) => { const c = (lo + hi) / 2, w = Math.max(hi - lo, floor); return [c - w / 2, c + w / 2, w]; };
+    for (const o of items) o.p = sparse(o.s.points, 48);
+    for (let i = 0; i < m; i++) {
+      for (let j = i + 1; j < m; j++) {
+        const A = items[i], B = items[j];
+        const [ax0, ax1, aw] = range(A.b.x0, A.b.x1), [bx0, bx1, bw] = range(B.b.x0, B.b.x1);
+        const [ay0, ay1] = range(A.b.y0, A.b.y1), [by0, by1] = range(B.b.y0, B.b.y1);
+        const xo = Math.min(ax1, bx1) - Math.max(ax0, bx0), yo = Math.min(ay1, by1) - Math.max(ay0, by0);
+        const reach = ((A.s.width || 0) + (B.s.width || 0)) / 2 + 0.01 * H;     // ink that visibly meets
+        if (xo > -reach && yo > -reach && touches(A.p, B.p, reach)) {
+          // Lines that touch or cross: one on top of the other (x, +, T, H, the arms of K) is one
+          // character; merely meeting at the side (c against l) is left for the reading to decide.
+          if (xo >= 0.6 * Math.min(aw, bw)) parent[find(i)] = find(j); else links.push([i, j]);
+          continue;
+        }
+        // Lines that do not touch belong together only when one sits above the other:
+        // the two bars of =, the dots of :, or a small mark over or under a letter (i, ö, é, !, ?).
+        const level = Math.min(A.b.y1, B.b.y1) - Math.max(A.b.y0, B.b.y0);       // how much they share vertically
+        if (level > 0.25 * Math.min(A.b.h, B.b.h) + 1e-9) continue;              // side by side, like ( x )
+        if (xo >= 0.5 * Math.max(aw, bw)) { parent[find(i)] = find(j); continue; }
+        const [small, body] = A.b.size < B.b.size ? [A, B] : [B, A];
+        if (small.b.size >= 0.4 * body.b.size) continue;
+        const cx = (small.b.x0 + small.b.x1) / 2, above = small.b.y1 < body.b.y0 + 0.2 * body.b.h;
+        if (above ? cx > body.b.x0 - 0.1 * H && cx < body.b.x1 + 0.1 * H : cx > body.b.x0 && cx < body.b.x1) parent[find(i)] = find(j);
       }
-      atoms = atoms.filter((a) => !hits.includes(a));
-      atoms.push(atom);
     }
-    atoms.sort((a, b) => a.x0 + a.x1 - (b.x0 + b.x1));
+    const byRoot = new Map();
+    items.forEach((o, i) => {
+      const r = find(i);
+      let a = byRoot.get(r);
+      if (!a) byRoot.set(r, (a = { strokes: [], x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity, id: r }));
+      a.strokes.push(o.s);
+      a.x0 = Math.min(a.x0, o.b.x0); a.y0 = Math.min(a.y0, o.b.y0); a.x1 = Math.max(a.x1, o.b.x1); a.y1 = Math.max(a.y1, o.b.y1);
+    });
+    const atoms = [...byRoot.values()].sort((a, b) => a.x0 + a.x1 - (b.x0 + b.x1));
+    const linked = new Set(links.map(([i, j]) => { const a = find(i), b = find(j); return a < b ? a + ':' + b : b + ':' + a; }));
+    const isLinked = (a, b) => linked.has(a.id < b.id ? a.id + ':' + b.id : b.id + ':' + a.id);
     const n = atoms.length;
     if (n === 1) return [atoms[0].strokes];
     // Best way to read atoms[0..i) as characters of 1 to 3 neighbouring pieces each.
@@ -431,7 +481,7 @@
       let group = [];
       for (let k = 1; k <= MAX && k <= i; k++) {
         const a = atoms[i - k];
-        if (k > 1 && atoms[i - k + 1].x0 - a.x1 > 0.12 * H) break;      // a real gap: these are separate characters
+        if (k > 1 && !isLinked(a, atoms[i - k + 1])) break;             // they do not touch: separate characters
         group = a.strokes.concat(group);
         const c = best[i - k] + score(group, script, H) + PER_CHAR;
         if (c < best[i]) { best[i] = c; take[i] = k; }
