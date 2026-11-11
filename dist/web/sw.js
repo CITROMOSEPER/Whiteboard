@@ -4,7 +4,7 @@ const CACHE = 'whiteboard-v1';
 const CORE = [
   './', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   // Present only in the multi-file (development) layout; missing files are skipped.
-  'styles.css', 'js/geometry.js', 'js/io.js', 'js/fill.js', 'js/picker.js', 'js/app.js',
+  'styles.css', 'js/i18n.js', 'js/geometry.js', 'js/io.js', 'js/fill.js', 'js/picker.js', 'js/ink.js', 'js/app.js',
 ];
 
 self.addEventListener('install', (e) => {
