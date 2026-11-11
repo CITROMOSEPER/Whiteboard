@@ -27,38 +27,38 @@
 
 <main id="board" data-grid="dots">
   <canvas id="canvas" aria-label="Whiteboard canvas"></canvas>
-  <textarea id="text-edit" rows="1" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Text"></textarea>
+  <textarea id="text-edit" rows="1" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off" data-i18n-label="text"></textarea>
   <div id="brush-cursor" aria-hidden="true"></div>
-  <p id="hint" class="gone">Draw anywhere. Pinch or scroll to move around.<br>Hold still at the end of a stroke to snap it into a clean shape.<br>Drag a color out of the dock into a closed shape to fill it.</p>
+  <p id="hint" class="gone"><span data-i18n="hint1"></span><br><span data-i18n="hint2"></span><br><span data-i18n="hint3"></span></p>
 </main>
 
 <!-- Top left: file -->
 <header class="glass bar" id="bar-file">
-  <button class="ibtn" id="btn-menu" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">
+  <button class="ibtn" id="btn-menu" data-i18n-label="menu" aria-haspopup="menu" aria-expanded="false">
     <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
   </button>
-  <input id="doc-title" type="text" value="Untitled" aria-label="Board name" spellcheck="false" autocomplete="off" maxlength="80">
+  <input id="doc-title" type="text" value="" data-i18n-label="boardName" spellcheck="false" autocomplete="off" maxlength="80">
 </header>
 
 <!-- Top right: history + zoom -->
 <div class="glass bar" id="bar-view">
-  <button class="ibtn" id="btn-undo" aria-label="Undo" title="Undo (Ctrl+Z)" disabled>
+  <button class="ibtn" id="btn-undo" data-i18n-label="undo" data-i18n-title="undo" data-keys="Ctrl+Z" disabled>
     <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
   </button>
-  <button class="ibtn" id="btn-redo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" disabled>
+  <button class="ibtn" id="btn-redo" data-i18n-label="redo" data-i18n-title="redo" data-keys="Ctrl+Shift+Z" disabled>
     <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
   </button>
   <span class="sep"></span>
-  <button class="tbtn" id="btn-zoom" aria-label="Zoom" aria-haspopup="menu" aria-expanded="false">100%</button>
+  <button class="tbtn" id="btn-zoom" data-i18n-label="zoom" aria-haspopup="menu" aria-expanded="false">100%</button>
 </div>
 
 <!-- Left: size + opacity -->
-<aside class="glass" id="side" aria-label="Brush">
-  <div class="vslider" id="sl-size" role="slider" tabindex="0" aria-label="Thickness" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100">
+<aside class="glass" id="side">
+  <div class="vslider" id="sl-size" role="slider" tabindex="0" data-i18n-label="thickness" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100">
     <div class="vslider-fill"></div>
     <svg class="vslider-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/></svg>
   </div>
-  <div class="vslider" id="sl-opacity" role="slider" tabindex="0" aria-label="Opacity" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100">
+  <div class="vslider" id="sl-opacity" role="slider" tabindex="0" data-i18n-label="opacity" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100">
     <div class="vslider-fill"></div>
     <svg class="vslider-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 5a7 7 0 0 1 0 14z" fill="currentColor" stroke="none"/></svg>
   </div>
@@ -69,124 +69,156 @@
 </div>
 
 <!-- Bottom: tools + colours -->
-<nav class="glass" id="dock" aria-label="Tools">
-  <button class="ibtn tool" data-tool="pen" aria-label="Pen" title="Pen (P)" aria-pressed="true">
+<nav class="glass" id="dock">
+  <button class="ibtn tool" data-tool="pen" data-i18n-label="pen" data-i18n-title="pen" data-keys="P" aria-pressed="true">
     <svg viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
   </button>
-  <button class="ibtn tool" data-tool="eraser" aria-label="Eraser" title="Eraser (E)" aria-pressed="false">
+  <button class="ibtn tool" data-tool="eraser" data-i18n-label="eraser" data-i18n-title="eraser" data-keys="E" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
   </button>
-  <button class="ibtn tool" data-tool="text" aria-label="Text" title="Text (T)" aria-pressed="false">
+  <button class="ibtn tool" data-tool="text" data-i18n-label="text" data-i18n-title="text" data-keys="T" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
   </button>
-  <button class="ibtn tool" data-tool="select" aria-label="Select" title="Select (V)" aria-pressed="false">
+  <button class="ibtn tool" data-tool="select" data-i18n-label="select" data-i18n-title="select" data-keys="V" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M3 11 22 2l-9 19-2-8-8-2z"/></svg>
   </button>
-  <button class="ibtn tool" data-tool="hand" aria-label="Move" title="Move (H, or hold Space)" aria-pressed="false">
+  <button class="ibtn tool" data-tool="hand" data-i18n-label="move" data-i18n-title="move" data-keys="H / Space" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
   </button>
   <span class="sep"></span>
-  <div id="swatches" role="radiogroup" aria-label="Pen colour"></div>
-  <button class="swatch custom" id="btn-custom" title="Custom color" aria-label="Custom color" aria-haspopup="dialog"></button>
+  <div id="swatches" role="radiogroup"></div>
+  <button class="swatch custom" id="btn-custom" data-i18n-label="customColor" data-i18n-title="customColor" aria-haspopup="dialog"></button>
 </nav>
 
 <!-- Text formatting bar (floats above the text being edited) -->
-<div class="glass" id="text-bar" role="toolbar" aria-label="Text formatting">
-  <button class="tbtn" id="tb-font" aria-haspopup="menu" aria-label="Font">Sans</button>
+<div class="glass" id="text-bar" role="toolbar">
+  <button class="tbtn" id="tb-font" aria-haspopup="menu" data-i18n-label="font">Sans</button>
   <span class="sep"></span>
-  <button class="ibtn" id="tb-smaller" aria-label="Smaller text"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
-  <output id="tb-size" aria-label="Text size">24</output>
-  <button class="ibtn" id="tb-bigger" aria-label="Larger text"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
+  <button class="ibtn" id="tb-smaller" data-i18n-label="smaller"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+  <output id="tb-size">24</output>
+  <button class="ibtn" id="tb-bigger" data-i18n-label="larger"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
   <span class="sep"></span>
-  <button class="swatch" id="tb-color" aria-label="Text color" aria-haspopup="dialog"></button>
+  <button class="swatch" id="tb-color" data-i18n-label="textColor" aria-haspopup="dialog"></button>
 </div>
-<div class="glass menu" id="font-menu" role="menu" aria-label="Font"></div>
+<div class="glass menu" id="font-menu" role="menu"></div>
 
 <!-- Selection bar -->
 <div class="glass" id="sel-bar" role="status">
   <span id="sel-count"></span>
-  <button id="sel-delete">Delete</button>
+  <button id="sel-delete" data-i18n="delete"></button>
 </div>
+
+<!-- Other readings of the character that was just converted from handwriting -->
+<div class="glass" id="ink-alts" role="toolbar"></div>
 
 <!-- Popovers -->
-<div class="glass menu" id="menu" role="menu" aria-label="File">
-  <button class="mi" role="menuitem" data-act="new">New board</button>
-  <button class="mi" role="menuitem" data-act="open">Open…<kbd>Ctrl O</kbd></button>
-  <button class="mi" role="menuitem" data-act="save">Save<kbd>Ctrl S</kbd></button>
-  <button class="mi" role="menuitem" data-act="export">Export…<kbd>Ctrl E</kbd></button>
+<div class="glass menu" id="menu" role="menu">
+  <button class="mi" role="menuitem" data-act="new"><span data-i18n="mNew"></span></button>
+  <button class="mi" role="menuitem" data-act="open"><span data-i18n="mOpen"></span><kbd>Ctrl O</kbd></button>
+  <button class="mi" role="menuitem" data-act="save"><span data-i18n="mSave"></span><kbd>Ctrl S</kbd></button>
+  <button class="mi" role="menuitem" data-act="export"><span data-i18n="mExport"></span><kbd>Ctrl E</kbd></button>
   <hr>
-  <button class="mi" role="menuitem" data-act="clear">Clear board</button>
+  <button class="mi" role="menuitem" data-act="clear"><span data-i18n="mClear"></span></button>
   <hr>
-  <button class="mi" role="menuitem" data-act="settings">Settings…</button>
+  <button class="mi" role="menuitem" data-act="settings"><span data-i18n="mSettings"></span></button>
 </div>
 
-<div class="glass menu" id="zoom-menu" role="menu" aria-label="Zoom">
-  <button class="mi" role="menuitem" data-act="zoom-in">Zoom in<kbd>Ctrl +</kbd></button>
-  <button class="mi" role="menuitem" data-act="zoom-out">Zoom out<kbd>Ctrl −</kbd></button>
-  <button class="mi" role="menuitem" data-act="zoom-100">Actual size<kbd>Ctrl 0</kbd></button>
-  <button class="mi" role="menuitem" data-act="zoom-fit">Fit to content<kbd>Ctrl 1</kbd></button>
+<div class="glass menu" id="zoom-menu" role="menu">
+  <button class="mi" role="menuitem" data-act="zoom-in"><span data-i18n="zIn"></span><kbd>Ctrl +</kbd></button>
+  <button class="mi" role="menuitem" data-act="zoom-out"><span data-i18n="zOut"></span><kbd>Ctrl −</kbd></button>
+  <button class="mi" role="menuitem" data-act="zoom-100"><span data-i18n="zActual"></span><kbd>Ctrl 0</kbd></button>
+  <button class="mi" role="menuitem" data-act="zoom-fit"><span data-i18n="zFit"></span><kbd>Ctrl 1</kbd></button>
 </div>
+
+<div class="glass menu" id="lang-menu" role="menu"></div>
 
 <!-- Settings -->
 <div class="scrim" id="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
   <div class="sheet">
     <div class="sheet-head">
-      <h2 id="settings-title">Settings</h2>
-      <button class="pill-btn" data-close>Done</button>
+      <h2 id="settings-title" data-i18n="settings"></h2>
+      <button class="pill-btn" data-close data-i18n="done"></button>
     </div>
 
-    <h3>Appearance</h3>
+    <h3 data-i18n="appearance"></h3>
     <div class="group">
       <div class="row col">
-        <span id="lbl-theme">Theme</span>
+        <span id="lbl-theme" data-i18n="theme"></span>
         <div class="seg" data-seg="theme" role="radiogroup" aria-labelledby="lbl-theme">
-          <button role="radio" data-value="light">Light</button>
-          <button role="radio" data-value="dark">Dark</button>
-          <button role="radio" data-value="system">System</button>
+          <button role="radio" data-value="light" data-i18n="light"></button>
+          <button role="radio" data-value="dark" data-i18n="dark"></button>
+          <button role="radio" data-value="system" data-i18n="system"></button>
         </div>
       </div>
       <div class="row col">
-        <span id="lbl-canvas">Canvas color</span>
+        <span id="lbl-canvas" data-i18n="canvasColor"></span>
         <div class="seg" data-seg="canvas" role="radiogroup" aria-labelledby="lbl-canvas">
-          <button role="radio" data-value="dark">Dark</button>
-          <button role="radio" data-value="light">Light</button>
-          <button role="radio" data-value="theme">Theme</button>
-          <button role="radio" data-value="custom">Custom</button>
+          <button role="radio" data-value="dark" data-i18n="dark"></button>
+          <button role="radio" data-value="light" data-i18n="light"></button>
+          <button role="radio" data-value="theme" data-i18n="theme"></button>
+          <button role="radio" data-value="custom" data-i18n="custom"></button>
         </div>
         <div class="color-row" id="canvas-custom" hidden>
-          <span id="lbl-cc">Custom color</span>
+          <span id="lbl-cc" data-i18n="customColor"></span>
           <button class="color-well" id="canvas-color" aria-labelledby="lbl-cc" aria-haspopup="dialog"></button>
         </div>
       </div>
     </div>
 
-    <h3>Drawing</h3>
+    <h3 id="lang-title"></h3>
+    <div class="group">
+      <div class="row">
+        <span id="lbl-lang"></span>
+        <button class="pill-btn quiet" id="lang-btn" aria-haspopup="menu" aria-labelledby="lbl-lang lang-btn"></button>
+      </div>
+    </div>
+
+    <h3 data-i18n="drawing"></h3>
     <div class="group">
       <div class="row col">
-        <div class="row-top"><label for="smoothing">Stroke smoothing</label><output id="smoothing-out">Off</output></div>
+        <div class="row-top"><label for="smoothing" data-i18n="smoothing"></label><output id="smoothing-out"></output></div>
         <input type="range" id="smoothing" min="0" max="100" step="any" value="0">
-        <p class="note">Off keeps every stroke exactly as you drew it.</p>
+        <p class="note" data-i18n="smoothingNote"></p>
       </div>
       <div class="row">
-        <div><span id="lbl-snap">Hold to snap shapes</span><p class="note">Pause at the end of a stroke and it becomes a clean shape.</p></div>
+        <div><span id="lbl-snap" data-i18n="snap"></span><p class="note" data-i18n="snapNote"></p></div>
         <button class="switch" role="switch" data-switch="snap" aria-labelledby="lbl-snap"></button>
       </div>
       <div class="row">
-        <div><label for="snap-delay">Snap delay</label><p class="note">Seconds to hold still before a stroke snaps.</p></div>
+        <div><label for="snap-delay" data-i18n="snapDelay"></label><p class="note" data-i18n="snapDelayNote"></p></div>
         <span class="num"><input type="number" id="snap-delay" min="0.2" max="10" step="0.1" value="1" inputmode="decimal"><i>s</i></span>
       </div>
       <div class="row">
-        <div><span id="lbl-finger">Draw with finger</span><p class="note">Turn off to draw with a stylus only; one finger then moves the board.</p></div>
+        <div><span id="lbl-finger" data-i18n="finger"></span><p class="note" data-i18n="fingerNote"></p></div>
         <button class="switch" role="switch" data-switch="fingerDraw" aria-labelledby="lbl-finger"></button>
       </div>
     </div>
 
-    <h3>Canvas</h3>
+    <h3 data-i18n="handwriting"></h3>
     <div class="group">
-      <div class="seg" data-seg="grid" role="radiogroup" aria-label="Canvas background">
-        <button role="radio" data-value="none">Plain</button>
-        <button role="radio" data-value="dots">Dots</button>
-        <button role="radio" data-value="lines">Grid</button>
+      <div class="row">
+        <div><span id="lbl-ink" data-i18n="ink"></span><p class="note" data-i18n="inkNote"></p></div>
+        <button class="switch" role="switch" data-switch="ink" aria-labelledby="lbl-ink"></button>
+      </div>
+      <div class="row">
+        <div><label for="ink-delay" data-i18n="inkDelay"></label><p class="note" data-i18n="inkDelayNote"></p></div>
+        <span class="num"><input type="number" id="ink-delay" min="0.2" max="10" step="0.1" value="1" inputmode="decimal"><i>s</i></span>
+      </div>
+      <div class="row col">
+        <span id="lbl-alpha" data-i18n="alphabet"></span>
+        <div class="seg" data-seg="inkScript" role="radiogroup" aria-labelledby="lbl-alpha">
+          <button role="radio" data-value="latin" data-i18n="latin"></button>
+          <button role="radio" data-value="cyrillic" data-i18n="cyrillic"></button>
+        </div>
+      </div>
+    </div>
+
+    <h3 data-i18n="canvas"></h3>
+    <div class="group">
+      <div class="seg" data-seg="grid" role="radiogroup">
+        <button role="radio" data-value="none" data-i18n="plain"></button>
+        <button role="radio" data-value="dots" data-i18n="dots"></button>
+        <button role="radio" data-value="lines" data-i18n="grid"></button>
       </div>
     </div>
   </div>
@@ -196,13 +228,13 @@
 <div class="scrim" id="export" role="dialog" aria-modal="true" aria-labelledby="export-title">
   <div class="sheet">
     <div class="sheet-head">
-      <h2 id="export-title">Export</h2>
-      <button class="pill-btn quiet" data-close>Cancel</button>
+      <h2 id="export-title" data-i18n="export"></h2>
+      <button class="pill-btn quiet" data-close data-i18n="cancel"></button>
     </div>
 
-    <h3>Format</h3>
+    <h3 data-i18n="format"></h3>
     <div class="group">
-      <div class="seg" data-seg="format" role="radiogroup" aria-label="Format">
+      <div class="seg" data-seg="format" role="radiogroup">
         <button role="radio" data-value="png">PNG</button>
         <button role="radio" data-value="jpeg">JPEG</button>
         <button role="radio" data-value="webp">WebP</button>
@@ -214,9 +246,9 @@
     </div>
 
     <div id="scale-block">
-      <h3>Resolution</h3>
+      <h3 data-i18n="resolution"></h3>
       <div class="group">
-        <div class="seg" data-seg="scale" role="radiogroup" aria-label="Resolution">
+        <div class="seg" data-seg="scale" role="radiogroup">
           <button role="radio" data-value="1">1×</button>
           <button role="radio" data-value="2">2×</button>
           <button role="radio" data-value="4">4×</button>
@@ -224,16 +256,16 @@
       </div>
     </div>
 
-    <h3>Background</h3>
+    <h3 data-i18n="background"></h3>
     <div class="group">
-      <div class="seg" data-seg="bg" role="radiogroup" aria-label="Background">
-        <button role="radio" data-value="theme">Board</button>
-        <button role="radio" data-value="white">White</button>
-        <button role="radio" data-value="none">Transparent</button>
+      <div class="seg" data-seg="bg" role="radiogroup">
+        <button role="radio" data-value="theme" data-i18n="board"></button>
+        <button role="radio" data-value="white" data-i18n="white"></button>
+        <button role="radio" data-value="none" data-i18n="transparent"></button>
       </div>
     </div>
 
-    <button class="primary" id="btn-export">Export</button>
+    <button class="primary" id="btn-export" data-i18n="export"></button>
   </div>
 </div>
 
@@ -241,10 +273,12 @@
 <div id="drop-blob" aria-hidden="true"><i></i></div>
 <input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json" hidden>
 
+<script src="js/i18n.js"></script>
 <script src="js/geometry.js"></script>
 <script src="js/io.js"></script>
 <script src="js/fill.js"></script>
 <script src="js/picker.js"></script>
+<script src="js/ink.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
