@@ -1,5 +1,8 @@
 # Whiteboard
 
+This app is hosted at https://citromoseper.github.io/Whiteboard/
+open the link to use without any downloads
+
 A fast, free, open source whiteboard that runs entirely in your browser.
 
 Built because Microsoft Whiteboard was clunky, slow, and then discontinued. Whiteboard borrows the best ideas from Procreate (shape snapping, drag-to-fill colors, a proper color picker with a pipette) and wraps them in a clean, Apple-style glass interface that feels smooth and professional.
