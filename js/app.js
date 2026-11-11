@@ -25,7 +25,11 @@
     get(k, def) { try { return Object.assign(def, JSON.parse(localStorage.getItem(k)) || {}); } catch (e) { return def; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
   };
-  const settings = store.get('wb.settings', { theme: 'system', smoothing: 0, snap: true, fingerDraw: true, grid: 'dots', canvas: 'theme', canvasCustom: '#f4f1e8', snapDelay: 1 });
+  const settings = store.get('wb.settings', { theme: 'system', smoothing: 0, snap: true, fingerDraw: true, grid: 'dots', canvas: 'theme', canvasCustom: '#f4f1e8', snapDelay: 1,
+    ink: false, inkDelay: 1, inkScript: null,   // handwriting to text (alphabet null = follow the language)
+    lang: null });                              // interface language (null = follow the system)
+  const tr = WB.t;
+  WB.setLang(settings.lang || WB.systemLang());
   const resolvedTheme = () => (settings.theme === 'system' ? (darkMq.matches ? 'dark' : 'light') : settings.theme);
   const ink0 = resolvedTheme() === 'dark' ? '#ffffff' : '#111111';
   const tools = store.get('wb.tools', {
@@ -185,6 +189,7 @@
   let holdTimer = 0;
 
   function beginStroke(e, tool) {
+    clearTimeout(inkTimer); hideAlts();     // still writing: don't convert yet
     mode = 'draw';
     const t = tools[tool], z = view.zoom, now = performance.now();
     const x = (e.clientX - view.x) / z, y = (e.clientY - view.y) / z;
@@ -250,6 +255,8 @@
     }
   }
 
+  const SHAPE_KEYS = { line: 'sLine', polyline: 'sPolyline', curve: 'sCurve', triangle: 'sTriangle', rectangle: 'sRectangle',
+    square: 'sSquare', quadrilateral: 'sQuad', circle: 'sCircle', ellipse: 'sEllipse' };
   function scheduleHold(ms) {
     clearTimeout(holdTimer);
     if (settings.snap) holdTimer = setTimeout(checkHold, ms);
@@ -277,7 +284,7 @@
       L.morph = { from, to: WB.morphTarget(res, from, 96), t0: performance.now() };
       L.base = from.slice(); L.points = from.slice(); L.smooth = false; L.closed = false;
     }
-    toast(res.label);
+    toast(tr(SHAPE_KEYS[res.type] || (res.points.length === 10 ? 'sPentagon' : 'sHexagon')));
     try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
     requestFrame();
     return true;
@@ -313,6 +320,10 @@
     doc.strokes.push(s);
     if (!baseDirty) { worldTransform(bctx); WB.paint(bctx, s); }
     record({ type: 'add', stroke: s });
+    // Handwriting: plain pen strokes wait to be read; a snapped shape ends the word; erasing abandons it.
+    if (settings.ink && s.tool === 'pen' && !s.shape) inkAdd(s);
+    else if (s.tool === 'pen') inkConvert();
+    else inkDrop();
   }
 
   /* ---- Flood fill ----------------------------------------------------
@@ -320,8 +331,9 @@
      the fill is cancelled rather than flooding the canvas. */
   function fillAt(cx, cy, color) {
     if (live) return;
+    inkDrop();
     const z = view.zoom, wx = (cx - view.x) / z, wy = (cy - view.y) / z;
-    const cb = WB.contentBounds(doc.strokes), none = () => toast('No closed shape to fill there');
+    const cb = WB.contentBounds(doc.strokes), none = () => toast(tr('tNoShape'));
     if (!cb) return none();
     const m = 6 / z, full = { x: cb.x - m, y: cb.y - m, w: cb.w + 2 * m, h: cb.h + 2 * m };
     if (wx < full.x || wy < full.y || wx > full.x + full.w || wy > full.y + full.h) return none();
@@ -470,7 +482,7 @@
   function selectionChanged() {
     const n = selection.size;
     $('#sel-bar').classList.toggle('on', n > 0);
-    if (n) $('#sel-count').textContent = n === 1 ? '1 object selected' : n + ' objects selected';
+    if (n) $('#sel-count').textContent = tr('selected', { n });
     requestFrame();
   }
   function deleteSelection() {
@@ -480,7 +492,7 @@
     clearSelection();
     record({ type: 'remove', items });
     invalidate();
-    toast(items.length === 1 ? 'Deleted' : items.length + ' objects deleted', 'Undo', undo);
+    toast(tr('deleted'), tr('undo'), undo);
   }
   function drawSelection() {
     const z = view.zoom, accent = getComputedStyle(root).getPropertyValue('--accent').trim() || '#007aff';
@@ -512,6 +524,7 @@
      On commit it becomes a text object in the drawing order; strokes and erasing done
      over it later stay on top, and editing it again simply re-renders the board. */
   const ta = $('#text-edit'), textBar = $('#text-bar');
+  const FONT_KEYS = { sans: 'fSans', serif: 'fSerif', mono: 'fMono', rounded: 'fRounded', hand: 'fHand' };
   const TEXT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 64, 80, 96, 128, 160];
   let edit = null;      // { s: existing object | null, x, y, font, size, color }
   let textDown = null;  // pointer that went down with the text tool
@@ -532,7 +545,7 @@
     if (edit) commitText();
     const z = view.zoom, wx = (cx - view.x) / z, wy = (cy - view.y) / z, T = tools.text;
     const s = textUnder(cx, cy);
-    clearSelection();
+    clearSelection(); inkDrop();
     edit = s ? { s, x: s.x, y: s.y, font: s.font, size: s.size, color: s.color }
       : { s: null, x: wx, y: wy - (T.size / z) * WB.LINE / 2, font: T.font, size: T.size / z, color: T.color };
     ta.value = s ? s.text : '';
@@ -553,7 +566,7 @@
     ta.style.width = Math.ceil(L.w * z + fs * 1.2) + 'px';
     ta.style.height = Math.ceil(L.h * z + 2) + 'px';
     ta.style.transform = `translate(${sx}px, ${sy}px)`;
-    $('#tb-font').textContent = WB.FONT_NAMES[e.font];
+    $('#tb-font').textContent = tr(FONT_KEYS[e.font]);
     $('#tb-size').textContent = Math.round(fs);
     $('#tb-color').style.setProperty('--c', e.color);
     let by = sy - 58;
@@ -614,7 +627,7 @@
     const fm = $('#font-menu');
     for (const k in WB.FONTS) {
       const b = document.createElement('button');
-      b.className = 'mi'; b.dataset.font = k; b.textContent = WB.FONT_NAMES[k]; b.style.fontFamily = WB.FONTS[k];
+      b.className = 'mi'; b.dataset.font = k; b.dataset.i18n = FONT_KEYS[k]; b.style.fontFamily = WB.FONTS[k];
       b.setAttribute('role', 'menuitemradio');
       fm.appendChild(b);
     }
@@ -628,6 +641,199 @@
       fm.style.left = clamp(r.left - 4, 8, W - 190) + 'px';
       fm.style.top = (r.bottom + 244 > H ? Math.max(8, r.top - 214) : r.bottom + 10) + 'px';
       fm.classList.toggle('open', open);
+    });
+  }
+
+  /* ---- Handwriting to text -------------------------------------------
+     With the setting on, pen strokes are collected while the user keeps writing. After a
+     pause they are split into characters, recognised, and replaced by text: appended to a
+     text object on the same row if one is close by, otherwise started as a new one (lined
+     up with any text already on that row). The whole swap is a single undo step, and undo
+     brings the handwriting back. */
+  let inkPending = [], inkTimer = 0, inkLast = null, inkSize = 0, altTimer = 0;
+  const inkDelayMs = () => clamp(+settings.inkDelay || 1, 0.2, 10) * 1000;
+  const inkScript = () => settings.inkScript || (['ru', 'uk'].includes(WB.lang()) ? 'cyrillic' : 'latin');
+
+  function ptsBox(strokes) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const s of strokes) {
+      const p = s.points;
+      for (let i = 0; i < p.length; i += 2) { if (p[i] < x0) x0 = p[i]; if (p[i] > x1) x1 = p[i]; if (p[i + 1] < y0) y0 = p[i + 1]; if (p[i + 1] > y1) y1 = p[i + 1]; }
+    }
+    return { x0, y0, x1, y1 };
+  }
+  function inkAdd(s) {
+    if (inkPending.length) {
+      const g = ptsBox(inkPending), b = ptsBox([s]), h = Math.max(g.y1 - g.y0, 14 / view.zoom);
+      if (b.x0 > g.x1 + 1.6 * h || b.x1 < g.x0 - 1.6 * h || b.y0 > g.y1 + 0.9 * h || b.y1 < g.y0 - 0.9 * h) inkConvert();   // writing moved elsewhere
+    }
+    inkPending.push(s);
+    clearTimeout(inkTimer); inkTimer = setTimeout(inkConvert, inkDelayMs());
+    WB.ink.prepare();
+  }
+  function inkDrop() { clearTimeout(inkTimer); inkPending = []; inkLast = null; hideAlts(); }
+
+  function inkConvert() {
+    clearTimeout(inkTimer);
+    const strokes = inkPending.filter((s) => doc.strokes.includes(s));
+    inkPending = [];
+    if (!strokes.length) return;
+    if (live || edit) { inkPending = strokes; inkTimer = setTimeout(inkConvert, 300); return; }
+    if (!WB.ink.ready) return WB.ink.prepare(() => { inkPending = strokes.concat(inkPending); inkConvert(); });
+    const z = view.zoom, script = inkScript(), list = [];
+    const segs = WB.ink.segment(strokes, script);
+    let last = null, chain = null, lineH = 0;
+    for (const seg of segs) { const b = ptsBox(seg); lineH = Math.max(lineH, b.y1 - b.y0); }
+    for (const seg of segs) {
+      const b = ptsBox(seg), px = Math.max(b.x1 - b.x0, b.y1 - b.y0) * z;
+      if (px > 0.5 * Math.min(W, H)) continue;                       // far too big to be writing
+      // Characters written in one go stay together in one text, in the order written; whether a
+      // space goes between two of them is judged from the gap in the handwriting itself (typed
+      // text is more compact than writing, so measuring against it would see gaps everywhere).
+      let row;
+      if (chain) {
+        const o = chain.o, L = WB.textLayout(o);
+        row = { o, L, line: chain.line, kind: 'append', gap: b.x0 - chain.box.x1 > 0.5 * lineH ? o.size : 0, size: o.size, top: o.y + chain.line * L.lh };
+      } else row = findRow(b);
+      const opts = { script, px };
+      if (row) {
+        opts.relH = (b.y1 - b.y0) / row.size;
+        opts.relBelow = (b.y1 - (row.top + row.L.base)) / row.size;
+        opts.relMid = ((b.y0 + b.y1) / 2 - row.top) / row.L.lh;
+        opts.prev = row.kind === 'append' ? row.L.lines[row.line].slice(-1) : '';
+      }
+      const r = WB.ink.recognize(seg, opts);
+      if (!r) continue;                                              // not a character: leave the ink as drawn
+      const items = seg.map((s) => ({ i: doc.strokes.indexOf(s), s })).sort((a, c) => a.i - c.i);
+      for (let k = items.length - 1; k >= 0; k--) doc.strokes.splice(items[k].i, 1);
+      list.push({ type: 'remove', items });
+      const placed = placeChar(r.ch, b, row, seg[0].color);
+      list.push(placed.action);
+      last = { s: placed.s, index: placed.index, len: r.ch.length, r, box: b };
+      chain = row && row.kind === 'prepend' ? null : { o: placed.s, line: row && row.kind === 'append' ? row.line : 0, box: b };
+    }
+    if (!list.length) return;
+    finishFill();
+    record({ type: 'batch', list });
+    invalidate();
+    showAlts(last);
+  }
+
+  /* The text row this ink belongs to, if any: { o, L, line, kind: 'append' | 'prepend' | 'align', gap, size, top }. */
+  function findRow(b) {
+    const cy = (b.y0 + b.y1) / 2;
+    let best = null;
+    for (const o of doc.strokes) {
+      if (o.tool !== 'text') continue;
+      const L = WB.textLayout(o), size = o.size;
+      if (cy < o.y - 0.15 * L.lh || cy > o.y + L.h + 0.15 * L.lh) continue;         // not level with this text
+      const line = clamp(Math.floor((cy - o.y) / L.lh), 0, L.lines.length - 1);
+      const gapR = b.x0 - (o.x + L.widths[line]), gapL = o.x - b.x1;
+      let kind = null, d = 0;
+      if (gapR > -0.35 * size && gapR < 2.2 * size) { kind = 'append'; d = Math.abs(gapR); }
+      else if (L.lines.length === 1 && gapL > -0.35 * size && gapL < 2.2 * size) { kind = 'prepend'; d = Math.abs(gapL) + size; }
+      else if (Math.min(Math.abs(gapR), Math.abs(gapL)) < 40 * size) { kind = 'align'; d = 1e6 + Math.min(Math.abs(gapR), Math.abs(gapL)); }
+      if (kind && (!best || d < best.d)) best = { o, L, line, kind, d, gap: kind === 'prepend' ? gapL : gapR, size, top: o.y + line * L.lh };
+    }
+    return best;
+  }
+
+  /* Put a recognised character on the board. Returns { s, index, action } (action is the history step). */
+  function placeChar(ch, b, row, color) {
+    if (row && row.kind !== 'align') {
+      const o = row.o, lines = row.L.lines.slice(), space = row.gap > 0.55 * row.size ? ' ' : '';
+      const before = { text: o.text, x: o.x };
+      let index = 0;
+      if (row.kind === 'append') {
+        index = lines.slice(0, row.line + 1).join('\n').length + space.length;
+        lines[row.line] += space + ch;
+        retext(o, { text: lines.join('\n') });
+      } else {
+        const add = ch + space;
+        retext(o, { text: add + o.text, x: o.x - WB.textLayout({ text: add, font: o.font, size: o.size }).w });
+      }
+      return { s: o, index, action: { type: 'edit', s: o, before, after: { text: o.text, x: o.x } } };
+    }
+    // A new text object. Its size comes from the row it lines up with, or from how big the character was written.
+    const font = tools.text.font, g = WB.glyphBox(ch, font), inkH = g.asc + g.desc, z = view.zoom;
+    let size = row ? row.size : inkH > 0.3 ? (b.y1 - b.y0) / inkH : inkSize || 28 / z;
+    size = clamp(size, 9 / z, 400 / z);
+    if (!row && inkH > 0.3) inkSize = size;
+    const base = WB.textLayout({ text: ch, font, size }).base;
+    const s = { tool: 'text', x: b.x0 + g.left * size, y: row ? row.top : b.y0 - (base - g.asc * size), text: ch, font, size, color, opacity: 1, width: 0 };
+    doc.strokes.push(s);
+    return { s, index: 0, action: { type: 'add', stroke: s } };
+  }
+
+  /* Other readings of the last converted character. Picking one fixes the text and teaches the recogniser. */
+  function showAlts(p) {
+    inkLast = p;
+    const bar = $('#ink-alts');
+    if (!p || !p.r.alts.length) return hideAlts();
+    bar.textContent = '';
+    for (const a of p.r.alts) {
+      const btn = document.createElement('button');
+      btn.textContent = a;
+      btn.addEventListener('click', () => pickAlt(a));
+      bar.appendChild(btn);
+    }
+    bar.classList.add('on');
+    const z = view.zoom, x = p.box.x0 * z + view.x, y = p.box.y1 * z + view.y + 16;
+    bar.style.transform = `translate(${clamp(x, 8, Math.max(8, W - bar.offsetWidth - 8))}px, ${clamp(y, 70, Math.max(70, H - 130))}px)`;
+    clearTimeout(altTimer); altTimer = setTimeout(hideAlts, 6000);
+  }
+  function hideAlts() { clearTimeout(altTimer); $('#ink-alts').classList.remove('on'); }
+  function pickAlt(a) {
+    const p = inkLast;
+    hideAlts(); inkLast = null;
+    if (!p || !doc.strokes.includes(p.s)) return;
+    const o = p.s, before = { text: o.text };
+    retext(o, { text: o.text.slice(0, p.index) + a + o.text.slice(p.index + p.len) });
+    record({ type: 'edit', s: o, before, after: { text: o.text } });
+    WB.ink.learn(p.r.cloud, a);
+    invalidate();
+  }
+
+  /* ---- Language ------------------------------------------------------ */
+  let smSync = () => {}, scriptSync = () => {};
+  function applyLang() {
+    WB.setLang(settings.lang || WB.systemLang());
+    WB.localize();
+    const cur = WB.LANGS.find((l) => l[0] === WB.lang()), en = cur[0] === 'en';
+    // Everything about language is shown in the active language and in English.
+    $('#lang-title').textContent = $('#lbl-lang').textContent = en ? 'Language' : tr('language') + ' · Language';
+    $('#lang-btn').textContent = en ? 'English' : cur[1] + ' · ' + cur[2];
+    $$('#lang-menu .mi').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.lang === cur[0])));
+    titleEl.value = shownTitle();
+    smSync(); scriptSync(); syncExport(); updateChrome(); selectionChanged();
+    $('#btn-export').textContent = tr('export');
+    if (edit) layoutEdit();
+  }
+  function initLang() {
+    const menu = $('#lang-menu'), btn = $('#lang-btn');
+    for (const [code, own, english] of WB.LANGS) {
+      const b = document.createElement('button');
+      b.className = 'mi'; b.dataset.lang = code; b.lang = code;
+      b.setAttribute('role', 'menuitemradio');
+      const name = document.createElement('span');
+      name.textContent = own;
+      if (code !== 'en') { const e = document.createElement('i'); e.lang = 'en'; e.textContent = english; name.appendChild(e); }
+      b.appendChild(name);
+      menu.appendChild(b);
+    }
+    menu.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-lang]');
+      if (!b) return;
+      settings.lang = b.dataset.lang; saveSettings();
+      menu.classList.remove('open');
+      applyLang();
+    });
+    btn.addEventListener('click', () => {
+      const open = !menu.classList.contains('open'), r = btn.getBoundingClientRect();
+      closePopovers();
+      menu.style.left = clamp(r.right - menu.offsetWidth, 8, Math.max(8, W - menu.offsetWidth - 8)) + 'px';
+      menu.style.top = clamp(r.bottom + 8, 8, Math.max(8, H - menu.offsetHeight - 12)) + 'px';
+      menu.classList.toggle('open', open);
     });
   }
 
@@ -847,8 +1053,11 @@
   const snapshot = () => ({ title: doc.title, created: doc.created, strokes: doc.strokes, handle: fileHandle });
   function applySnapshot(s) {
     doc.title = s.title; doc.created = s.created; doc.strokes = s.strokes; fileHandle = s.handle;
-    $('#doc-title').value = doc.title;
+    $('#doc-title').value = shownTitle();
   }
+  /* A board that was never named is stored as "Untitled" and shown in the interface language. */
+  const untitled = () => !doc.title || doc.title === 'Untitled';
+  const shownTitle = () => (untitled() ? tr('untitled') : doc.title);
   function record(a) {
     undoStack.push(a); redoStack.length = 0;
     if (undoStack.length > 2000) undoStack.shift();
@@ -861,12 +1070,8 @@
     if (edit) commitText();
     const a = undoStack.pop();
     if (!a) return;
-    fillAnim = null; clearSelection();
-    if (a.type === 'add') doc.strokes.pop();
-    else if (a.type === 'remove') for (const it of a.items) doc.strokes.splice(it.i, 0, it.s);
-    else if (a.type === 'edit') retext(a.s, a.before);
-    else if (a.type === 'move') translate(a.items, -a.dx, -a.dy);
-    else applySnapshot(a.before);
+    fillAnim = null; clearSelection(); inkDrop();
+    applyUndo(a);
     redoStack.push(a); invalidate(); changed();
   }
   function redo() {
@@ -874,31 +1079,43 @@
     if (edit) commitText();
     const a = redoStack.pop();
     if (!a) return;
-    clearSelection();
+    clearSelection(); inkDrop();
+    applyRedo(a);
+    undoStack.push(a); invalidate(); changed();
+  }
+  function applyUndo(a) {
+    if (a.type === 'add') doc.strokes.pop();
+    else if (a.type === 'remove') for (const it of a.items) doc.strokes.splice(it.i, 0, it.s);
+    else if (a.type === 'edit') retext(a.s, a.before);
+    else if (a.type === 'move') translate(a.items, -a.dx, -a.dy);
+    else if (a.type === 'batch') for (let k = a.list.length - 1; k >= 0; k--) applyUndo(a.list[k]);   // several steps undone as one
+    else applySnapshot(a.before);
+  }
+  function applyRedo(a) {
     if (a.type === 'add') doc.strokes.push(a.stroke);
     else if (a.type === 'remove') for (let k = a.items.length - 1; k >= 0; k--) doc.strokes.splice(a.items[k].i, 1);
     else if (a.type === 'edit') retext(a.s, a.after);
     else if (a.type === 'move') translate(a.items, a.dx, a.dy);
+    else if (a.type === 'batch') for (const sub of a.list) applyRedo(sub);
     else applySnapshot(a.after);
-    undoStack.push(a); invalidate(); changed();
   }
   /* Replace the whole board (new, open, clear) as one undoable step. */
   function replaceBoard(next, message) {
     if (live) endStroke(true);
     if (edit) commitText();
-    fillAnim = null; clearSelection();
+    fillAnim = null; clearSelection(); inkDrop();
     const before = snapshot();
     applySnapshot(next);
     record({ type: 'replace', before, after: snapshot() });
     invalidate();
-    toast(message, 'Undo', undo);
+    toast(message, tr('undo'), undo);
   }
   function changed() { updateChrome(); autosave(); }
   function updateChrome() {
     $('#btn-undo').disabled = !undoStack.length;
     $('#btn-redo').disabled = !redoStack.length;
     hint.classList.toggle('gone', !restored || doc.strokes.length > 0 || !!live);
-    document.title = doc.title + ' – Whiteboard';
+    document.title = shownTitle() + ' – Whiteboard';
   }
 
   /* ---- Autosave (IndexedDB) ------------------------------------------ */
@@ -932,7 +1149,7 @@
   window.addEventListener('pagehide', saveNow);
 
   /* ---- Files --------------------------------------------------------- */
-  const safeName = () => (doc.title.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Untitled');
+  const safeName = () => (shownTitle().replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Untitled');
 
   function download(blob, name) {
     const a = document.createElement('a');
@@ -958,17 +1175,18 @@
       const h = await pickSave(name, 'Whiteboard', 'application/x-whtbd', 'whtbd');
       if (h === false) return;
       fileHandle = h;
-      if (h && doc.title === 'Untitled') { doc.title = h.name.replace(/\.whtbd$/i, '') || 'Untitled'; $('#doc-title').value = doc.title; updateChrome(); }
+      if (h && untitled()) { doc.title = h.name.replace(/\.whtbd$/i, '') || 'Untitled'; $('#doc-title').value = shownTitle(); updateChrome(); }
     }
     const blob = new Blob([WB.serialize(doc, view)], { type: 'application/json' });
-    try { await writeOut(fileHandle, blob, name); toast(fileHandle ? 'Saved' : 'Saved to Downloads'); }
-    catch (e) { fileHandle = null; download(blob, name); toast('Saved to Downloads'); }
+    try { await writeOut(fileHandle, blob, name); toast(tr(fileHandle ? 'tSaved' : 'tSavedDl')); }
+    catch (e) { fileHandle = null; download(blob, name); toast(tr('tSavedDl')); }
   }
 
   function loadText(text, handle) {
     let d;
-    try { d = WB.parse(text); } catch (e) { return toast(e.message); }
-    replaceBoard({ title: d.title, created: d.created, strokes: d.strokes, handle: handle || null }, 'Opened “' + d.title + '”');
+    try { d = WB.parse(text); } catch (e) { return toast(tr(e.message)); }
+    replaceBoard({ title: d.title, created: d.created, strokes: d.strokes, handle: handle || null }, '');
+    toast(tr('tOpened', { t: shownTitle() }), tr('undo'), undo);
     fitView(true);
   }
   async function openBoard() {
@@ -994,24 +1212,24 @@
 
   /* ---- Export -------------------------------------------------------- */
   const FORMATS = {
-    png: { mime: 'image/png', name: 'PNG image', note: 'Lossless. Keeps a transparent background.' },
-    jpeg: { mime: 'image/jpeg', ext: 'jpg', name: 'JPEG image', note: 'Small files. No transparency.', opaque: true },
-    webp: { mime: 'image/webp', name: 'WebP image', note: 'Smaller than PNG. Keeps a transparent background.' },
-    bmp: { mime: 'image/bmp', name: 'Bitmap image', note: 'Uncompressed. No transparency.', opaque: true },
-    svg: { mime: 'image/svg+xml', name: 'SVG image', note: 'Vector. Stays sharp at any size and remains editable.', vector: true },
-    pdf: { mime: 'application/pdf', name: 'PDF document', note: 'Vector. Best for printing and sharing.', vector: true },
+    png: { mime: 'image/png', name: 'PNG image', note: 'nPng' },
+    jpeg: { mime: 'image/jpeg', ext: 'jpg', name: 'JPEG image', note: 'nJpeg', opaque: true },
+    webp: { mime: 'image/webp', name: 'WebP image', note: 'nWebp' },
+    bmp: { mime: 'image/bmp', name: 'Bitmap image', note: 'nBmp', opaque: true },
+    svg: { mime: 'image/svg+xml', name: 'SVG image', note: 'nSvg', vector: true },
+    pdf: { mime: 'application/pdf', name: 'PDF document', note: 'nPdf', vector: true },
   };
   const exp = { format: 'png', scale: '2', bg: 'theme' };
   const canvasColor = () => getComputedStyle(root).getPropertyValue('--canvas').trim() || '#ffffff';
 
   async function doExport() {
     const b0 = WB.contentBounds(doc.strokes);
-    if (!b0) return toast('Nothing to export yet');
+    if (!b0) return toast(tr('tNothing'));
     const F = FORMATS[exp.format], ext = F.ext || exp.format, name = safeName() + '.' + ext;
     const handle = await pickSave(name, F.name, F.mime, ext);   // ask where first, while the tap is still fresh
     if (handle === false) return;
     const btn = $('#btn-export');
-    btn.disabled = true; btn.textContent = 'Exporting…';
+    btn.disabled = true; btn.textContent = tr('exporting');
     try {
       const pad = Math.max(16, Math.max(b0.w, b0.h) * 0.04);
       const b = { x: b0.x - pad, y: b0.y - pad, w: b0.w + 2 * pad, h: b0.h + 2 * pad };
@@ -1027,11 +1245,11 @@
       }
       await writeOut(handle, blob, name);
       closeSheets();
-      toast(shrunk ? 'Exported at a lower resolution to fit' : 'Exported ' + name);
+      toast(shrunk ? tr('tLowRes') : tr('tExported', { t: name }));
     } catch (e) {
-      toast(e.message || 'Export failed');
+      toast(tr('tExportFail'));
     } finally {
-      btn.disabled = false; btn.textContent = 'Export';
+      btn.disabled = false; btn.textContent = tr('export');
     }
   }
 
@@ -1050,7 +1268,7 @@
   const POPS = [['#menu', '#btn-menu'], ['#zoom-menu', '#btn-zoom']];
   function closePopovers(except) {
     for (const [m, b] of POPS) if (m !== except) { $(m).classList.remove('open'); $(b).setAttribute('aria-expanded', 'false'); }
-    $('#font-menu').classList.remove('open');
+    $('#font-menu').classList.remove('open'); $('#lang-menu').classList.remove('open');
   }
   for (const [m, b] of POPS) {
     $(b).addEventListener('click', () => {
@@ -1060,7 +1278,7 @@
     });
   }
   document.addEventListener('pointerdown', (e) => {
-    if (!e.target.closest('.menu, #btn-menu, #btn-zoom, #tb-font')) closePopovers();
+    if (!e.target.closest('.menu, #btn-menu, #btn-zoom, #tb-font, #lang-btn')) closePopovers();
   }, true);
 
   function openSheet(id) { closePopovers(); closeSheets(); $(id).classList.add('open'); const f = $('[data-close]', $(id)); if (f) f.focus({ preventScroll: true }); }
@@ -1069,11 +1287,11 @@
   $$('.scrim').forEach((s) => s.addEventListener('click', (e) => { if (e.target === s || e.target.closest('[data-close]')) closeSheets(); }));
 
   const ACTIONS = {
-    new: () => replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], handle: null }, 'New board') || animateView(W / 2, H / 2, 1),
+    new: () => replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], handle: null }, tr('mNew')) || animateView(W / 2, H / 2, 1),
     open: openBoard,
     save: saveBoard,
     export: () => openSheet('#export'),
-    clear: () => { if (doc.strokes.length) replaceBoard({ ...snapshot(), strokes: [] }, 'Board cleared'); },
+    clear: () => { if (doc.strokes.length) replaceBoard({ ...snapshot(), strokes: [] }, tr('tCleared')); },
     settings: () => openSheet('#settings'),
     'zoom-in': () => zoomStep(1.5),
     'zoom-out': () => zoomStep(1 / 1.5),
@@ -1092,8 +1310,8 @@
   $('#btn-export').addEventListener('click', doExport);
 
   const titleEl = $('#doc-title');
-  titleEl.addEventListener('input', () => { doc.title = titleEl.value.trim() || 'Untitled'; updateChrome(); autosave(); });
-  titleEl.addEventListener('blur', () => { titleEl.value = doc.title; });
+  titleEl.addEventListener('input', () => { const v = titleEl.value.trim(); doc.title = v && v !== tr('untitled') ? v : 'Untitled'; updateChrome(); autosave(); });
+  titleEl.addEventListener('blur', () => { titleEl.value = shownTitle(); });
   titleEl.addEventListener('focus', () => titleEl.select());
 
   /* ---- UI: tools, colours, sliders ----------------------------------- */
@@ -1105,6 +1323,7 @@
   const isBrush = () => tools.tool === 'pen' || tools.tool === 'eraser';
   function setTool(t) {
     if (edit) commitText();
+    if (t !== tools.tool) inkConvert();          // finish reading what was written before switching tools
     if (t !== 'select') clearSelection();
     tools.tool = t; store.set('wb.tools', tools); refreshTools();
   }
@@ -1219,7 +1438,7 @@
   let syncBg;
   function syncExport() {
     const F = FORMATS[exp.format];
-    $('#format-note').textContent = F.note;
+    $('#format-note').textContent = tr(F.note);
     $('#scale-block').hidden = !!F.vector;
     const none = $('[data-seg="bg"] [data-value="none"]');
     none.disabled = !!F.opaque;
@@ -1268,7 +1487,7 @@
       if (v === 'custom') mixCanvas(false); else WB.picker.close();   // go straight to the colour mixer
     });
     cc.addEventListener('click', () => mixCanvas(true));
-    $('.sheet', $('#settings')).addEventListener('scroll', () => WB.picker.close(), { passive: true });
+    $('.sheet', $('#settings')).addEventListener('scroll', () => { WB.picker.close(); closePopovers(); }, { passive: true });
 
     const sd = $('#snap-delay');
     sd.value = settings.snapDelay;
@@ -1283,19 +1502,33 @@
     syncExport();
 
     const sm = $('#smoothing'), smOut = $('#smoothing-out');
-    const smSync = () => { smOut.textContent = settings.smoothing > 0 ? settings.smoothing + '%' : 'Off'; };
+    smSync = () => { smOut.textContent = settings.smoothing > 0 ? settings.smoothing + '%' : tr('off'); };
     sm.value = settings.smoothing; smSync();
+
+    const idl = $('#ink-delay');
+    idl.value = settings.inkDelay;
+    idl.addEventListener('change', () => {
+      const v = clamp(Math.round((+idl.value || 1) * 10) / 10, 0.2, 10);
+      settings.inkDelay = v; idl.value = v; saveSettings();
+    });
+    scriptSync = seg('inkScript', inkScript, (v) => { settings.inkScript = v; saveSettings(); inkDrop(); });
+    if (settings.ink) WB.ink.prepare();
+    $('#ink-alts').addEventListener('pointerdown', (e) => e.preventDefault());
+    initLang();
     // The thumb glides freely; the stored value still lands on steps of 5.
     sm.addEventListener('input', () => { settings.smoothing = Math.round(+sm.value / 5) * 5; smSync(); saveSettings(); });
 
     $$('[data-switch]').forEach((b) => {
       const k = b.dataset.switch;
       b.setAttribute('aria-checked', String(!!settings[k]));
-      b.addEventListener('click', () => { settings[k] = !settings[k]; b.setAttribute('aria-checked', String(settings[k])); saveSettings(); });
+      b.addEventListener('click', () => {
+        settings[k] = !settings[k]; b.setAttribute('aria-checked', String(settings[k])); saveSettings();
+        if (k === 'ink') { if (settings.ink) WB.ink.prepare(); else inkDrop(); }
+      });
     });
 
     board.dataset.grid = settings.grid;
-    applyTheme(); refreshTools(); updateChrome();
+    applyTheme(); refreshTools(); applyLang();
   }
 
   /* ---- Keyboard ------------------------------------------------------ */
@@ -1348,7 +1581,7 @@
     if (!saved || !Array.isArray(saved.strokes) || doc.strokes.length || live) return updateChrome();
     doc.title = saved.title || 'Untitled'; doc.created = saved.created || Date.now(); doc.strokes = saved.strokes;
     if (saved.view && saved.view.zoom > 0) Object.assign(view, saved.view);
-    titleEl.value = doc.title;
+    titleEl.value = shownTitle();
     updateChrome(); invalidate();
   });
 

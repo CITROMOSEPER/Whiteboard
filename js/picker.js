@@ -38,10 +38,10 @@
     '<div class="pk-sv" role="slider" tabindex="0" aria-label="Saturation and brightness"><div class="pk-thumb"></div></div>' +
     '<div class="pk-hue" role="slider" tabindex="0" aria-label="Hue" aria-valuemin="0" aria-valuemax="360"><div class="pk-thumb"></div></div>' +
     '<div class="pk-row">' +
-      '<button class="ibtn pk-btn" id="pk-pipette" aria-label="Pick a color from the board" title="Pick a color from the board">' +
+      '<button class="ibtn pk-btn" id="pk-pipette" data-i18n-label="pickColor" data-i18n-title="pickColor">' +
         '<svg viewBox="0 0 24 24"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg></button>' +
       '<div class="pk-fields"></div>' +
-      '<button class="ibtn pk-btn" id="pk-swap" aria-label="Change color format" title="Change color format">' +
+      '<button class="ibtn pk-btn" id="pk-swap" data-i18n-label="colorFormat" data-i18n-title="colorFormat">' +
         '<svg viewBox="0 0 24 24"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg></button>' +
     '</div>';
   document.body.appendChild(el);
@@ -180,10 +180,8 @@
       const d = p.sg.getImageData(px, py, 1, 1).data;
       p.color = rgb2hex(d[0], d[1], d[2]);
       drawLoupe(px, py);
-      // Under a finger or pen tip the loupe sits above the contact point so it stays visible.
-      let cx = e.clientX, cy = e.clientY;
-      if (e.pointerType !== 'mouse') { cy -= LOUPE / 2 + 34; if (cy < LOUPE / 2 + 6) cy = e.clientY + LOUPE / 2 + 34; }
-      loupe.style.transform = `translate3d(${cx - LOUPE / 2}px, ${cy - LOUPE / 2}px, 0)`;
+      // The loupe is centred on the pointer: the boxed pixel in its middle is exactly where the pen is.
+      loupe.style.transform = `translate3d(${e.clientX - LOUPE / 2}px, ${e.clientY - LOUPE / 2}px, 0)`;
       loupe.classList.add('on');
     };
     layer.addEventListener('pointerdown', (e) => { e.preventDefault(); try { layer.setPointerCapture(e.pointerId); } catch (err) {} pip.down = true; at(e); });

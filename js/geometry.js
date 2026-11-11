@@ -71,9 +71,15 @@
     const m = mctx.measureText('Mg'), k = s.size / 100;
     const asc = (m.fontBoundingBoxAscent || 80) * k, desc = (m.fontBoundingBoxDescent || 20) * k;
     const lines = s.text.split('\n'), lh = WB.LINE * s.size;
-    let w = 0;
-    for (const l of lines) w = Math.max(w, mctx.measureText(l).width * k);
-    return (s._t = { lines, w, h: lines.length * lh, lh, base: (lh - asc - desc) / 2 + asc });
+    const widths = lines.map((l) => mctx.measureText(l).width * k);
+    return (s._t = { lines, widths, w: Math.max(0, ...widths), h: lines.length * lh, lh, base: (lh - asc - desc) / 2 + asc });
+  };
+
+  /* Ink extents of one character at font size 1: { asc, desc (above / below the baseline), left, w (advance) }. */
+  WB.glyphBox = function (ch, font) {
+    mctx.font = '100px ' + (WB.FONTS[font] || WB.FONTS.sans);
+    const m = mctx.measureText(ch);
+    return { asc: m.actualBoundingBoxAscent / 100, desc: m.actualBoundingBoxDescent / 100, left: m.actualBoundingBoxLeft / 100, w: m.width / 100 };
   };
 
   WB.paint = function (c, s, path) {

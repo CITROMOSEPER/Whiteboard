@@ -38,9 +38,10 @@
 
   WB.parse = function (text) {
     let d;
-    try { d = JSON.parse(text); } catch (e) { throw new Error('This file is not valid WHTBD.'); }
-    if (!d || d.format !== 'WHTBD' || !Array.isArray(d.strokes)) throw new Error('This file is not a whiteboard.');
-    if (d.version > 1) throw new Error('This board was made with a newer version.');
+    // Errors carry a translation key; the app shows the message in the active language.
+    try { d = JSON.parse(text); } catch (e) { throw new Error('eInvalid'); }
+    if (!d || d.format !== 'WHTBD' || !Array.isArray(d.strokes)) throw new Error('eNotBoard');
+    if (d.version > 1) throw new Error('eNewer');
     const num = (v, def) => (typeof v === 'number' && isFinite(v) ? v : def);
     const strokes = [];
     const hex = (c) => (/^#[0-9a-f]{6}$/i.test(c) ? c.toLowerCase() : '#000000');
