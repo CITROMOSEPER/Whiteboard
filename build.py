@@ -41,6 +41,13 @@ for name in ("manifest.webmanifest", "sw.js"):
     shutil.copy(root / name, web / name)
 for icon in (root / "icons").iterdir():
     shutil.copy(icon, web / "icons" / icon.name)
+# Licence notices travel with the recognition model that is embedded in the page.
+for name in ("THIRD-PARTY-NOTICES.md", "MODEL-LICENSE.md"):
+    if (root / name).exists():
+        shutil.copy(root / name, web / name)
+        shutil.copy(root / name, dist / name)
+if (root / "licenses").exists():
+    shutil.copytree(root / "licenses", web / "licenses")
 
 # --- Single file (opened from disk: no manifest or separate icon files there) ---
 icon_uri = "data:image/svg+xml;base64," + base64.b64encode((root / "icons" / "icon.svg").read_bytes()).decode()

@@ -312,7 +312,7 @@
     requestFrame();
     if (cancel || !L) return updateChrome();
     if (L.final) applyFinal(L);
-    else if (L.tau > 0) L.points.push(L.tx, L.ty);
+    else if (L.tau > 0 && !L.snapped) L.points.push(L.tx, L.ty);   // smoothing lags the pen: finish at the pen (never on a snapped shape)
     if (L.tool === 'eraser' && !doc.strokes.length) return updateChrome();
     const s = { tool: L.tool, color: L.color, width: L.width, opacity: L.opacity, points: L.points, smooth: L.smooth, closed: L.closed };
     if (L.shape) s.shape = L.shape;
@@ -679,7 +679,8 @@
     inkPending = [];
     if (!strokes.length) return;
     if (live || edit) { inkPending = strokes; inkTimer = setTimeout(inkConvert, 300); return; }
-    if (!WB.ink.ready) return WB.ink.prepare(() => { inkPending = strokes.concat(inkPending); inkConvert(); });
+    if (!WB.ink.ready) WB.ink.prepare();
+    if (!WB.ink.ready) return;                  // no recognition model available: the ink simply stays
     const z = view.zoom, script = inkScript(), list = [];
     const segs = WB.ink.segment(strokes, script);
     let last = null, chain = null, lineH = 0;
@@ -700,7 +701,8 @@
         opts.relH = (b.y1 - b.y0) / row.size;
         opts.relBelow = (b.y1 - (row.top + row.L.base)) / row.size;
         opts.relMid = ((b.y0 + b.y1) / 2 - row.top) / row.L.lh;
-        opts.prev = row.kind === 'append' ? row.L.lines[row.line].slice(-1) : '';
+        opts.prev = row.kind === 'append' ? row.L.lines[row.line].trimEnd().slice(-1) : '';
+        opts.rowText = row.L.lines[row.line];
       }
       const r = WB.ink.recognize(seg, opts);
       if (!r) continue;                                              // not a character: leave the ink as drawn
