@@ -20,6 +20,7 @@
 
   let host = null;        // set by the app: how to read and replace the open board
   let root = null;        // the gallery folder
+  let parentName = '';    // the folder that holds it, when known (a folder can only be seen downwards)
   let kind = null;        // 'folder' (a real folder) | 'browser' (private browser storage)
   let path = [];          // folders entered below the root: [{ handle, label }]
   let moving = null;      // { item, from } while choosing a destination
@@ -123,12 +124,6 @@
     await kvSet('galleryDir', { kind: 'browser' });
     return true;
   }
-  async function chooseFolder() {
-    const picked = await window.showDirectoryPicker({ id: 'whiteboard-gallery', mode: 'readwrite', startIn: 'documents' });
-    root = picked.name === DIR_NAME ? picked : await picked.getDirectoryHandle(DIR_NAME, { create: true });
-    kind = 'folder'; path = [];
-    await kvSet('galleryDir', { kind: 'folder', handle: root });
-  }
   /* 'ready' | 'setup' (nothing chosen yet) | 'allow' (the folder needs permission again) | 'none' (no storage at all) */
   async function connect(ask) {
     if (root) return 'ready';
@@ -138,7 +133,7 @@
         let p = await saved.handle.queryPermission({ mode: 'readwrite' });
         if (p !== 'granted' && ask) p = await saved.handle.requestPermission({ mode: 'readwrite' });
         if (p !== 'granted') return 'allow';
-        root = saved.handle; kind = 'folder';
+        root = saved.handle; kind = 'folder'; parentName = saved.parent || '';
         return 'ready';
       }
       if ((saved && saved.kind === 'browser') || !canPickFolder()) return canUseBrowser() && (await useBrowser()) ? 'ready' : 'none';
@@ -568,7 +563,7 @@
     const foot = $('#g-foot');
     foot.textContent = '';
     if (!browsing) return;
-    foot.appendChild(el('span', '', kind === 'browser' ? tr(fromLocalFile ? 'gLocalNote' : 'gBrowserNote') + (canDrop() ? ' ' + tr('gDropShort') : '') : root.name));
+    foot.appendChild(el('span', '', kind === 'browser' ? tr(fromLocalFile ? 'gLocalNote' : 'gBrowserNote') + (canDrop() ? ' ' + tr('gDropShort') : '') : parentName));
     if (canPickFolder()) foot.appendChild(button(tr(kind === 'browser' ? 'gChoose' : 'gChange'), 'g-link', pickFolder));
   }
   /* Choose the gallery folder, checking each step so that a failure names the step that failed. */
@@ -587,8 +582,9 @@
       step = 'removing the test file';
       await dir.removeEntry('.gallery-test');
       root = dir; kind = 'folder'; path = [];
+      parentName = dir === picked ? '' : picked.name;          // picked "Whiteboard gallery" itself: its parent is not visible
       step = 'remembering the folder';
-      await kvSet('galleryDir', { kind: 'folder', handle: root });
+      await kvSet('galleryDir', { kind: 'folder', handle: root, parent: parentName });
     } catch (e) {
       if (e && e.name === 'AbortError') {
         // Either a real cancel, or the browser cancelled by itself (it does on some systems even
@@ -612,7 +608,7 @@
     lastError = '';
     try {
       await kvSet('galleryDir', { kind: 'folder', handle });
-      root = null; path = []; WB.gallery.ref = null;
+      root = null; path = []; parentName = ''; WB.gallery.ref = null;
       let p = await handle.queryPermission({ mode: 'readwrite' });
       if (p !== 'granted') { try { p = await handle.requestPermission({ mode: 'readwrite' }); } catch (e) { /* needs a click: the Allow button asks */ } }
       if (p === 'granted') {
