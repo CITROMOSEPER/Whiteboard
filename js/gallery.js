@@ -116,10 +116,19 @@
   /* Folders can be dragged in from the file manager (Chrome and Edge on computers). */
   const canDrop = () => canPickFolder() && typeof DataTransferItem !== 'undefined' && 'getAsFileSystemHandle' in DataTransferItem.prototype;
 
+  /* Can files in the browser's private storage be written from this page? Safari on iPhone and
+     iPad offers that storage but, outside background workers, cannot write into its files. */
+  const canWriteFiles = () => typeof FileSystemFileHandle !== 'undefined' && 'createWritable' in FileSystemFileHandle.prototype;
   async function useBrowser() {
-    let dir = null;
-    try { dir = await (await navigator.storage.getDirectory()).getDirectoryHandle(DIR_NAME, { create: true }); }
-    catch (e) { dir = await virtualRoot(); }      // no file storage here (local file): keep it in the database
+    let dir = null, files = null;
+    try { files = await (await navigator.storage.getDirectory()).getDirectoryHandle(DIR_NAME, { create: true }); } catch (e) {}
+    if (files && canWriteFiles()) dir = files;
+    else {
+      // No usable file storage (a page opened from a local file, or Safari): keep the gallery in the database.
+      dir = await virtualRoot();
+      // Folders made there before this check existed are carried over once, so nothing seems to vanish.
+      if (files && !tree.dirs.size && !tree.files.size) { try { await copyTree(files, dir); } catch (e) {} }
+    }
     root = dir; kind = 'browser'; path = [];
     await kvSet('galleryDir', { kind: 'browser' });
     return true;
@@ -461,6 +470,8 @@
         const d = WB.parse(await (await f.item.handle.getFile()).text());
         if (my !== token) return;
         if (d.title && d.title !== 'Untitled') { f.item.label = d.title; if (f.name.isConnected && f.name.tagName === 'BUTTON') f.name.textContent = d.title; }
+        await WB.loadImages(d.strokes);
+        if (my !== token) return;
         f.icon.appendChild(preview(d.strokes));
       } catch (e) { f.icon.classList.add('broken'); }
       await new Promise((r) => setTimeout(r, 0));

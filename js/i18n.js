@@ -681,6 +681,24 @@
       'गैलरी को वहाँ रखने के लिए File Explorer से कोई फ़ोल्डर यहाँ खींचें।',
       'कोई फ़ोल्डर नहीं चुना गया। अगर आपने चुना था और फिर भी यह दिख रहा है, तो ब्राउज़र ने डायलॉग अपने-आप रद्द कर दिया: इसके बजाय File Explorer से फ़ोल्डर को इस विंडो पर खींचें।'],
   };
+  /* Import: [menu item, picture placed, unreadable file, PDF from another program]. */
+  const IMPORT = {
+    en: ['Import…', 'Picture added', 'This file could not be imported.', 'Only PDFs exported from Whiteboard can be imported. For other PDFs, import a PNG or JPEG of the page.'],
+    hu: ['Importálás…', 'Kép hozzáadva', 'Ezt a fájlt nem sikerült importálni.', 'Csak a Whiteboardból exportált PDF-ek importálhatók. Más PDF-ből az oldal PNG vagy JPEG képét importáld.'],
+    de: ['Importieren…', 'Bild hinzugefügt', 'Diese Datei konnte nicht importiert werden.', 'Nur aus Whiteboard exportierte PDFs lassen sich importieren. Importiere bei anderen PDFs ein PNG- oder JPEG-Bild der Seite.'],
+    fr: ['Importer…', 'Image ajoutée', 'Ce fichier n’a pas pu être importé.', 'Seuls les PDF exportés depuis Whiteboard peuvent être importés. Pour les autres PDF, importez une image PNG ou JPEG de la page.'],
+    it: ['Importa…', 'Immagine aggiunta', 'Impossibile importare questo file.', 'Si possono importare solo i PDF esportati da Whiteboard. Per gli altri PDF importa un’immagine PNG o JPEG della pagina.'],
+    es: ['Importar…', 'Imagen añadida', 'No se pudo importar este archivo.', 'Solo se pueden importar los PDF exportados desde Whiteboard. Para otros PDF, importa una imagen PNG o JPEG de la página.'],
+    pt: ['Importar…', 'Imagem adicionada', 'Não foi possível importar este arquivo.', 'Só é possível importar PDFs exportados do Whiteboard. Para outros PDFs, importe uma imagem PNG ou JPEG da página.'],
+    ru: ['Импорт…', 'Изображение добавлено', 'Не удалось импортировать этот файл.', 'Импортировать можно только PDF, экспортированные из Whiteboard. Для других PDF импортируйте PNG- или JPEG-изображение страницы.'],
+    uk: ['Імпорт…', 'Зображення додано', 'Не вдалося імпортувати цей файл.', 'Імпортувати можна лише PDF, експортовані з Whiteboard. Для інших PDF імпортуйте PNG- або JPEG-зображення сторінки.'],
+    tr: ['İçe aktar…', 'Resim eklendi', 'Bu dosya içe aktarılamadı.', 'Yalnızca Whiteboard’dan dışa aktarılan PDF’ler içe aktarılabilir. Diğer PDF’ler için sayfanın PNG veya JPEG görüntüsünü içe aktarın.'],
+    zh: ['导入…', '已添加图片', '无法导入此文件。', '只能导入从 Whiteboard 导出的 PDF。其他 PDF 请导入页面的 PNG 或 JPEG 图片。'],
+    ja: ['インポート…', '画像を追加しました', 'このファイルはインポートできませんでした。', 'インポートできるのは Whiteboard から書き出した PDF だけです。その他の PDF は、ページの PNG または JPEG 画像をインポートしてください。'],
+    ar: ['استيراد…', 'تمت إضافة الصورة', 'تعذّر استيراد هذا الملف.', 'يمكن استيراد ملفات PDF المصدَّرة من Whiteboard فقط. لملفات PDF الأخرى، استورد صورة PNG أو JPEG للصفحة.'],
+    hi: ['इम्पोर्ट…', 'चित्र जोड़ा गया', 'यह फ़ाइल इम्पोर्ट नहीं हो सकी।', 'केवल Whiteboard से एक्सपोर्ट की गई PDF इम्पोर्ट की जा सकती हैं। दूसरी PDF के लिए पेज की PNG या JPEG इमेज इम्पोर्ट करें।'],
+  };
+  for (const l in IMPORT) if (D[l]) [D[l].mImport, D[l].tImported, D[l].tImportFail, D[l].tImportPdf] = IMPORT[l];
   for (const l in NODIALOG) if (D[l]) [D[l].tOpenFallback, D[l].tSaveAsAbort, D[l].gDrop, D[l].gDropShort, D[l].gPickAbort] = NODIALOG[l];
 
   /* Limits of running from a local file (file://): no folder access, and existing files cannot be replaced. */

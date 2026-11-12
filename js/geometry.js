@@ -9,7 +9,7 @@
      trace() walks it into any sink with the canvas path interface, so the same
      geometry feeds the screen, SVG and PDF. */
   WB.trace = function (s, k) {
-    if (s.tool === 'text') return;
+    if (s.tool === 'text' || s.tool === 'image') return;
     if (s.rings) {                      // a fill: closed outlines, holes included (even-odd)
       for (const r of s.rings) {
         k.moveTo(r[0], r[1]);
@@ -82,7 +82,38 @@
     return { asc: m.actualBoundingBoxAscent / 100, desc: m.actualBoundingBoxDescent / 100, left: m.actualBoundingBoxLeft / 100, w: m.width / 100 };
   };
 
+  /* ---- Pictures -------------------------------------------------------
+     A picture is { tool:'image', x, y, w, h, opacity, src } with src a data: URL; (x, y) is its
+     top-left corner and w × h its size on the board. The decoded image is cached on the object.
+     Painting is synchronous, so a picture still decoding is skipped and the board is redrawn
+     (WB.onImageReady) once it is ready; exports wait for every picture first (WB.loadImages). */
+  WB.imageOf = function (s) {
+    if (!s._img) {
+      const img = (s._img = new Image());
+      img.onload = () => { if (WB.onImageReady) WB.onImageReady(s); };
+      img.src = s.src;
+    }
+    return s._img;
+  };
+  WB.loadImages = function (strokes) {
+    return Promise.all(strokes.filter((s) => s.tool === 'image').map((s) => {
+      const img = WB.imageOf(s);
+      return img.complete && img.naturalWidth ? null : img.decode().catch(() => null);
+    }));
+  };
+
   WB.paint = function (c, s, path) {
+    if (s.tool === 'image') {
+      const img = WB.imageOf(s);
+      if (!img.complete || !img.naturalWidth) return;
+      c.save();
+      c.globalCompositeOperation = 'source-over';
+      c.globalAlpha = s.opacity;
+      c.imageSmoothingQuality = 'high';
+      c.drawImage(img, s.x, s.y, s.w, s.h);
+      c.restore();
+      return;
+    }
     if (s.tool === 'text') {
       const L = WB.textLayout(s), k = s.size / 100;
       c.save();
@@ -114,6 +145,7 @@
   WB.boundsOf = function (s) {
     if (s._b) return s._b;
     if (s.tool === 'text') { const L = WB.textLayout(s); return (s._b = { x0: s.x, y0: s.y, x1: s.x + L.w, y1: s.y + L.h }); }
+    if (s.tool === 'image') return (s._b = { x0: s.x, y0: s.y, x1: s.x + s.w, y1: s.y + s.h });
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const p of s.rings || [s.points]) {
       for (let i = 0; i < p.length; i += 2) {
@@ -143,7 +175,7 @@
     if (s.tool === 'eraser') return false;
     const b = WB.boundsOf(s);
     if (x < b.x0 - tol || x > b.x1 + tol || y < b.y0 - tol || y > b.y1 + tol) return false;
-    if (s.tool === 'text') return true;
+    if (s.tool === 'text' || s.tool === 'image') return true;
     mctx.setTransform(1, 0, 0, 1, 0, 0);
     if (s.tool === 'fill') return mctx.isPointInPath(WB.pathOf(s), x, y, 'evenodd');
     mctx.lineWidth = s.width + 2 * tol; mctx.lineCap = 'round'; mctx.lineJoin = 'round';
@@ -154,7 +186,7 @@
   WB.inLasso = function (s, poly) {
     if (s.tool === 'eraser') return false;
     let pts;
-    if (s.tool === 'text') { const b = WB.boundsOf(s), mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2; pts = [b.x0, b.y0, b.x1, b.y0, b.x1, b.y1, b.x0, b.y1, mx, my]; }
+    if (s.tool === 'text' || s.tool === 'image') { const b = WB.boundsOf(s), mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2; pts = [b.x0, b.y0, b.x1, b.y0, b.x1, b.y1, b.x0, b.y1, mx, my]; }
     else pts = s.rings ? s.rings[0] : s.points;
     const n = pts.length >> 1, step = Math.max(1, Math.floor(n / 64)), m = poly.length;
     let inside = 0, total = 0;

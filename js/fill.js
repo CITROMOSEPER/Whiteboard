@@ -9,7 +9,8 @@
      Returns { status: 'ok', rings, under } | { status: 'open' } | { status: 'outside' }.
      'open' means the flood reached the edge of the region: no closed shape contains the point. */
   WB.flood = function (strokes, b, scale, wx, wy) {
-    const canvas = WB.renderToCanvas(strokes, b, scale, null).canvas;
+    // Pictures are backgrounds, not walls: a shape drawn over a photo still fills.
+    const canvas = WB.renderToCanvas(strokes.filter((s) => s.tool !== 'image'), b, scale, null).canvas;
     const w = canvas.width, h = canvas.height, kx = w / b.w, ky = h / b.h;
     const sx = Math.floor((wx - b.x) * kx), sy = Math.floor((wy - b.y) * ky);
     if (sx < 0 || sy < 0 || sx >= w || sy >= h) return { status: 'outside' };

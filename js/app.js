@@ -466,7 +466,7 @@
   }
   function translate(items, dx, dy) {
     for (const s of items) {
-      if (s.tool === 'text') { s.x += dx; s.y += dy; }
+      if (s.tool === 'text' || s.tool === 'image') { s.x += dx; s.y += dy; }
       else for (const p of s.rings || [s.points]) for (let i = 0; i < p.length; i += 2) { p[i] += dx; p[i + 1] += dy; }
       delete s._path; delete s._b;
     }
@@ -1307,6 +1307,7 @@
   const canvasColor = () => getComputedStyle(root).getPropertyValue('--canvas').trim() || '#ffffff';
 
   async function doExport() {
+    commitPending();
     const b0 = WB.contentBounds(doc.strokes);
     if (!b0) return toast(tr('tNothing'));
     const F = FORMATS[exp.format], ext = F.ext || exp.format, name = safeName() + '.' + ext;
@@ -1320,12 +1321,16 @@
       let bg = exp.bg === 'none' ? null : exp.bg === 'white' ? '#ffffff' : canvasColor();
       if (!bg && F.opaque) bg = canvasColor();
       let blob, shrunk = false;
-      if (exp.format === 'svg') blob = new Blob([WB.toSVG(doc.strokes, b, bg)], { type: F.mime });
-      else if (exp.format === 'pdf') blob = await WB.toPDF(doc.strokes, b, bg);
+      await WB.loadImages(doc.strokes);                         // pictures must be decoded before they can be drawn
+      // The board rides along inside the file, so Import can give it back editable.
+      const payload = await WB.boardPayload(WB.serialize(doc, view));
+      if (exp.format === 'svg') blob = new Blob([WB.toSVG(doc.strokes, b, bg, payload)], { type: F.mime });
+      else if (exp.format === 'pdf') blob = await WB.toPDF(doc.strokes, b, bg, payload);
       else {
         const r = WB.renderToCanvas(doc.strokes, b, +exp.scale, bg);
         shrunk = r.scale < +exp.scale;
         blob = exp.format === 'bmp' ? WB.canvasToBMP(r.canvas) : await WB.canvasToBlob(r.canvas, F.mime, 0.92);
+        blob = await WB.embedPayload(blob, payload, r.canvas.width, r.canvas.height);
       }
       await writeOut(handle, blob, name);
       closeSheets();
@@ -1335,6 +1340,38 @@
     } finally {
       btn.disabled = false; btn.textContent = tr('export');
     }
+  }
+
+  /* ---- Import ---------------------------------------------------------
+     Export in reverse. A file this app exported carries its board, which opens just as
+     "Open from…" would (editable, undoable). Any other picture is placed on the current
+     board as a picture object, centred in view and selected so it can be moved at once. */
+  function importFile() { commitPending(); $('#import-input').click(); }
+  $('#import-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const text = await WB.extractBoard(await file.arrayBuffer());
+      if (text) return loadText(text);
+      const pic = await WB.pictureFromFile(file);
+      if (!pic) return toast(tr(file.type === 'application/pdf' || /\.pdf$/i.test(file.name) ? 'tImportPdf' : 'tImportFail'), null, null, 9000);
+      await placePicture(pic);
+    } catch (err) { report(tr('tImportFail'), 'importing "' + file.name + '"', err); }
+  });
+  async function placePicture(pic) {
+    // Its natural size on screen, shrunk to fit within most of the visible board.
+    const z = view.zoom, k = Math.min(1, (0.8 * W) / pic.w, (0.8 * H) / pic.h);
+    const w = (pic.w * k) / z, h = (pic.h * k) / z;
+    const cx = (W / 2 - view.x) / z, cy = (H / 2 - view.y) / z;
+    const s = { tool: 'image', x: cx - w / 2, y: cy - h / 2, w, h, opacity: 1, src: pic.src, width: 0 };
+    await WB.loadImages([s]);
+    doc.strokes.push(s);
+    record({ type: 'add', stroke: s });
+    invalidate();
+    setTool('select');
+    selection.clear(); selection.add(s); selectionChanged();
+    toast(tr('tImported'), tr('undo'), undo);
   }
 
   /* ---- UI: toast, popovers, sheets ----------------------------------- */
@@ -1395,6 +1432,7 @@
     'save-file': saveBoardFile,
     'save-to': saveBoardTo,
     export: () => openSheet('#export'),
+    import: importFile,
     clear: () => { if (doc.strokes.length) replaceBoard({ ...snapshot(), strokes: [] }, tr('tCleared')); },
     settings: () => openSheet('#settings'),
     'zoom-in': () => zoomStep(1.5),
@@ -1686,6 +1724,10 @@
     toast, report, openSheet, closeSheets,
   });
   initUI();
+  WB.onImageReady = invalidate;                             // a picture finished decoding: draw it
+  // iPhone and iPad only offer files whose type the system knows, and .whtbd is not one of them,
+  // so there the chooser takes any file and the app checks it after choosing.
+  if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) $('#file-input').removeAttribute('accept');
   new ResizeObserver(resize).observe(board);
   window.addEventListener('resize', resize);
   resize();

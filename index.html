@@ -122,6 +122,7 @@
   <button class="mi" role="menuitem" data-act="open"><span data-i18n="mOpenFrom"></span><kbd>Ctrl O</kbd></button>
   <hr>
   <button class="mi" role="menuitem" data-act="export"><span data-i18n="mExport"></span><kbd>Ctrl E</kbd></button>
+  <button class="mi" role="menuitem" data-act="import"><span data-i18n="mImport"></span></button>
   <hr>
   <button class="mi" role="menuitem" data-act="clear"><span data-i18n="mClear"></span></button>
   <hr>
@@ -230,7 +231,7 @@
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.12.03.</p>
+      <p id="app-version">version: 2026.11.12.04.</p>
     </footer>
   </div>
 </div>
@@ -307,6 +308,7 @@
 <div class="glass" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button id="toast-action" hidden></button></div>
 <div id="drop-blob" aria-hidden="true"><i></i></div>
 <input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json" hidden>
+<input type="file" id="import-input" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml,application/pdf,.png,.jpg,.jpeg,.webp,.bmp,.svg,.pdf" hidden>
 
 <script src="js/i18n.js"></script>
 <script src="js/geometry.js"></script>
