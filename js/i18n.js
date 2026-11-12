@@ -444,6 +444,195 @@
     font: 'फ़ॉन्ट', smaller: 'टेक्स्ट छोटा करें', larger: 'टेक्स्ट बड़ा करें', textColor: 'टेक्स्ट का रंग', pickColor: 'बोर्ड से रंग लें', colorFormat: 'रंग फ़ॉर्मैट बदलें',
   };
 
+  /* Gallery and file menu. */
+  Object.assign(D.en, {
+    mGallery: 'Gallery', mSaveGallery: 'Save to gallery', mSaveTo: 'Save to…', mOpenFrom: 'Open from…',
+    gNewFolder: 'New folder', gEmpty: 'Nothing here yet', gOpen: 'Open', gRename: 'Rename', gDuplicate: 'Duplicate', gMove: 'Move…', gMoveHere: 'Move here',
+    gMoving: 'Choose where to move “{t}”', gDeleteAsk: 'Delete “{t}”? This cannot be undone.', gCopy: '{t} copy',
+    gSetup: 'Choose where your gallery lives. A folder named “Whiteboard gallery” is created there. Your Documents folder is a good place.',
+    gChoose: 'Choose folder…', gPrivate: 'Keep it in this browser', gAllow: 'The gallery folder needs your permission again.', gAllowBtn: 'Allow',
+    gBrowserNote: 'Stored inside this browser on this device.', gChange: 'Change folder…', gError: 'Could not reach the gallery folder',
+    tSavedGallery: 'Saved to gallery', tSaveFail: 'Could not save the file',
+  });
+  Object.assign(D.hu, {
+    mGallery: 'Galéria', mSaveGallery: 'Mentés a galériába', mSaveTo: 'Mentés ide…', mOpenFrom: 'Megnyitás innen…',
+    gNewFolder: 'Új mappa', gEmpty: 'Itt még nincs semmi', gOpen: 'Megnyitás', gRename: 'Átnevezés', gDuplicate: 'Másolat készítése', gMove: 'Áthelyezés…', gMoveHere: 'Áthelyezés ide',
+    gMoving: 'Válaszd ki, hová kerüljön: „{t}”', gDeleteAsk: 'Törlöd ezt: „{t}”? Ez nem vonható vissza.', gCopy: '{t} másolata',
+    gSetup: 'Válaszd ki, hol legyen a galériád. Ott létrejön egy „Whiteboard gallery” nevű mappa. A Dokumentumok mappa jó választás.',
+    gChoose: 'Mappa kiválasztása…', gPrivate: 'Maradjon ebben a böngészőben', gAllow: 'A galéria mappájához újra engedély kell.', gAllowBtn: 'Engedélyezés',
+    gBrowserNote: 'Ebben a böngészőben, ezen az eszközön tárolva.', gChange: 'Másik mappa…', gError: 'A galéria mappája nem érhető el',
+    tSavedGallery: 'Mentve a galériába', tSaveFail: 'A fájlt nem sikerült menteni',
+  });
+  Object.assign(D.de, {
+    mGallery: 'Galerie', mSaveGallery: 'In Galerie speichern', mSaveTo: 'Speichern unter…', mOpenFrom: 'Öffnen von…',
+    gNewFolder: 'Neuer Ordner', gEmpty: 'Hier ist noch nichts', gOpen: 'Öffnen', gRename: 'Umbenennen', gDuplicate: 'Duplizieren', gMove: 'Bewegen…', gMoveHere: 'Hierher bewegen',
+    gMoving: 'Wähle, wohin „{t}“ bewegt werden soll', gDeleteAsk: '„{t}“ löschen? Das kann nicht rückgängig gemacht werden.', gCopy: '{t} Kopie',
+    gSetup: 'Wähle, wo deine Galerie liegen soll. Dort wird ein Ordner „Whiteboard gallery“ angelegt. Der Ordner „Dokumente“ ist ein guter Ort.',
+    gChoose: 'Ordner wählen…', gPrivate: 'In diesem Browser behalten', gAllow: 'Der Galerieordner braucht erneut deine Erlaubnis.', gAllowBtn: 'Erlauben',
+    gBrowserNote: 'In diesem Browser auf diesem Gerät gespeichert.', gChange: 'Ordner ändern…', gError: 'Der Galerieordner ist nicht erreichbar',
+    tSavedGallery: 'In der Galerie gespeichert', tSaveFail: 'Die Datei konnte nicht gespeichert werden',
+  });
+  Object.assign(D.fr, {
+    mGallery: 'Galerie', mSaveGallery: 'Enregistrer dans la galerie', mSaveTo: 'Enregistrer sous…', mOpenFrom: 'Ouvrir depuis…',
+    gNewFolder: 'Nouveau dossier', gEmpty: 'Rien ici pour l’instant', gOpen: 'Ouvrir', gRename: 'Renommer', gDuplicate: 'Dupliquer', gMove: 'Déplacer…', gMoveHere: 'Déplacer ici',
+    gMoving: 'Choisissez où déplacer « {t} »', gDeleteAsk: 'Supprimer « {t} » ? Cette action est irréversible.', gCopy: '{t} copie',
+    gSetup: 'Choisissez l’emplacement de votre galerie. Un dossier « Whiteboard gallery » y sera créé. Le dossier Documents est un bon choix.',
+    gChoose: 'Choisir un dossier…', gPrivate: 'La garder dans ce navigateur', gAllow: 'Le dossier de la galerie a de nouveau besoin de votre autorisation.', gAllowBtn: 'Autoriser',
+    gBrowserNote: 'Stockée dans ce navigateur, sur cet appareil.', gChange: 'Changer de dossier…', gError: 'Impossible d’accéder au dossier de la galerie',
+    tSavedGallery: 'Enregistré dans la galerie', tSaveFail: 'Impossible d’enregistrer le fichier',
+  });
+  Object.assign(D.it, {
+    mGallery: 'Galleria', mSaveGallery: 'Salva nella galleria', mSaveTo: 'Salva in…', mOpenFrom: 'Apri da…',
+    gNewFolder: 'Nuova cartella', gEmpty: 'Qui non c’è ancora niente', gOpen: 'Apri', gRename: 'Rinomina', gDuplicate: 'Duplica', gMove: 'Sposta…', gMoveHere: 'Sposta qui',
+    gMoving: 'Scegli dove spostare “{t}”', gDeleteAsk: 'Eliminare “{t}”? L’operazione non può essere annullata.', gCopy: '{t} copia',
+    gSetup: 'Scegli dove tenere la galleria. Lì verrà creata una cartella “Whiteboard gallery”. La cartella Documenti è una buona scelta.',
+    gChoose: 'Scegli cartella…', gPrivate: 'Tienila in questo browser', gAllow: 'La cartella della galleria richiede di nuovo il tuo permesso.', gAllowBtn: 'Consenti',
+    gBrowserNote: 'Salvata in questo browser, su questo dispositivo.', gChange: 'Cambia cartella…', gError: 'Impossibile raggiungere la cartella della galleria',
+    tSavedGallery: 'Salvato nella galleria', tSaveFail: 'Impossibile salvare il file',
+  });
+  Object.assign(D.es, {
+    mGallery: 'Galería', mSaveGallery: 'Guardar en la galería', mSaveTo: 'Guardar en…', mOpenFrom: 'Abrir desde…',
+    gNewFolder: 'Nueva carpeta', gEmpty: 'Aquí todavía no hay nada', gOpen: 'Abrir', gRename: 'Renombrar', gDuplicate: 'Duplicar', gMove: 'Mover…', gMoveHere: 'Mover aquí',
+    gMoving: 'Elige adónde mover «{t}»', gDeleteAsk: '¿Eliminar «{t}»? Esto no se puede deshacer.', gCopy: '{t} copia',
+    gSetup: 'Elige dónde estará tu galería. Allí se creará una carpeta «Whiteboard gallery». La carpeta Documentos es un buen lugar.',
+    gChoose: 'Elegir carpeta…', gPrivate: 'Mantenerla en este navegador', gAllow: 'La carpeta de la galería necesita tu permiso de nuevo.', gAllowBtn: 'Permitir',
+    gBrowserNote: 'Guardada en este navegador, en este dispositivo.', gChange: 'Cambiar carpeta…', gError: 'No se pudo acceder a la carpeta de la galería',
+    tSavedGallery: 'Guardado en la galería', tSaveFail: 'No se pudo guardar el archivo',
+  });
+  Object.assign(D.pt, {
+    mGallery: 'Galeria', mSaveGallery: 'Salvar na galeria', mSaveTo: 'Salvar em…', mOpenFrom: 'Abrir de…',
+    gNewFolder: 'Nova pasta', gEmpty: 'Ainda não há nada aqui', gOpen: 'Abrir', gRename: 'Renomear', gDuplicate: 'Duplicar', gMove: 'Mover…', gMoveHere: 'Mover para cá',
+    gMoving: 'Escolha para onde mover “{t}”', gDeleteAsk: 'Apagar “{t}”? Isso não pode ser desfeito.', gCopy: '{t} cópia',
+    gSetup: 'Escolha onde a galeria vai ficar. Uma pasta “Whiteboard gallery” será criada lá. A pasta Documentos é um bom lugar.',
+    gChoose: 'Escolher pasta…', gPrivate: 'Manter neste navegador', gAllow: 'A pasta da galeria precisa da sua permissão novamente.', gAllowBtn: 'Permitir',
+    gBrowserNote: 'Guardada neste navegador, neste dispositivo.', gChange: 'Trocar pasta…', gError: 'Não foi possível acessar a pasta da galeria',
+    tSavedGallery: 'Salvo na galeria', tSaveFail: 'Não foi possível salvar o arquivo',
+  });
+  Object.assign(D.ru, {
+    mGallery: 'Галерея', mSaveGallery: 'Сохранить в галерею', mSaveTo: 'Сохранить в…', mOpenFrom: 'Открыть из…',
+    gNewFolder: 'Новая папка', gEmpty: 'Здесь пока ничего нет', gOpen: 'Открыть', gRename: 'Переименовать', gDuplicate: 'Дублировать', gMove: 'Переместить…', gMoveHere: 'Переместить сюда',
+    gMoving: 'Выберите, куда переместить «{t}»', gDeleteAsk: 'Удалить «{t}»? Это действие нельзя отменить.', gCopy: '{t} — копия',
+    gSetup: 'Выберите, где будет находиться галерея. Там будет создана папка «Whiteboard gallery». Папка «Документы» — хорошее место.',
+    gChoose: 'Выбрать папку…', gPrivate: 'Хранить в этом браузере', gAllow: 'Папке галереи снова нужно ваше разрешение.', gAllowBtn: 'Разрешить',
+    gBrowserNote: 'Хранится в этом браузере на этом устройстве.', gChange: 'Сменить папку…', gError: 'Не удалось открыть папку галереи',
+    tSavedGallery: 'Сохранено в галерею', tSaveFail: 'Не удалось сохранить файл',
+  });
+  Object.assign(D.uk, {
+    mGallery: 'Галерея', mSaveGallery: 'Зберегти в галерею', mSaveTo: 'Зберегти в…', mOpenFrom: 'Відкрити з…',
+    gNewFolder: 'Нова папка', gEmpty: 'Тут поки що нічого немає', gOpen: 'Відкрити', gRename: 'Перейменувати', gDuplicate: 'Дублювати', gMove: 'Перемістити…', gMoveHere: 'Перемістити сюди',
+    gMoving: 'Виберіть, куди перемістити «{t}»', gDeleteAsk: 'Видалити «{t}»? Цю дію не можна скасувати.', gCopy: '{t} — копія',
+    gSetup: 'Виберіть, де буде ваша галерея. Там буде створено папку «Whiteboard gallery». Папка «Документи» — гарне місце.',
+    gChoose: 'Вибрати папку…', gPrivate: 'Зберігати в цьому браузері', gAllow: 'Папці галереї знову потрібен ваш дозвіл.', gAllowBtn: 'Дозволити',
+    gBrowserNote: 'Зберігається в цьому браузері на цьому пристрої.', gChange: 'Змінити папку…', gError: 'Не вдалося відкрити папку галереї',
+    tSavedGallery: 'Збережено в галерею', tSaveFail: 'Не вдалося зберегти файл',
+  });
+  Object.assign(D.tr, {
+    mGallery: 'Galeri', mSaveGallery: 'Galeriye kaydet', mSaveTo: 'Şuraya kaydet…', mOpenFrom: 'Şuradan aç…',
+    gNewFolder: 'Yeni klasör', gEmpty: 'Burada henüz bir şey yok', gOpen: 'Aç', gRename: 'Yeniden adlandır', gDuplicate: 'Çoğalt', gMove: 'Taşı…', gMoveHere: 'Buraya taşı',
+    gMoving: '“{t}” nereye taşınsın?', gDeleteAsk: '“{t}” silinsin mi? Bu işlem geri alınamaz.', gCopy: '{t} kopyası',
+    gSetup: 'Galerinizin nerede duracağını seçin. Orada “Whiteboard gallery” adlı bir klasör oluşturulur. Belgeler klasörü iyi bir yerdir.',
+    gChoose: 'Klasör seç…', gPrivate: 'Bu tarayıcıda tut', gAllow: 'Galeri klasörü için yeniden izniniz gerekiyor.', gAllowBtn: 'İzin ver',
+    gBrowserNote: 'Bu cihazda, bu tarayıcının içinde saklanır.', gChange: 'Klasörü değiştir…', gError: 'Galeri klasörüne ulaşılamadı',
+    tSavedGallery: 'Galeriye kaydedildi', tSaveFail: 'Dosya kaydedilemedi',
+  });
+  Object.assign(D.zh, {
+    mGallery: '图库', mSaveGallery: '保存到图库', mSaveTo: '保存到…', mOpenFrom: '从…打开',
+    gNewFolder: '新建文件夹', gEmpty: '这里还没有内容', gOpen: '打开', gRename: '重命名', gDuplicate: '复制', gMove: '移动…', gMoveHere: '移到这里',
+    gMoving: '选择要把“{t}”移到哪里', gDeleteAsk: '删除“{t}”？此操作无法撤销。', gCopy: '{t} 副本',
+    gSetup: '选择图库存放的位置。那里会创建一个名为“Whiteboard gallery”的文件夹。“文档”文件夹是个不错的位置。',
+    gChoose: '选择文件夹…', gPrivate: '保存在此浏览器中', gAllow: '需要再次获得访问图库文件夹的许可。', gAllowBtn: '允许',
+    gBrowserNote: '存放在此设备的此浏览器中。', gChange: '更改文件夹…', gError: '无法访问图库文件夹',
+    tSavedGallery: '已保存到图库', tSaveFail: '无法保存文件',
+  });
+  Object.assign(D.ja, {
+    mGallery: 'ギャラリー', mSaveGallery: 'ギャラリーに保存', mSaveTo: '保存先を選ぶ…', mOpenFrom: '場所を選んで開く…',
+    gNewFolder: '新規フォルダ', gEmpty: 'まだ何もありません', gOpen: '開く', gRename: '名前を変更', gDuplicate: '複製', gMove: '移動…', gMoveHere: 'ここに移動',
+    gMoving: '「{t}」の移動先を選んでください', gDeleteAsk: '「{t}」を削除しますか？この操作は取り消せません。', gCopy: '{t} のコピー',
+    gSetup: 'ギャラリーの保存場所を選んでください。そこに「Whiteboard gallery」というフォルダが作られます。「ドキュメント」フォルダがおすすめです。',
+    gChoose: 'フォルダを選ぶ…', gPrivate: 'このブラウザ内に保存', gAllow: 'ギャラリーフォルダへのアクセス許可がもう一度必要です。', gAllowBtn: '許可',
+    gBrowserNote: 'このデバイスのこのブラウザ内に保存されています。', gChange: 'フォルダを変更…', gError: 'ギャラリーフォルダにアクセスできません',
+    tSavedGallery: 'ギャラリーに保存しました', tSaveFail: 'ファイルを保存できませんでした',
+  });
+  Object.assign(D.ar, {
+    mGallery: 'المعرض', mSaveGallery: 'حفظ في المعرض', mSaveTo: 'حفظ في…', mOpenFrom: 'فتح من…',
+    gNewFolder: 'مجلد جديد', gEmpty: 'لا يوجد شيء هنا بعد', gOpen: 'فتح', gRename: 'إعادة تسمية', gDuplicate: 'تكرار', gMove: 'نقل…', gMoveHere: 'نقل إلى هنا',
+    gMoving: 'اختر المكان الذي تريد نقل «{t}» إليه', gDeleteAsk: 'حذف «{t}»؟ لا يمكن التراجع عن هذا.', gCopy: 'نسخة من {t}',
+    gSetup: 'اختر مكان المعرض. سيُنشأ هناك مجلد باسم «Whiteboard gallery». مجلد المستندات مكان مناسب.',
+    gChoose: 'اختيار مجلد…', gPrivate: 'الاحتفاظ به في هذا المتصفح', gAllow: 'مجلد المعرض يحتاج إلى إذنك مرة أخرى.', gAllowBtn: 'السماح',
+    gBrowserNote: 'مخزَّن داخل هذا المتصفح على هذا الجهاز.', gChange: 'تغيير المجلد…', gError: 'تعذّر الوصول إلى مجلد المعرض',
+    tSavedGallery: 'تم الحفظ في المعرض', tSaveFail: 'تعذّر حفظ الملف',
+  });
+  Object.assign(D.hi, {
+    mGallery: 'गैलरी', mSaveGallery: 'गैलरी में सहेजें', mSaveTo: 'यहाँ सहेजें…', mOpenFrom: 'यहाँ से खोलें…',
+    gNewFolder: 'नया फ़ोल्डर', gEmpty: 'यहाँ अभी कुछ नहीं है', gOpen: 'खोलें', gRename: 'नाम बदलें', gDuplicate: 'प्रतिलिपि बनाएँ', gMove: 'ले जाएँ…', gMoveHere: 'यहाँ ले जाएँ',
+    gMoving: 'चुनें कि “{t}” को कहाँ ले जाना है', gDeleteAsk: '“{t}” हटाएँ? इसे पूर्ववत नहीं किया जा सकता।', gCopy: '{t} की प्रति',
+    gSetup: 'चुनें कि आपकी गैलरी कहाँ रहेगी। वहाँ “Whiteboard gallery” नाम का फ़ोल्डर बनेगा। दस्तावेज़ फ़ोल्डर एक अच्छी जगह है।',
+    gChoose: 'फ़ोल्डर चुनें…', gPrivate: 'इसी ब्राउज़र में रखें', gAllow: 'गैलरी फ़ोल्डर के लिए फिर से आपकी अनुमति चाहिए।', gAllowBtn: 'अनुमति दें',
+    gBrowserNote: 'इस डिवाइस पर इसी ब्राउज़र के अंदर संग्रहीत।', gChange: 'फ़ोल्डर बदलें…', gError: 'गैलरी फ़ोल्डर तक नहीं पहुँचा जा सका',
+    tSavedGallery: 'गैलरी में सहेजा गया', tSaveFail: 'फ़ाइल सहेजी नहीं जा सकी',
+  });
+
+  /* Gallery setup instructions. Browsers refuse the Documents folder itself, so the text says to pick a folder inside it. */
+  D.en.gSetup = 'Choose where your gallery lives. Browsers do not allow selecting Documents itself: open Documents, create a new folder there (for example “Whiteboard gallery”) and select that folder.';
+  D.hu.gSetup = 'Válaszd ki, hol legyen a galériád. A böngészők magát a Dokumentumok mappát nem engedik kiválasztani: nyisd meg a Dokumentumokat, hozz létre benne egy új mappát (például „Whiteboard gallery”), és azt válaszd ki.';
+  D.de.gSetup = 'Wähle, wo deine Galerie liegen soll. Browser erlauben nicht, den Ordner „Dokumente“ selbst auszuwählen: Öffne „Dokumente“, lege dort einen neuen Ordner an (zum Beispiel „Whiteboard gallery“) und wähle diesen aus.';
+  D.fr.gSetup = 'Choisissez l’emplacement de votre galerie. Les navigateurs n’autorisent pas la sélection du dossier Documents lui-même : ouvrez Documents, créez-y un nouveau dossier (par exemple « Whiteboard gallery ») et sélectionnez-le.';
+  D.it.gSetup = 'Scegli dove tenere la galleria. I browser non permettono di selezionare la cartella Documenti stessa: apri Documenti, crea lì una nuova cartella (per esempio “Whiteboard gallery”) e seleziona quella.';
+  D.es.gSetup = 'Elige dónde estará tu galería. Los navegadores no permiten seleccionar la propia carpeta Documentos: abre Documentos, crea allí una carpeta nueva (por ejemplo «Whiteboard gallery») y selecciónala.';
+  D.pt.gSetup = 'Escolha onde a galeria vai ficar. Os navegadores não permitem selecionar a própria pasta Documentos: abra Documentos, crie uma nova pasta lá (por exemplo “Whiteboard gallery”) e selecione essa pasta.';
+  D.ru.gSetup = 'Выберите, где будет находиться галерея. Браузеры не позволяют выбрать саму папку «Документы»: откройте «Документы», создайте там новую папку (например, «Whiteboard gallery») и выберите её.';
+  D.uk.gSetup = 'Виберіть, де буде ваша галерея. Браузери не дозволяють вибрати саму папку «Документи»: відкрийте «Документи», створіть там нову папку (наприклад, «Whiteboard gallery») і виберіть її.';
+  D.tr.gSetup = 'Galerinizin nerede duracağını seçin. Tarayıcılar Belgeler klasörünün kendisinin seçilmesine izin vermez: Belgeler’i açın, içinde yeni bir klasör oluşturun (örneğin “Whiteboard gallery”) ve o klasörü seçin.';
+  D.zh.gSetup = '选择图库存放的位置。浏览器不允许直接选择“文档”文件夹本身：请打开“文档”，在其中新建一个文件夹（例如“Whiteboard gallery”），然后选择该文件夹。';
+  D.ja.gSetup = 'ギャラリーの保存場所を選んでください。ブラウザでは「ドキュメント」フォルダそのものは選べません。「ドキュメント」を開き、その中に新しいフォルダ（例：「Whiteboard gallery」）を作って、そのフォルダを選んでください。';
+  D.ar.gSetup = 'اختر مكان المعرض. لا تسمح المتصفحات باختيار مجلد المستندات نفسه: افتح المستندات، وأنشئ داخله مجلدًا جديدًا (مثل «Whiteboard gallery») ثم اختره.';
+  D.hi.gSetup = 'चुनें कि आपकी गैलरी कहाँ रहेगी। ब्राउज़र स्वयं दस्तावेज़ फ़ोल्डर चुनने नहीं देते: दस्तावेज़ खोलें, उसमें एक नया फ़ोल्डर बनाएँ (जैसे “Whiteboard gallery”) और उसी फ़ोल्डर को चुनें।';
+
+  /* Limits of running from a local file (file://): no folder access, and existing files cannot be replaced. */
+  const LOCAL = {
+    en: ['Stored inside this browser. A page opened from a local file is not allowed to use folders; open the app from its web address or install it to keep the gallery in a real folder.',
+      'Not saved. Opened from a local file, the app may create new files but the browser does not let it replace existing ones. Choose a new name, or use the installed app.'],
+    hu: ['Ebben a böngészőben tárolva. Helyi fájlból megnyitva az oldal nem használhat mappákat; nyisd meg az alkalmazást a webcíméről vagy telepítsd, ha valódi mappában szeretnéd tartani a galériát.',
+      'Nincs elmentve. Helyi fájlból megnyitva az alkalmazás létrehozhat új fájlokat, de a böngésző nem engedi a meglévők felülírását. Adj új nevet, vagy használd a telepített alkalmazást.'],
+    de: ['In diesem Browser gespeichert. Eine aus einer lokalen Datei geöffnete Seite darf keine Ordner verwenden; öffne die App über ihre Webadresse oder installiere sie, um die Galerie in einem echten Ordner zu halten.',
+      'Nicht gespeichert. Aus einer lokalen Datei geöffnet darf die App neue Dateien anlegen, aber der Browser lässt sie keine vorhandenen ersetzen. Wähle einen neuen Namen oder nutze die installierte App.'],
+    fr: ['Stockée dans ce navigateur. Une page ouverte depuis un fichier local n’a pas le droit d’utiliser des dossiers ; ouvrez l’app depuis son adresse web ou installez-la pour garder la galerie dans un vrai dossier.',
+      'Non enregistré. Ouverte depuis un fichier local, l’app peut créer de nouveaux fichiers, mais le navigateur ne la laisse pas remplacer ceux qui existent. Choisissez un nouveau nom ou utilisez l’app installée.'],
+    it: ['Salvata in questo browser. Una pagina aperta da un file locale non può usare le cartelle; apri l’app dal suo indirizzo web o installala per tenere la galleria in una vera cartella.',
+      'Non salvato. Aperta da un file locale, l’app può creare nuovi file ma il browser non le permette di sostituire quelli esistenti. Scegli un nuovo nome o usa l’app installata.'],
+    es: ['Guardada en este navegador. Una página abierta desde un archivo local no puede usar carpetas; abre la app desde su dirección web o instálala para tener la galería en una carpeta real.',
+      'No se guardó. Abierta desde un archivo local, la app puede crear archivos nuevos, pero el navegador no le permite reemplazar los existentes. Elige un nombre nuevo o usa la app instalada.'],
+    pt: ['Guardada neste navegador. Uma página aberta de um arquivo local não pode usar pastas; abra o app pelo endereço web ou instale-o para manter a galeria em uma pasta real.',
+      'Não foi salvo. Aberto de um arquivo local, o app pode criar arquivos novos, mas o navegador não deixa substituir os existentes. Escolha um novo nome ou use o app instalado.'],
+    ru: ['Хранится в этом браузере. Странице, открытой из локального файла, нельзя работать с папками; откройте приложение по веб-адресу или установите его, чтобы галерея лежала в настоящей папке.',
+      'Не сохранено. Приложение, открытое из локального файла, может создавать новые файлы, но браузер не позволяет заменять существующие. Выберите новое имя или используйте установленное приложение.'],
+    uk: ['Зберігається в цьому браузері. Сторінці, відкритій з локального файлу, не можна працювати з папками; відкрийте застосунок за веб-адресою або встановіть його, щоб галерея була у справжній папці.',
+      'Не збережено. Застосунок, відкритий з локального файлу, може створювати нові файли, але браузер не дозволяє замінювати наявні. Виберіть нову назву або скористайтеся встановленим застосунком.'],
+    tr: ['Bu tarayıcıda saklanır. Yerel bir dosyadan açılan sayfanın klasör kullanmasına izin verilmez; galeriyi gerçek bir klasörde tutmak için uygulamayı web adresinden açın veya yükleyin.',
+      'Kaydedilmedi. Yerel bir dosyadan açıldığında uygulama yeni dosya oluşturabilir, ancak tarayıcı var olanların değiştirilmesine izin vermez. Yeni bir ad seçin veya yüklü uygulamayı kullanın.'],
+    zh: ['存放在此浏览器中。从本地文件打开的页面不能使用文件夹；请从网址打开应用或安装应用，才能把图库放在真正的文件夹里。',
+      '未保存。从本地文件打开时，应用可以新建文件，但浏览器不允许它替换已有文件。请换一个名称，或使用已安装的应用。'],
+    ja: ['このブラウザ内に保存されています。ローカルファイルから開いたページはフォルダを使えません。ギャラリーを実際のフォルダに置くには、Web アドレスからアプリを開くか、インストールしてください。',
+      '保存されませんでした。ローカルファイルから開いた場合、アプリは新しいファイルを作成できますが、ブラウザは既存のファイルの置き換えを許可しません。別の名前を選ぶか、インストールしたアプリを使ってください。'],
+    ar: ['مخزَّن داخل هذا المتصفح. الصفحة المفتوحة من ملف محلي لا يُسمح لها باستخدام المجلدات؛ افتح التطبيق من عنوانه على الويب أو ثبّته ليكون المعرض في مجلد حقيقي.',
+      'لم يتم الحفظ. عند فتح التطبيق من ملف محلي يمكنه إنشاء ملفات جديدة، لكن المتصفح لا يسمح له باستبدال الملفات الموجودة. اختر اسمًا جديدًا أو استخدم التطبيق المثبَّت.'],
+    hi: ['इसी ब्राउज़र में संग्रहीत। स्थानीय फ़ाइल से खोले गए पेज को फ़ोल्डर इस्तेमाल करने की अनुमति नहीं होती; गैलरी को असली फ़ोल्डर में रखने के लिए ऐप को उसके वेब पते से खोलें या इंस्टॉल करें।',
+      'सहेजा नहीं गया। स्थानीय फ़ाइल से खोलने पर ऐप नई फ़ाइलें बना सकता है, पर ब्राउज़र मौजूदा फ़ाइलें बदलने नहीं देता। नया नाम चुनें या इंस्टॉल किया हुआ ऐप इस्तेमाल करें।'],
+  };
+  for (const code in LOCAL) { D[code].gLocalNote = LOCAL[code][0]; D[code].tLocalSave = LOCAL[code][1]; }
+
+  /* Choosing the folder for a board saved to the gallery for the first time: [question, button]. */
+  const SAVE_HERE = {
+    en: ['Choose where to save “{t}”', 'Save here'], hu: ['Válaszd ki, hová mentsük: „{t}”', 'Mentés ide'],
+    de: ['Wähle, wo „{t}“ gespeichert werden soll', 'Hier speichern'], fr: ['Choisissez où enregistrer « {t} »', 'Enregistrer ici'],
+    it: ['Scegli dove salvare “{t}”', 'Salva qui'], es: ['Elige dónde guardar «{t}»', 'Guardar aquí'],
+    pt: ['Escolha onde salvar “{t}”', 'Salvar aqui'], ru: ['Выберите, куда сохранить «{t}»', 'Сохранить здесь'],
+    uk: ['Виберіть, куди зберегти «{t}»', 'Зберегти тут'], tr: ['“{t}” nereye kaydedilsin?', 'Buraya kaydet'],
+    zh: ['选择“{t}”的保存位置', '保存到这里'], ja: ['「{t}」の保存先を選んでください', 'ここに保存'],
+    ar: ['اختر مكان حفظ «{t}»', 'حفظ هنا'], hi: ['चुनें कि “{t}” कहाँ सहेजना है', 'यहाँ सहेजें'],
+  };
+  for (const code in SAVE_HERE) { D[code].gSaving = SAVE_HERE[code][0]; D[code].gSaveHere = SAVE_HERE[code][1]; }
+
   WB.I18N = D;
   let lang = 'en';
 

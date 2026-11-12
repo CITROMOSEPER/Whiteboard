@@ -1052,9 +1052,10 @@
   }
 
   /* ---- History ------------------------------------------------------- */
-  const snapshot = () => ({ title: doc.title, created: doc.created, strokes: doc.strokes, handle: fileHandle });
+  const snapshot = () => ({ title: doc.title, created: doc.created, strokes: doc.strokes, handle: fileHandle, gref: WB.gallery.ref });
   function applySnapshot(s) {
     doc.title = s.title; doc.created = s.created; doc.strokes = s.strokes; fileHandle = s.handle;
+    WB.gallery.ref = s.gref || null;            // which gallery file this board is, if any
     $('#doc-title').value = shownTitle();
   }
   /* A board that was never named is stored as "Untitled" and shown in the interface language. */
@@ -1171,39 +1172,55 @@
     await w.write(blob); await w.close();
   }
 
-  async function saveBoard() {
+  /* "Save to…": always asks where, writes the file there, and checks that it really arrived. */
+  async function saveBoardTo() {
     const name = safeName() + '.whtbd';
-    if (!fileHandle) {
-      const h = await pickSave(name, 'Whiteboard', 'application/x-whtbd', 'whtbd');
-      if (h === false) return;
-      fileHandle = h;
-      if (h && untitled()) { doc.title = h.name.replace(/\.whtbd$/i, '') || 'Untitled'; $('#doc-title').value = shownTitle(); updateChrome(); }
+    if (!window.showSaveFilePicker) {                           // this browser has no save dialog
+      download(new Blob([WB.serialize(doc, view)], { type: 'application/json' }), name);
+      return toast(tr('tSavedDl'));
     }
+    let h, step = 'save dialog';
+    try {
+      h = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'Whiteboard', accept: { 'application/x-whtbd': ['.whtbd'] } }] });
+    } catch (e) {
+      if (e.name !== 'AbortError') report(tr('tSaveFail'), step, e);
+      // Opened from a local file, the browser reports a refused overwrite exactly like a cancel.
+      else if (location.protocol === 'file:') toast(tr('tLocalSave'), null, null, 9000);
+      return;                                                   // cancelled, or the dialog itself failed: nothing is written anywhere
+    }
+    // An unnamed board takes the name it was saved under, before the file is written.
+    if (untitled()) { doc.title = h.name.replace(/\.whtbd$/i, '') || 'Untitled'; titleEl.value = shownTitle(); updateChrome(); autosave(); }
     const blob = new Blob([WB.serialize(doc, view)], { type: 'application/json' });
-    try { await writeOut(fileHandle, blob, name); toast(tr(fileHandle ? 'tSaved' : 'tSavedDl')); }
-    catch (e) { fileHandle = null; download(blob, name); toast(tr('tSavedDl')); }
+    try {
+      step = 'opening the file for writing';
+      const w = await h.createWritable();
+      step = 'writing';
+      await w.write(blob);
+      step = 'finishing the file';
+      await w.close();
+      step = 'checking the result';
+      const size = (await h.getFile()).size;
+      if (size !== blob.size) throw new Error(`the file is ${size} bytes, expected ${blob.size}`);
+      fileHandle = h;
+      toast(tr('tSaved'));
+    } catch (e) { report(tr('tSaveFail'), step, e); }
   }
 
-  function loadText(text, handle) {
+  function loadText(text, handle, gref) {
     let d;
     try { d = WB.parse(text); } catch (e) { return toast(tr(e.message)); }
-    replaceBoard({ title: d.title, created: d.created, strokes: d.strokes, handle: handle || null }, '');
+    replaceBoard({ title: d.title, created: d.created, strokes: d.strokes, handle: handle || null, gref: gref || null }, '');
     toast(tr('tOpened', { t: shownTitle() }), tr('undo'), undo);
     fitView(true);
   }
-  async function openBoard() {
-    if (window.showOpenFilePicker) {
-      try {
-        const [h] = await window.showOpenFilePicker({ types: [{ description: 'Whiteboard', accept: { 'application/x-whtbd': ['.whtbd'], 'application/json': ['.json'] } }] });
-        return loadText(await (await h.getFile()).text(), h);
-      } catch (e) { if (e.name === 'AbortError') return; }
-    }
-    $('#file-input').click();
-  }
+  /* "Open from…": the standard file chooser. It is opened directly from the click, with nothing
+     awaited first, because browsers only allow it while handling the user's own action. */
+  function openBoard() { $('#file-input').click(); }
   $('#file-input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     e.target.value = '';
-    if (file) loadText(await file.text());
+    if (!file) return;
+    try { loadText(await file.text()); } catch (err) { toast(tr('eInvalid')); }
   });
   window.addEventListener('dragover', (e) => e.preventDefault());
   window.addEventListener('drop', async (e) => {
@@ -1257,13 +1274,21 @@
 
   /* ---- UI: toast, popovers, sheets ----------------------------------- */
   let toastTimer = 0, toastFn = null;
-  function toast(msg, action, fn) {
+  /* A failure message that stays long enough to read and says which step failed and how
+     the browser describes it, e.g. "Could not save the file — writing: NotAllowedError: …". */
+  function report(what, step, e) {
+    const detail = e ? `${e.name || 'Error'}${e.message ? ': ' + e.message : ''}` : '';
+    console.error(what, step, e);
+    toast(`${what} — ${step}${detail ? ': ' + detail : ''}`.slice(0, 260), null, null, 12000);
+  }
+  function toast(msg, action, fn, ms) {
     const el = $('#toast'), btn = $('#toast-action');
+    el.classList.toggle('long', msg.length > 60);
     $('#toast-text').textContent = msg;
     btn.hidden = !action; btn.textContent = action || ''; toastFn = fn || null;
     el.classList.add('on');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('on'), action ? 5000 : 1500);
+    toastTimer = setTimeout(() => el.classList.remove('on'), ms || (action ? 5000 : 1800));
   }
   $('#toast-action').addEventListener('click', () => { $('#toast').classList.remove('on'); if (toastFn) toastFn(); });
 
@@ -1291,7 +1316,9 @@
   const ACTIONS = {
     new: () => replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], handle: null }, tr('mNew')) || animateView(W / 2, H / 2, 1),
     open: openBoard,
-    save: saveBoard,
+    gallery: () => WB.gallery.open(),
+    'save-gallery': () => WB.gallery.save(),
+    'save-to': saveBoardTo,
     export: () => openSheet('#export'),
     clear: () => { if (doc.strokes.length) replaceBoard({ ...snapshot(), strokes: [] }, tr('tCleared')); },
     settings: () => openSheet('#settings'),
@@ -1550,7 +1577,7 @@
         for (const s of doc.strokes) if (s.tool !== 'eraser') selection.add(s);
         return selectionChanged();
       }
-      const act = { z: e.shiftKey ? redo : undo, y: redo, s: saveBoard, o: openBoard, e: ACTIONS.export,
+      const act = { z: e.shiftKey ? redo : undo, y: redo, s: e.shiftKey ? saveBoardTo : ACTIONS['save-gallery'], o: openBoard, g: ACTIONS.gallery, e: ACTIONS.export,
         0: ACTIONS['zoom-100'], 1: ACTIONS['zoom-fit'], '=': ACTIONS['zoom-in'], '+': ACTIONS['zoom-in'], '-': ACTIONS['zoom-out'] }[k];
       if (act) { e.preventDefault(); if (!sheetOpen() || k === 's') act(); }
       return;
@@ -1573,6 +1600,15 @@
   window.addEventListener('blur', () => { if (spaceHeld) { spaceHeld = false; refreshTools(); } });
 
   /* ---- Start --------------------------------------------------------- */
+  WB.gallery.init({
+    serialize: () => WB.serialize(doc, view),
+    title: () => shownTitle(),
+    load: (text, gref) => loadText(text, null, gref),
+    retitle: (label) => { doc.title = label; titleEl.value = shownTitle(); updateChrome(); autosave(); },
+    commit: () => { if (edit) commitText(); inkConvert(); },
+    canvasColor: () => canvasColor(),
+    toast, report, openSheet, closeSheets,
+  });
   initUI();
   new ResizeObserver(resize).observe(board);
   window.addEventListener('resize', resize);

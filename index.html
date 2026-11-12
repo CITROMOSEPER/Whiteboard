@@ -114,8 +114,11 @@
 <!-- Popovers -->
 <div class="glass menu" id="menu" role="menu">
   <button class="mi" role="menuitem" data-act="new"><span data-i18n="mNew"></span></button>
-  <button class="mi" role="menuitem" data-act="open"><span data-i18n="mOpen"></span><kbd>Ctrl O</kbd></button>
-  <button class="mi" role="menuitem" data-act="save"><span data-i18n="mSave"></span><kbd>Ctrl S</kbd></button>
+  <button class="mi" role="menuitem" data-act="gallery"><span data-i18n="mGallery"></span><kbd>Ctrl G</kbd></button>
+  <hr>
+  <button class="mi" role="menuitem" data-act="save-gallery"><span data-i18n="mSaveGallery"></span><kbd>Ctrl S</kbd></button>
+  <button class="mi" role="menuitem" data-act="save-to"><span data-i18n="mSaveTo"></span><kbd>Ctrl ⇧ S</kbd></button>
+  <button class="mi" role="menuitem" data-act="open"><span data-i18n="mOpenFrom"></span><kbd>Ctrl O</kbd></button>
   <button class="mi" role="menuitem" data-act="export"><span data-i18n="mExport"></span><kbd>Ctrl E</kbd></button>
   <hr>
   <button class="mi" role="menuitem" data-act="clear"><span data-i18n="mClear"></span></button>
@@ -224,6 +227,30 @@
   </div>
 </div>
 
+<!-- Gallery -->
+<div class="scrim" id="gallery" role="dialog" aria-modal="true" aria-labelledby="gallery-title">
+  <div class="sheet wide">
+    <div class="sheet-head">
+      <div class="g-title">
+        <button class="ibtn" id="g-back" aria-label="Back" disabled><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></button>
+        <h2 id="gallery-title" data-i18n="mGallery"></h2>
+      </div>
+      <div class="g-head-actions">
+        <button class="pill-btn quiet" id="g-new-board" data-i18n="mNew"></button>
+        <button class="pill-btn quiet" id="g-new" data-i18n="gNewFolder"></button>
+        <button class="pill-btn" data-close data-i18n="done"></button>
+      </div>
+    </div>
+    <nav id="g-crumbs"></nav>
+    <div id="g-msg" hidden></div>
+    <div id="g-grid"></div>
+    <div id="g-bar" hidden></div>
+    <div id="g-foot"></div>
+  </div>
+</div>
+<div class="glass menu" id="g-menu" role="menu"></div>
+<div class="glass" id="g-ghost" aria-hidden="true"></div>
+
 <!-- Export -->
 <div class="scrim" id="export" role="dialog" aria-modal="true" aria-labelledby="export-title">
   <div class="sheet">
@@ -280,6 +307,7 @@
 <script src="js/picker.js"></script>
 <script src="js/ink-model.js"></script>
 <script src="js/ink.js"></script>
+<script src="js/gallery.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
