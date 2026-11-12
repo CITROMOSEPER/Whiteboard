@@ -29,7 +29,10 @@ self.addEventListener('fetch', (e) => {
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const saved = (await cache.match(req, { ignoreSearch: true })) || (req.mode === 'navigate' ? await cache.match('./') : undefined);
-    const fresh = fetch(req).then((res) => {
+    // 'no-cache' asks the server every time (an unchanged file costs only a "not modified" reply).
+    // Without it the browser may hand back a stylesheet or script from its own short-term cache
+    // while the page itself is already the new version, so a release shows half old, half new.
+    const fresh = fetch(req, { cache: 'no-cache' }).then((res) => {
       if (res.ok) cache.put(req, res.clone());
       return res;
     });

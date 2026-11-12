@@ -747,8 +747,8 @@ body.pipetting #canvas { cursor: crosshair; }
 
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
-      <p>Nemes Dániel © <span id="copy-years">2026</span></p>
-      <p id="app-version">2026.11.12.01</p>
+      <p>Nemes Dániel © 2026-now</p>
+      <p id="app-version">version: 2026.11.12.02.</p>
     </footer>
   </div>
 </div>
@@ -5747,8 +5747,6 @@ body.pipetting #canvas { cursor: crosshair; }
     toast, report, openSheet, closeSheets,
   });
   initUI();
-  // Credits: "2026" this year, "2026–2027" from next year on.
-  { const y = new Date().getFullYear(); if (y > 2026) $('#copy-years').textContent = '2026–' + y; }
   new ResizeObserver(resize).observe(board);
   window.addEventListener('resize', resize);
   resize();

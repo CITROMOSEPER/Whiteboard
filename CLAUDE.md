@@ -5,10 +5,10 @@
 The version is shown at the bottom of the Settings window, in `index.html`:
 
 ```html
-<p id="app-version">2026.11.12.01</p>
+<p id="app-version">version: 2026.11.12.02.</p>
 ```
 
-Format: `YYYY.MM.DD.NN`
+Keep the text exactly in that shape: `version: YYYY.MM.DD.NN.` (lowercase "version:", one space, trailing dot).
 - `YYYY.MM.DD` is the date of the release.
 - `NN` is that day's release count, two digits, starting at `01`.
 
@@ -18,7 +18,7 @@ How to bump it, every time changes are pushed to GitHub (each push to `main` is 
 
 Bump it in the same commit as the changes, then run `python build.py` so `dist/` carries the new stamp too.
 
-The line above it reads "Nemes Dániel © 2026"; from 2027 on, `js/app.js` extends the years automatically ("2026–2027"). Don't change that by hand.
+The line above it reads "Nemes Dániel © 2026-now", literally, as the author asked. Don't change it.
 
 ## Building
 
