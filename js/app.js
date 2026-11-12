@@ -499,8 +499,10 @@
     worldTransform(ctx);
     ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = ctx.fillStyle = accent; ctx.lineWidth = 1.5 / z;
-    const pad = 5 / z;
+    const pad = 5 / z, pic = picSelected();
+    if (pic) drawHandles(pic, accent);
     for (const s of selection) {
+      if (s === pic) continue;
       const b = WB.boundsOf(s);
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(b.x0 - pad, b.y0 - pad, b.x1 - b.x0 + 2 * pad, b.y1 - b.y0 + 2 * pad, 6 / z);
@@ -516,6 +518,124 @@
       ctx.globalAlpha = 0.1; ctx.fill();
       ctx.globalAlpha = 1; ctx.setLineDash([6 / z, 5 / z]); ctx.stroke(); ctx.setLineDash([]);
     }
+  }
+
+  /* ---- Picture handles -------------------------------------------------
+     A single selected picture gets handles on its own (turned) outline: the corners scale it
+     keeping its shape, the side handles stretch it, and the knob above its top edge turns it.
+     Another finger on the screen while resizing makes it grow from the middle instead of from
+     the opposite side; while turning, it snaps the angle to 45° steps. With a mouse, Alt and
+     Shift do the same. Everything is worked out from the state at the start of the drag, so a
+     finger can be put down and lifted again freely. */
+  const HANDLES = { nw: [-1, -1], n: [0, -1], ne: [1, -1], e: [1, 0], se: [1, 1], s: [0, 1], sw: [-1, 1], w: [-1, 0] };
+  const ROT_GAP = 30;   // screen px between the top edge and the turning knob
+  let xf = null;        // the drag in progress: { id, k (handle), s, start, extra (other pointers), last, keys, off | a0 }
+  function picSelected() {
+    if (selection.size !== 1) return null;
+    const [s] = selection;
+    return s.tool === 'image' && doc.strokes.includes(s) ? s : null;
+  }
+  function handlePoints(s) {
+    const out = [];
+    for (const k in HANDLES) { const [a, b] = HANDLES[k]; out.push({ k, ...WB.toWorld(s, (a * s.w) / 2, (b * s.h) / 2) }); }
+    out.push({ k: 'rot', ...WB.toWorld(s, 0, -s.h / 2 - ROT_GAP / view.zoom) });
+    return out;
+  }
+  /* The handle under a screen point, or null. Fingers get a bigger target than a mouse or pen. */
+  function handleAt(cx, cy, touch) {
+    const s = picSelected();
+    if (!s || tools.tool !== 'select') return null;
+    const z = view.zoom, r = touch ? 24 : 12;
+    let best = null, bd = Infinity;
+    for (const h of handlePoints(s)) {
+      const d = hyp(h.x * z + view.x - cx, h.y * z + view.y - cy);
+      if (d <= r && d < bd) { best = h.k; bd = d; }
+    }
+    return best;
+  }
+  /* The resize cursor pointing the way a handle pulls, turned with the picture. */
+  function handleCursor(k) {
+    if (!k) return '';
+    if (k === 'rot') return 'grab';
+    const [a, b] = HANDLES[k], s = picSelected();
+    const ang = Math.atan2(b * s.h, a * s.w) + (s.rot || 0);
+    return ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'][((Math.round(ang / (Math.PI / 4)) % 4) + 4) % 4];
+  }
+  function drawHandles(s, accent) {
+    const z = view.zoom, q = WB.corners(s);
+    ctx.beginPath(); ctx.moveTo(q[0], q[1]);
+    for (let i = 2; i < 8; i += 2) ctx.lineTo(q[i], q[i + 1]);
+    ctx.closePath();
+    ctx.globalAlpha = 0.06; ctx.fill();
+    ctx.globalAlpha = 1; ctx.stroke();
+    const top = WB.toWorld(s, 0, -s.h / 2), pts = handlePoints(s), knob = pts[pts.length - 1];
+    ctx.beginPath(); ctx.moveTo(top.x, top.y); ctx.lineTo(knob.x, knob.y); ctx.stroke();
+    for (const h of pts) {
+      ctx.beginPath(); ctx.arc(h.x, h.y, (h.k === 'rot' ? 6.5 : 5) / z, 0, 2 * Math.PI);
+      ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.stroke();
+    }
+    ctx.fillStyle = accent;
+  }
+  function beginXform(e, k) {
+    const s = picSelected(), z = view.zoom;
+    const px = (e.clientX - view.x) / z, py = (e.clientY - view.y) / z;
+    const start = { x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot || 0 };
+    mode = 'xform';
+    xf = { id: e.pointerId, k, s, start, extra: new Set(), last: { x: e.clientX, y: e.clientY }, keys: { alt: e.altKey, shift: e.shiftKey } };
+    if (k === 'rot') xf.a0 = Math.atan2(py - (s.y + s.h / 2), px - (s.x + s.w / 2));
+    else {
+      // Where on the handle it was grabbed, so the edge does not jump to the pointer.
+      const [a, b] = HANDLES[k], L = WB.toLocal(s, px, py);
+      xf.off = { x: (a * s.w) / 2 - L.x, y: (b * s.h) / 2 - L.y };
+    }
+    finishFill();
+  }
+  function applyXform() {
+    const d = xf, s = d.s, st = d.start, z = view.zoom;
+    const px = (d.last.x - view.x) / z, py = (d.last.y - view.y) / z, more = d.extra.size > 0;
+    if (d.k === 'rot') {
+      let rot = st.rot + Math.atan2(py - (st.y + st.h / 2), px - (st.x + st.w / 2)) - d.a0;
+      if (more || d.keys.shift) rot = Math.round(rot / (Math.PI / 4)) * (Math.PI / 4);
+      s.rot = Math.atan2(Math.sin(rot), Math.cos(rot));
+    } else {
+      const [ex, ey] = HANDLES[d.k], L = WB.toLocal(st, px, py), lx = L.x + d.off.x, ly = L.y + d.off.y;
+      const centred = more || d.keys.alt, min = 8 / z;
+      let w = st.w, h = st.h, cx = 0, cy = 0;     // new size, and the new centre in the old picture's frame
+      if (ex && ey) {
+        // A corner: one scale factor, measured along the diagonal from the fixed point (opposite corner, or the centre).
+        const ax = centred ? 0 : (-ex * st.w) / 2, ay = centred ? 0 : (-ey * st.h) / 2;
+        const dx = (ex * st.w) / 2 - ax, dy = (ey * st.h) / 2 - ay;
+        const k = Math.max(((lx - ax) * dx + (ly - ay) * dy) / (dx * dx + dy * dy), min / Math.min(st.w, st.h));
+        w = st.w * k; h = st.h * k;
+        if (!centred) { cx = ax + (ex * w) / 2; cy = ay + (ey * h) / 2; }
+      } else if (ex) {
+        const ax = centred ? 0 : (-ex * st.w) / 2;
+        w = Math.max(min, (centred ? 2 : 1) * ex * (lx - ax));
+        if (!centred) cx = ax + (ex * w) / 2;
+      } else {
+        const ay = centred ? 0 : (-ey * st.h) / 2;
+        h = Math.max(min, (centred ? 2 : 1) * ey * (ly - ay));
+        if (!centred) cy = ay + (ey * h) / 2;
+      }
+      const c = WB.toWorld(st, cx, cy);
+      s.x = c.x - w / 2; s.y = c.y - h / 2; s.w = w; s.h = h;
+    }
+    delete s._b;
+    invalidate();
+  }
+  for (const type of ['keydown', 'keyup']) {
+    window.addEventListener(type, (e) => {
+      if (!xf) return;
+      if (e.key === 'Escape') { e.stopImmediatePropagation(); return endXform(true); }
+      xf.keys = { alt: e.altKey, shift: e.shiftKey }; applyXform();
+    }, true);
+  }
+  function endXform(cancel) {
+    const d = xf, s = d.s, st = d.start;
+    xf = null; mode = null; canvas.style.cursor = '';
+    if (cancel) { Object.assign(s, st); delete s._b; invalidate(); return; }
+    const after = { x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot || 0 };
+    if (Object.keys(after).some((k) => after[k] !== st[k])) record({ type: 'edit', s, before: st, after });
   }
 
   /* ---- Text ----------------------------------------------------------
@@ -893,6 +1013,18 @@
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
     const now = performance.now();
 
+    // Resizing or turning a picture: another finger changes how (see "Picture handles"), it never pinches.
+    if (mode === 'xform') { if (e.pointerId !== xf.id) { xf.extra.add(e.pointerId); applyXform(); } return; }
+    const palm = e.pointerType === 'touch' && (penDown || now - lastPen < 400);
+    if (!mode && !palm && !(e.pointerType === 'mouse' && e.button !== 0)) {
+      const k = handleAt(e.clientX, e.clientY, e.pointerType === 'touch');
+      if (k) {
+        if (e.pointerType === 'pen') { penDown = true; lastPen = now; }
+        touches.clear(); tap = null;
+        return beginXform(e, k);
+      }
+    }
+
     if (e.pointerType === 'touch') {
       if (penDown || now - lastPen < 400) return;
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
@@ -963,6 +1095,10 @@
   }
 
   canvas.addEventListener('pointermove', (e) => {
+    if (mode === 'xform') {
+      if (e.pointerId === xf.id) { xf.last = { x: e.clientX, y: e.clientY }; xf.keys = { alt: e.altKey, shift: e.shiftKey }; applyXform(); }
+      return;
+    }
     if (e.pointerType === 'touch') {
       const t = touches.get(e.pointerId);
       if (!t) return;
@@ -973,6 +1109,7 @@
       cursorPos = { x: e.clientX, y: e.clientY };
       updateCursor();
       canvas.classList.toggle('can-move', tools.tool === 'select' && selection.size > 0 && onSelection(e.clientX, e.clientY));
+      if (!mode) canvas.style.cursor = handleCursor(handleAt(e.clientX, e.clientY, false));
     }
     if (mode === 'draw' && live && e.pointerId === live.id) {
       const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null;   // every sample the stylus produced, not one per frame
@@ -998,6 +1135,11 @@
   function onUp(e) {
     const cancel = e.type === 'pointercancel', now = performance.now();
     if (e.pointerType === 'pen') { penDown = false; lastPen = now; }
+    if (mode === 'xform') {
+      if (e.pointerId === xf.id) endXform(cancel);
+      else if (xf.extra.delete(e.pointerId)) applyXform();   // the other finger lifted: back to the normal way
+      return;
+    }
     const isTouch = e.pointerType === 'touch';
     if (isTouch && !touches.delete(e.pointerId)) return;
 
@@ -1069,7 +1211,7 @@
   /* Actions: add (a new object on top), remove (objects taken out, with their positions
      in the drawing order), edit (a text changed in place), replace (the whole board). */
   function undo() {
-    if (live) return;
+    if (live || xf) return;
     if (edit) commitText();
     const a = undoStack.pop();
     if (!a) return;
@@ -1078,7 +1220,7 @@
     redoStack.push(a); invalidate(); changed();
   }
   function redo() {
-    if (live) return;
+    if (live || xf) return;
     if (edit) commitText();
     const a = redoStack.pop();
     if (!a) return;

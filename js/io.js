@@ -21,7 +21,9 @@
         return `    { "tool": "text", "x": ${f(s.x)}, "y": ${f(s.y)}, "font": "${s.font}", "size": ${+s.size.toFixed(3)}, "color": "${s.color}", "opacity": ${+s.opacity.toFixed(3)}, "text": ${JSON.stringify(s.text)} }`;
       }
       if (s.tool === 'image') {
-        return `    { "tool": "image", "x": ${f(s.x)}, "y": ${f(s.y)}, "w": ${f(s.w)}, "h": ${f(s.h)}, "opacity": ${+s.opacity.toFixed(3)}, "src": ${JSON.stringify(s.src)} }`;
+        // "rot" is in degrees in the file (clockwise), and left out when the picture is upright.
+        const rot = s.rot ? `"rot": ${f((s.rot * 180) / Math.PI)}, ` : '';
+        return `    { "tool": "image", "x": ${f(s.x)}, "y": ${f(s.y)}, "w": ${f(s.w)}, "h": ${f(s.h)}, ${rot}"opacity": ${+s.opacity.toFixed(3)}, "src": ${JSON.stringify(s.src)} }`;
       }
       if (s.tool === 'fill') {
         const rings = s.rings.map((r) => { const q = []; for (let i = 0; i < r.length; i += 2) q.push(`[${f(r[i])},${f(r[i + 1])}]`); return `[${q.join(',')}]`; });
@@ -59,7 +61,7 @@
       if (s && s.tool === 'image') {
         if (typeof s.src === 'string' && /^data:image\/(png|jpeg|webp|gif|bmp);base64,[A-Za-z0-9+/=]+$/.test(s.src) &&
             isFinite(s.x) && isFinite(s.y) && num(s.w, 0) > 0 && num(s.h, 0) > 0) {
-          strokes.push({ tool: 'image', x: +s.x, y: +s.y, w: +s.w, h: +s.h, opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), src: s.src, width: 0 });
+          strokes.push({ tool: 'image', x: +s.x, y: +s.y, w: +s.w, h: +s.h, rot: (num(s.rot, 0) % 360) * Math.PI / 180, opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), src: s.src, width: 0 });
         }
         continue;
       }
@@ -173,7 +175,8 @@
       if (run.kind === 'ink') {
         for (const s of run.items) {
           if (s.tool === 'image') {
-            body += `<image x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" preserveAspectRatio="none"${s.opacity < 1 ? ` opacity="${f(s.opacity)}"` : ''} xlink:href="${s.src}"/>\n`;
+            const turn = s.rot ? ` transform="rotate(${f((s.rot * 180) / Math.PI)} ${f(s.x + s.w / 2)} ${f(s.y + s.h / 2)})"` : '';
+            body += `<image x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" preserveAspectRatio="none"${turn}${s.opacity < 1 ? ` opacity="${f(s.opacity)}"` : ''} xlink:href="${s.src}"/>\n`;
           } else if (s.tool === 'text') {
             const L = WB.textLayout(s);
             body += `<text font-family="${esc(WB.FONTS[s.font] || WB.FONTS.sans)}" font-size="${f(s.size)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none" xml:space="preserve">` +
@@ -282,7 +285,10 @@
             const imgId = await streamObj(`/Type /XObject /Subtype /Image ${dims} /ColorSpace /DeviceRGB${clear ? ` /SMask ${maskId} 0 R` : ''}`, rgbBytes);
             const name = 'I' + (++tn);
             cur.xo.set(name, imgId);
-            cur.ops += `q /${alpha(cur, s.opacity)} gs ${f(s.w)} 0 0 ${f(-s.h)} ${f(s.x)} ${f(s.y + s.h)} cm /${name} Do Q\n`;
+            // The image's unit square onto its turned box (PDF images run bottom-up).
+            const co = Math.cos(s.rot || 0), si = Math.sin(s.rot || 0), cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+            const m = [co * s.w, si * s.w, si * s.h, -co * s.h, cx - (co * s.w + si * s.h) / 2, cy - (si * s.w - co * s.h) / 2];
+            cur.ops += `q /${alpha(cur, s.opacity)} gs ${m.map(f).join(' ')} cm /${name} Do Q\n`;
           } else if (s.tool === 'text') {
             // Text goes in as a high-resolution alpha image in the text colour, so every font
             // and script looks exactly as it does on the board without embedding font files.
@@ -424,7 +430,7 @@
     try {
       const img = new Image();
       img.src = url;
-      try { await img.decode(); } catch (e) { return null; }
+      if (!(await WB.imageReady(img))) return null;
       let w = img.naturalWidth, h = img.naturalHeight;
       if (!w || !h) { if (!svg) return null; w = 1024; h = 768; }      // an SVG without a size of its own
       const kept = /^image\/(png|jpeg|webp|gif)$/.test(type) && Math.max(w, h) <= MAX_PIC;

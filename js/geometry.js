@@ -83,8 +83,8 @@
   };
 
   /* ---- Pictures -------------------------------------------------------
-     A picture is { tool:'image', x, y, w, h, opacity, src } with src a data: URL; (x, y) is its
-     top-left corner and w × h its size on the board. The decoded image is cached on the object.
+     A picture is { tool:'image', x, y, w, h, rot, opacity, src } with src a data: URL. (x, y, w, h)
+     is the picture's box before rotation; rot (radians, clockwise) turns it about the box centre. The decoded image is cached on the object.
      Painting is synchronous, so a picture still decoding is skipped and the board is redrawn
      (WB.onImageReady) once it is ready; exports wait for every picture first (WB.loadImages). */
   WB.imageOf = function (s) {
@@ -95,11 +95,30 @@
     }
     return s._img;
   };
+  /* A point in the picture's own frame (origin at its centre, axes along its sides) and back. */
+  WB.toLocal = function (s, x, y) {
+    const c = Math.cos(s.rot || 0), n = Math.sin(s.rot || 0), dx = x - (s.x + s.w / 2), dy = y - (s.y + s.h / 2);
+    return { x: dx * c + dy * n, y: -dx * n + dy * c };
+  };
+  WB.toWorld = function (s, lx, ly) {
+    const c = Math.cos(s.rot || 0), n = Math.sin(s.rot || 0);
+    return { x: s.x + s.w / 2 + lx * c - ly * n, y: s.y + s.h / 2 + lx * n + ly * c };
+  };
+  /* The four corners on the board: top-left, top-right, bottom-right, bottom-left, as x, y pairs. */
+  WB.corners = function (s) {
+    const out = [];
+    for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const p = WB.toWorld(s, a * s.w / 2, b * s.h / 2); out.push(p.x, p.y); }
+    return out;
+  };
+  /* Resolves once the image has loaded (true) or failed (false). Waits for the load event rather
+     than img.decode(), which browsers hold back while the page is in the background. */
+  WB.imageReady = (img) => new Promise((res) => {
+    if (img.complete) return res(img.naturalWidth > 0);
+    img.addEventListener('load', () => res(true), { once: true });
+    img.addEventListener('error', () => res(false), { once: true });
+  });
   WB.loadImages = function (strokes) {
-    return Promise.all(strokes.filter((s) => s.tool === 'image').map((s) => {
-      const img = WB.imageOf(s);
-      return img.complete && img.naturalWidth ? null : img.decode().catch(() => null);
-    }));
+    return Promise.all(strokes.filter((s) => s.tool === 'image').map((s) => WB.imageReady(WB.imageOf(s))));
   };
 
   WB.paint = function (c, s, path) {
@@ -110,7 +129,9 @@
       c.globalCompositeOperation = 'source-over';
       c.globalAlpha = s.opacity;
       c.imageSmoothingQuality = 'high';
-      c.drawImage(img, s.x, s.y, s.w, s.h);
+      c.translate(s.x + s.w / 2, s.y + s.h / 2);
+      if (s.rot) c.rotate(s.rot);
+      c.drawImage(img, -s.w / 2, -s.h / 2, s.w, s.h);
       c.restore();
       return;
     }
@@ -145,7 +166,10 @@
   WB.boundsOf = function (s) {
     if (s._b) return s._b;
     if (s.tool === 'text') { const L = WB.textLayout(s); return (s._b = { x0: s.x, y0: s.y, x1: s.x + L.w, y1: s.y + L.h }); }
-    if (s.tool === 'image') return (s._b = { x0: s.x, y0: s.y, x1: s.x + s.w, y1: s.y + s.h });
+    if (s.tool === 'image') {
+      const q = WB.corners(s);
+      return (s._b = { x0: Math.min(q[0], q[2], q[4], q[6]), y0: Math.min(q[1], q[3], q[5], q[7]), x1: Math.max(q[0], q[2], q[4], q[6]), y1: Math.max(q[1], q[3], q[5], q[7]) });
+    }
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const p of s.rings || [s.points]) {
       for (let i = 0; i < p.length; i += 2) {
@@ -175,7 +199,8 @@
     if (s.tool === 'eraser') return false;
     const b = WB.boundsOf(s);
     if (x < b.x0 - tol || x > b.x1 + tol || y < b.y0 - tol || y > b.y1 + tol) return false;
-    if (s.tool === 'text' || s.tool === 'image') return true;
+    if (s.tool === 'text') return true;
+    if (s.tool === 'image') { const p = WB.toLocal(s, x, y); return Math.abs(p.x) <= s.w / 2 + tol && Math.abs(p.y) <= s.h / 2 + tol; }
     mctx.setTransform(1, 0, 0, 1, 0, 0);
     if (s.tool === 'fill') return mctx.isPointInPath(WB.pathOf(s), x, y, 'evenodd');
     mctx.lineWidth = s.width + 2 * tol; mctx.lineCap = 'round'; mctx.lineJoin = 'round';
@@ -186,7 +211,8 @@
   WB.inLasso = function (s, poly) {
     if (s.tool === 'eraser') return false;
     let pts;
-    if (s.tool === 'text' || s.tool === 'image') { const b = WB.boundsOf(s), mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2; pts = [b.x0, b.y0, b.x1, b.y0, b.x1, b.y1, b.x0, b.y1, mx, my]; }
+    if (s.tool === 'image') pts = [...WB.corners(s), s.x + s.w / 2, s.y + s.h / 2];
+    else if (s.tool === 'text') { const b = WB.boundsOf(s), mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2; pts = [b.x0, b.y0, b.x1, b.y0, b.x1, b.y1, b.x0, b.y1, mx, my]; }
     else pts = s.rings ? s.rings[0] : s.points;
     const n = pts.length >> 1, step = Math.max(1, Math.floor(n / 64)), m = poly.length;
     let inside = 0, total = 0;

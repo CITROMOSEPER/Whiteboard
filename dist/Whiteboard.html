@@ -749,7 +749,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.12.04.</p>
+      <p id="app-version">version: 2026.11.12.05.</p>
     </footer>
   </div>
 </div>
@@ -1699,8 +1699,8 @@ body.pipetting #canvas { cursor: crosshair; }
   };
 
   /* ---- Pictures -------------------------------------------------------
-     A picture is { tool:'image', x, y, w, h, opacity, src } with src a data: URL; (x, y) is its
-     top-left corner and w × h its size on the board. The decoded image is cached on the object.
+     A picture is { tool:'image', x, y, w, h, rot, opacity, src } with src a data: URL. (x, y, w, h)
+     is the picture's box before rotation; rot (radians, clockwise) turns it about the box centre. The decoded image is cached on the object.
      Painting is synchronous, so a picture still decoding is skipped and the board is redrawn
      (WB.onImageReady) once it is ready; exports wait for every picture first (WB.loadImages). */
   WB.imageOf = function (s) {
@@ -1711,11 +1711,30 @@ body.pipetting #canvas { cursor: crosshair; }
     }
     return s._img;
   };
+  /* A point in the picture's own frame (origin at its centre, axes along its sides) and back. */
+  WB.toLocal = function (s, x, y) {
+    const c = Math.cos(s.rot || 0), n = Math.sin(s.rot || 0), dx = x - (s.x + s.w / 2), dy = y - (s.y + s.h / 2);
+    return { x: dx * c + dy * n, y: -dx * n + dy * c };
+  };
+  WB.toWorld = function (s, lx, ly) {
+    const c = Math.cos(s.rot || 0), n = Math.sin(s.rot || 0);
+    return { x: s.x + s.w / 2 + lx * c - ly * n, y: s.y + s.h / 2 + lx * n + ly * c };
+  };
+  /* The four corners on the board: top-left, top-right, bottom-right, bottom-left, as x, y pairs. */
+  WB.corners = function (s) {
+    const out = [];
+    for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const p = WB.toWorld(s, a * s.w / 2, b * s.h / 2); out.push(p.x, p.y); }
+    return out;
+  };
+  /* Resolves once the image has loaded (true) or failed (false). Waits for the load event rather
+     than img.decode(), which browsers hold back while the page is in the background. */
+  WB.imageReady = (img) => new Promise((res) => {
+    if (img.complete) return res(img.naturalWidth > 0);
+    img.addEventListener('load', () => res(true), { once: true });
+    img.addEventListener('error', () => res(false), { once: true });
+  });
   WB.loadImages = function (strokes) {
-    return Promise.all(strokes.filter((s) => s.tool === 'image').map((s) => {
-      const img = WB.imageOf(s);
-      return img.complete && img.naturalWidth ? null : img.decode().catch(() => null);
-    }));
+    return Promise.all(strokes.filter((s) => s.tool === 'image').map((s) => WB.imageReady(WB.imageOf(s))));
   };
 
   WB.paint = function (c, s, path) {
@@ -1726,7 +1745,9 @@ body.pipetting #canvas { cursor: crosshair; }
       c.globalCompositeOperation = 'source-over';
       c.globalAlpha = s.opacity;
       c.imageSmoothingQuality = 'high';
-      c.drawImage(img, s.x, s.y, s.w, s.h);
+      c.translate(s.x + s.w / 2, s.y + s.h / 2);
+      if (s.rot) c.rotate(s.rot);
+      c.drawImage(img, -s.w / 2, -s.h / 2, s.w, s.h);
       c.restore();
       return;
     }
@@ -1761,7 +1782,10 @@ body.pipetting #canvas { cursor: crosshair; }
   WB.boundsOf = function (s) {
     if (s._b) return s._b;
     if (s.tool === 'text') { const L = WB.textLayout(s); return (s._b = { x0: s.x, y0: s.y, x1: s.x + L.w, y1: s.y + L.h }); }
-    if (s.tool === 'image') return (s._b = { x0: s.x, y0: s.y, x1: s.x + s.w, y1: s.y + s.h });
+    if (s.tool === 'image') {
+      const q = WB.corners(s);
+      return (s._b = { x0: Math.min(q[0], q[2], q[4], q[6]), y0: Math.min(q[1], q[3], q[5], q[7]), x1: Math.max(q[0], q[2], q[4], q[6]), y1: Math.max(q[1], q[3], q[5], q[7]) });
+    }
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const p of s.rings || [s.points]) {
       for (let i = 0; i < p.length; i += 2) {
@@ -1791,7 +1815,8 @@ body.pipetting #canvas { cursor: crosshair; }
     if (s.tool === 'eraser') return false;
     const b = WB.boundsOf(s);
     if (x < b.x0 - tol || x > b.x1 + tol || y < b.y0 - tol || y > b.y1 + tol) return false;
-    if (s.tool === 'text' || s.tool === 'image') return true;
+    if (s.tool === 'text') return true;
+    if (s.tool === 'image') { const p = WB.toLocal(s, x, y); return Math.abs(p.x) <= s.w / 2 + tol && Math.abs(p.y) <= s.h / 2 + tol; }
     mctx.setTransform(1, 0, 0, 1, 0, 0);
     if (s.tool === 'fill') return mctx.isPointInPath(WB.pathOf(s), x, y, 'evenodd');
     mctx.lineWidth = s.width + 2 * tol; mctx.lineCap = 'round'; mctx.lineJoin = 'round';
@@ -1802,7 +1827,8 @@ body.pipetting #canvas { cursor: crosshair; }
   WB.inLasso = function (s, poly) {
     if (s.tool === 'eraser') return false;
     let pts;
-    if (s.tool === 'text' || s.tool === 'image') { const b = WB.boundsOf(s), mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2; pts = [b.x0, b.y0, b.x1, b.y0, b.x1, b.y1, b.x0, b.y1, mx, my]; }
+    if (s.tool === 'image') pts = [...WB.corners(s), s.x + s.w / 2, s.y + s.h / 2];
+    else if (s.tool === 'text') { const b = WB.boundsOf(s), mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2; pts = [b.x0, b.y0, b.x1, b.y0, b.x1, b.y1, b.x0, b.y1, mx, my]; }
     else pts = s.rings ? s.rings[0] : s.points;
     const n = pts.length >> 1, step = Math.max(1, Math.floor(n / 64)), m = poly.length;
     let inside = 0, total = 0;
@@ -2137,7 +2163,9 @@ body.pipetting #canvas { cursor: crosshair; }
         return `    { "tool": "text", "x": ${f(s.x)}, "y": ${f(s.y)}, "font": "${s.font}", "size": ${+s.size.toFixed(3)}, "color": "${s.color}", "opacity": ${+s.opacity.toFixed(3)}, "text": ${JSON.stringify(s.text)} }`;
       }
       if (s.tool === 'image') {
-        return `    { "tool": "image", "x": ${f(s.x)}, "y": ${f(s.y)}, "w": ${f(s.w)}, "h": ${f(s.h)}, "opacity": ${+s.opacity.toFixed(3)}, "src": ${JSON.stringify(s.src)} }`;
+        // "rot" is in degrees in the file (clockwise), and left out when the picture is upright.
+        const rot = s.rot ? `"rot": ${f((s.rot * 180) / Math.PI)}, ` : '';
+        return `    { "tool": "image", "x": ${f(s.x)}, "y": ${f(s.y)}, "w": ${f(s.w)}, "h": ${f(s.h)}, ${rot}"opacity": ${+s.opacity.toFixed(3)}, "src": ${JSON.stringify(s.src)} }`;
       }
       if (s.tool === 'fill') {
         const rings = s.rings.map((r) => { const q = []; for (let i = 0; i < r.length; i += 2) q.push(`[${f(r[i])},${f(r[i + 1])}]`); return `[${q.join(',')}]`; });
@@ -2175,7 +2203,7 @@ body.pipetting #canvas { cursor: crosshair; }
       if (s && s.tool === 'image') {
         if (typeof s.src === 'string' && /^data:image\/(png|jpeg|webp|gif|bmp);base64,[A-Za-z0-9+/=]+$/.test(s.src) &&
             isFinite(s.x) && isFinite(s.y) && num(s.w, 0) > 0 && num(s.h, 0) > 0) {
-          strokes.push({ tool: 'image', x: +s.x, y: +s.y, w: +s.w, h: +s.h, opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), src: s.src, width: 0 });
+          strokes.push({ tool: 'image', x: +s.x, y: +s.y, w: +s.w, h: +s.h, rot: (num(s.rot, 0) % 360) * Math.PI / 180, opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), src: s.src, width: 0 });
         }
         continue;
       }
@@ -2289,7 +2317,8 @@ body.pipetting #canvas { cursor: crosshair; }
       if (run.kind === 'ink') {
         for (const s of run.items) {
           if (s.tool === 'image') {
-            body += `<image x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" preserveAspectRatio="none"${s.opacity < 1 ? ` opacity="${f(s.opacity)}"` : ''} xlink:href="${s.src}"/>\n`;
+            const turn = s.rot ? ` transform="rotate(${f((s.rot * 180) / Math.PI)} ${f(s.x + s.w / 2)} ${f(s.y + s.h / 2)})"` : '';
+            body += `<image x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" preserveAspectRatio="none"${turn}${s.opacity < 1 ? ` opacity="${f(s.opacity)}"` : ''} xlink:href="${s.src}"/>\n`;
           } else if (s.tool === 'text') {
             const L = WB.textLayout(s);
             body += `<text font-family="${esc(WB.FONTS[s.font] || WB.FONTS.sans)}" font-size="${f(s.size)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none" xml:space="preserve">` +
@@ -2398,7 +2427,10 @@ body.pipetting #canvas { cursor: crosshair; }
             const imgId = await streamObj(`/Type /XObject /Subtype /Image ${dims} /ColorSpace /DeviceRGB${clear ? ` /SMask ${maskId} 0 R` : ''}`, rgbBytes);
             const name = 'I' + (++tn);
             cur.xo.set(name, imgId);
-            cur.ops += `q /${alpha(cur, s.opacity)} gs ${f(s.w)} 0 0 ${f(-s.h)} ${f(s.x)} ${f(s.y + s.h)} cm /${name} Do Q\n`;
+            // The image's unit square onto its turned box (PDF images run bottom-up).
+            const co = Math.cos(s.rot || 0), si = Math.sin(s.rot || 0), cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+            const m = [co * s.w, si * s.w, si * s.h, -co * s.h, cx - (co * s.w + si * s.h) / 2, cy - (si * s.w - co * s.h) / 2];
+            cur.ops += `q /${alpha(cur, s.opacity)} gs ${m.map(f).join(' ')} cm /${name} Do Q\n`;
           } else if (s.tool === 'text') {
             // Text goes in as a high-resolution alpha image in the text colour, so every font
             // and script looks exactly as it does on the board without embedding font files.
@@ -2540,7 +2572,7 @@ body.pipetting #canvas { cursor: crosshair; }
     try {
       const img = new Image();
       img.src = url;
-      try { await img.decode(); } catch (e) { return null; }
+      if (!(await WB.imageReady(img))) return null;
       let w = img.naturalWidth, h = img.naturalHeight;
       if (!w || !h) { if (!svg) return null; w = 1024; h = 768; }      // an SVG without a size of its own
       const kept = /^image\/(png|jpeg|webp|gif)$/.test(type) && Math.max(w, h) <= MAX_PIC;
@@ -3711,6 +3743,9 @@ body.pipetting #canvas { cursor: crosshair; }
      iPad offers that storage but, outside background workers, cannot write into its files. */
   const canWriteFiles = () => typeof FileSystemFileHandle !== 'undefined' && 'createWritable' in FileSystemFileHandle.prototype;
   async function useBrowser() {
+    // Ask the browser to keep this site's storage instead of clearing it by itself when space runs
+    // low. (Clearing browsing data by hand still removes it: only a real folder survives that.)
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
     let dir = null, files = null;
     try { files = await (await navigator.storage.getDirectory()).getDirectoryHandle(DIR_NAME, { create: true }); } catch (e) {}
     if (files && canWriteFiles()) dir = files;
@@ -4775,8 +4810,10 @@ body.pipetting #canvas { cursor: crosshair; }
     worldTransform(ctx);
     ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = ctx.fillStyle = accent; ctx.lineWidth = 1.5 / z;
-    const pad = 5 / z;
+    const pad = 5 / z, pic = picSelected();
+    if (pic) drawHandles(pic, accent);
     for (const s of selection) {
+      if (s === pic) continue;
       const b = WB.boundsOf(s);
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(b.x0 - pad, b.y0 - pad, b.x1 - b.x0 + 2 * pad, b.y1 - b.y0 + 2 * pad, 6 / z);
@@ -4792,6 +4829,124 @@ body.pipetting #canvas { cursor: crosshair; }
       ctx.globalAlpha = 0.1; ctx.fill();
       ctx.globalAlpha = 1; ctx.setLineDash([6 / z, 5 / z]); ctx.stroke(); ctx.setLineDash([]);
     }
+  }
+
+  /* ---- Picture handles -------------------------------------------------
+     A single selected picture gets handles on its own (turned) outline: the corners scale it
+     keeping its shape, the side handles stretch it, and the knob above its top edge turns it.
+     Another finger on the screen while resizing makes it grow from the middle instead of from
+     the opposite side; while turning, it snaps the angle to 45° steps. With a mouse, Alt and
+     Shift do the same. Everything is worked out from the state at the start of the drag, so a
+     finger can be put down and lifted again freely. */
+  const HANDLES = { nw: [-1, -1], n: [0, -1], ne: [1, -1], e: [1, 0], se: [1, 1], s: [0, 1], sw: [-1, 1], w: [-1, 0] };
+  const ROT_GAP = 30;   // screen px between the top edge and the turning knob
+  let xf = null;        // the drag in progress: { id, k (handle), s, start, extra (other pointers), last, keys, off | a0 }
+  function picSelected() {
+    if (selection.size !== 1) return null;
+    const [s] = selection;
+    return s.tool === 'image' && doc.strokes.includes(s) ? s : null;
+  }
+  function handlePoints(s) {
+    const out = [];
+    for (const k in HANDLES) { const [a, b] = HANDLES[k]; out.push({ k, ...WB.toWorld(s, (a * s.w) / 2, (b * s.h) / 2) }); }
+    out.push({ k: 'rot', ...WB.toWorld(s, 0, -s.h / 2 - ROT_GAP / view.zoom) });
+    return out;
+  }
+  /* The handle under a screen point, or null. Fingers get a bigger target than a mouse or pen. */
+  function handleAt(cx, cy, touch) {
+    const s = picSelected();
+    if (!s || tools.tool !== 'select') return null;
+    const z = view.zoom, r = touch ? 24 : 12;
+    let best = null, bd = Infinity;
+    for (const h of handlePoints(s)) {
+      const d = hyp(h.x * z + view.x - cx, h.y * z + view.y - cy);
+      if (d <= r && d < bd) { best = h.k; bd = d; }
+    }
+    return best;
+  }
+  /* The resize cursor pointing the way a handle pulls, turned with the picture. */
+  function handleCursor(k) {
+    if (!k) return '';
+    if (k === 'rot') return 'grab';
+    const [a, b] = HANDLES[k], s = picSelected();
+    const ang = Math.atan2(b * s.h, a * s.w) + (s.rot || 0);
+    return ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'][((Math.round(ang / (Math.PI / 4)) % 4) + 4) % 4];
+  }
+  function drawHandles(s, accent) {
+    const z = view.zoom, q = WB.corners(s);
+    ctx.beginPath(); ctx.moveTo(q[0], q[1]);
+    for (let i = 2; i < 8; i += 2) ctx.lineTo(q[i], q[i + 1]);
+    ctx.closePath();
+    ctx.globalAlpha = 0.06; ctx.fill();
+    ctx.globalAlpha = 1; ctx.stroke();
+    const top = WB.toWorld(s, 0, -s.h / 2), pts = handlePoints(s), knob = pts[pts.length - 1];
+    ctx.beginPath(); ctx.moveTo(top.x, top.y); ctx.lineTo(knob.x, knob.y); ctx.stroke();
+    for (const h of pts) {
+      ctx.beginPath(); ctx.arc(h.x, h.y, (h.k === 'rot' ? 6.5 : 5) / z, 0, 2 * Math.PI);
+      ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.stroke();
+    }
+    ctx.fillStyle = accent;
+  }
+  function beginXform(e, k) {
+    const s = picSelected(), z = view.zoom;
+    const px = (e.clientX - view.x) / z, py = (e.clientY - view.y) / z;
+    const start = { x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot || 0 };
+    mode = 'xform';
+    xf = { id: e.pointerId, k, s, start, extra: new Set(), last: { x: e.clientX, y: e.clientY }, keys: { alt: e.altKey, shift: e.shiftKey } };
+    if (k === 'rot') xf.a0 = Math.atan2(py - (s.y + s.h / 2), px - (s.x + s.w / 2));
+    else {
+      // Where on the handle it was grabbed, so the edge does not jump to the pointer.
+      const [a, b] = HANDLES[k], L = WB.toLocal(s, px, py);
+      xf.off = { x: (a * s.w) / 2 - L.x, y: (b * s.h) / 2 - L.y };
+    }
+    finishFill();
+  }
+  function applyXform() {
+    const d = xf, s = d.s, st = d.start, z = view.zoom;
+    const px = (d.last.x - view.x) / z, py = (d.last.y - view.y) / z, more = d.extra.size > 0;
+    if (d.k === 'rot') {
+      let rot = st.rot + Math.atan2(py - (st.y + st.h / 2), px - (st.x + st.w / 2)) - d.a0;
+      if (more || d.keys.shift) rot = Math.round(rot / (Math.PI / 4)) * (Math.PI / 4);
+      s.rot = Math.atan2(Math.sin(rot), Math.cos(rot));
+    } else {
+      const [ex, ey] = HANDLES[d.k], L = WB.toLocal(st, px, py), lx = L.x + d.off.x, ly = L.y + d.off.y;
+      const centred = more || d.keys.alt, min = 8 / z;
+      let w = st.w, h = st.h, cx = 0, cy = 0;     // new size, and the new centre in the old picture's frame
+      if (ex && ey) {
+        // A corner: one scale factor, measured along the diagonal from the fixed point (opposite corner, or the centre).
+        const ax = centred ? 0 : (-ex * st.w) / 2, ay = centred ? 0 : (-ey * st.h) / 2;
+        const dx = (ex * st.w) / 2 - ax, dy = (ey * st.h) / 2 - ay;
+        const k = Math.max(((lx - ax) * dx + (ly - ay) * dy) / (dx * dx + dy * dy), min / Math.min(st.w, st.h));
+        w = st.w * k; h = st.h * k;
+        if (!centred) { cx = ax + (ex * w) / 2; cy = ay + (ey * h) / 2; }
+      } else if (ex) {
+        const ax = centred ? 0 : (-ex * st.w) / 2;
+        w = Math.max(min, (centred ? 2 : 1) * ex * (lx - ax));
+        if (!centred) cx = ax + (ex * w) / 2;
+      } else {
+        const ay = centred ? 0 : (-ey * st.h) / 2;
+        h = Math.max(min, (centred ? 2 : 1) * ey * (ly - ay));
+        if (!centred) cy = ay + (ey * h) / 2;
+      }
+      const c = WB.toWorld(st, cx, cy);
+      s.x = c.x - w / 2; s.y = c.y - h / 2; s.w = w; s.h = h;
+    }
+    delete s._b;
+    invalidate();
+  }
+  for (const type of ['keydown', 'keyup']) {
+    window.addEventListener(type, (e) => {
+      if (!xf) return;
+      if (e.key === 'Escape') { e.stopImmediatePropagation(); return endXform(true); }
+      xf.keys = { alt: e.altKey, shift: e.shiftKey }; applyXform();
+    }, true);
+  }
+  function endXform(cancel) {
+    const d = xf, s = d.s, st = d.start;
+    xf = null; mode = null; canvas.style.cursor = '';
+    if (cancel) { Object.assign(s, st); delete s._b; invalidate(); return; }
+    const after = { x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot || 0 };
+    if (Object.keys(after).some((k) => after[k] !== st[k])) record({ type: 'edit', s, before: st, after });
   }
 
   /* ---- Text ----------------------------------------------------------
@@ -5169,6 +5324,18 @@ body.pipetting #canvas { cursor: crosshair; }
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
     const now = performance.now();
 
+    // Resizing or turning a picture: another finger changes how (see "Picture handles"), it never pinches.
+    if (mode === 'xform') { if (e.pointerId !== xf.id) { xf.extra.add(e.pointerId); applyXform(); } return; }
+    const palm = e.pointerType === 'touch' && (penDown || now - lastPen < 400);
+    if (!mode && !palm && !(e.pointerType === 'mouse' && e.button !== 0)) {
+      const k = handleAt(e.clientX, e.clientY, e.pointerType === 'touch');
+      if (k) {
+        if (e.pointerType === 'pen') { penDown = true; lastPen = now; }
+        touches.clear(); tap = null;
+        return beginXform(e, k);
+      }
+    }
+
     if (e.pointerType === 'touch') {
       if (penDown || now - lastPen < 400) return;
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
@@ -5239,6 +5406,10 @@ body.pipetting #canvas { cursor: crosshair; }
   }
 
   canvas.addEventListener('pointermove', (e) => {
+    if (mode === 'xform') {
+      if (e.pointerId === xf.id) { xf.last = { x: e.clientX, y: e.clientY }; xf.keys = { alt: e.altKey, shift: e.shiftKey }; applyXform(); }
+      return;
+    }
     if (e.pointerType === 'touch') {
       const t = touches.get(e.pointerId);
       if (!t) return;
@@ -5249,6 +5420,7 @@ body.pipetting #canvas { cursor: crosshair; }
       cursorPos = { x: e.clientX, y: e.clientY };
       updateCursor();
       canvas.classList.toggle('can-move', tools.tool === 'select' && selection.size > 0 && onSelection(e.clientX, e.clientY));
+      if (!mode) canvas.style.cursor = handleCursor(handleAt(e.clientX, e.clientY, false));
     }
     if (mode === 'draw' && live && e.pointerId === live.id) {
       const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null;   // every sample the stylus produced, not one per frame
@@ -5274,6 +5446,11 @@ body.pipetting #canvas { cursor: crosshair; }
   function onUp(e) {
     const cancel = e.type === 'pointercancel', now = performance.now();
     if (e.pointerType === 'pen') { penDown = false; lastPen = now; }
+    if (mode === 'xform') {
+      if (e.pointerId === xf.id) endXform(cancel);
+      else if (xf.extra.delete(e.pointerId)) applyXform();   // the other finger lifted: back to the normal way
+      return;
+    }
     const isTouch = e.pointerType === 'touch';
     if (isTouch && !touches.delete(e.pointerId)) return;
 
@@ -5345,7 +5522,7 @@ body.pipetting #canvas { cursor: crosshair; }
   /* Actions: add (a new object on top), remove (objects taken out, with their positions
      in the drawing order), edit (a text changed in place), replace (the whole board). */
   function undo() {
-    if (live) return;
+    if (live || xf) return;
     if (edit) commitText();
     const a = undoStack.pop();
     if (!a) return;
@@ -5354,7 +5531,7 @@ body.pipetting #canvas { cursor: crosshair; }
     redoStack.push(a); invalidate(); changed();
   }
   function redo() {
-    if (live) return;
+    if (live || xf) return;
     if (edit) commitText();
     const a = redoStack.pop();
     if (!a) return;

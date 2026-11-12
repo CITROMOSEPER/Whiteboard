@@ -120,6 +120,9 @@
      iPad offers that storage but, outside background workers, cannot write into its files. */
   const canWriteFiles = () => typeof FileSystemFileHandle !== 'undefined' && 'createWritable' in FileSystemFileHandle.prototype;
   async function useBrowser() {
+    // Ask the browser to keep this site's storage instead of clearing it by itself when space runs
+    // low. (Clearing browsing data by hand still removes it: only a real folder survives that.)
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
     let dir = null, files = null;
     try { files = await (await navigator.storage.getDirectory()).getDirectoryHandle(DIR_NAME, { create: true }); } catch (e) {}
     if (files && canWriteFiles()) dir = files;
