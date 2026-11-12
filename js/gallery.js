@@ -112,6 +112,8 @@
   const fromLocalFile = location.protocol === 'file:';
   const canPickFolder = () => typeof window.showDirectoryPicker === 'function' && !fromLocalFile;
   const canUseBrowser = () => typeof indexedDB !== 'undefined';
+  /* Folders can be dragged in from the file manager (Chrome and Edge on computers). */
+  const canDrop = () => canPickFolder() && typeof DataTransferItem !== 'undefined' && 'getAsFileSystemHandle' in DataTransferItem.prototype;
 
   async function useBrowser() {
     let dir = null;
@@ -395,6 +397,7 @@
     if (!browsing) {
       msg.textContent = '';
       msg.appendChild(el('p', '', tr(state === 'allow' ? 'gAllow' : state === 'none' ? 'gError' : 'gSetup')));
+      if (state === 'setup' && canDrop()) msg.appendChild(el('p', '', tr('gDrop')));
       const row = el('div', 'g-actions');
       if (state === 'allow') row.appendChild(button(tr('gAllowBtn'), 'primary', () => show(true)));
       if (state === 'setup' || state === 'allow') row.appendChild(button(tr(state === 'allow' ? 'gChange' : 'gChoose'), state === 'allow' ? 'pill-btn quiet' : 'primary', pickFolder));
@@ -565,7 +568,7 @@
     const foot = $('#g-foot');
     foot.textContent = '';
     if (!browsing) return;
-    foot.appendChild(el('span', '', kind === 'browser' ? tr(fromLocalFile ? 'gLocalNote' : 'gBrowserNote') : root.name));
+    foot.appendChild(el('span', '', kind === 'browser' ? tr(fromLocalFile ? 'gLocalNote' : 'gBrowserNote') + (canDrop() ? ' ' + tr('gDropShort') : '') : root.name));
     if (canPickFolder()) foot.appendChild(button(tr(kind === 'browser' ? 'gChoose' : 'gChange'), 'g-link', pickFolder));
   }
   /* Choose the gallery folder, checking each step so that a failure names the step that failed. */
@@ -588,9 +591,9 @@
       await kvSet('galleryDir', { kind: 'folder', handle: root });
     } catch (e) {
       if (e && e.name === 'AbortError') {
-        lastError = 'Nothing was selected (the folder dialog was closed, or the browser\'s question about editing files in the folder was not allowed). ' +
-          'If the browser said the folder "contains system files": Documents, Desktop, Downloads and your user folder cannot be chosen themselves. ' +
-          'Open Documents in the dialog, click a folder inside it (for example "Whiteboard gallery") so its name appears in the Folder box, then press Select Folder.';
+        // Either a real cancel, or the browser cancelled by itself (it does on some systems even
+        // after a folder was chosen). Dragging the folder in works without the dialog.
+        lastError = tr('gPickAbort');
         return show();
       }
       fail(e, step);
@@ -599,6 +602,27 @@
     lastError = '';
     WB.gallery.ref = null;
     afterConnect();
+  }
+  /* A folder dragged in from the file manager becomes the gallery itself. This needs no folder
+     dialog, which some systems' browsers cancel no matter what is chosen. Editing it still needs
+     the browser's permission; that question can only be asked right after a click, so when the
+     drop alone cannot ask, the gallery shows its Allow button and asks on that click. */
+  async function useFolder(handle) {
+    host.commit();
+    lastError = '';
+    try {
+      await kvSet('galleryDir', { kind: 'folder', handle });
+      root = null; path = []; WB.gallery.ref = null;
+      let p = await handle.queryPermission({ mode: 'readwrite' });
+      if (p !== 'granted') { try { p = await handle.requestPermission({ mode: 'readwrite' }); } catch (e) { /* needs a click: the Allow button asks */ } }
+      if (p === 'granted') {
+        await writeFile(handle, '.gallery-test', 'ok');
+        await handle.removeEntry('.gallery-test');
+        root = handle; kind = 'folder';
+      }
+    } catch (e) { fail(e, 'using the folder "' + handle.name + '"'); }
+    if (!$('#gallery').classList.contains('open')) host.openSheet('#gallery');
+    if (root) afterConnect(); else show();
   }
   function afterConnect() {
     if (pendingSave) { host.closeSheets(); return save(); }
@@ -632,5 +656,5 @@
     $('#g-grid').addEventListener('scroll', () => $('#g-menu').classList.remove('open'), { passive: true });
   }
 
-  WB.gallery = { init, open, save, ref: null, /* the open board's file in the gallery: { dir, name } */ _clean: clean, _state: () => ({ kind, root: root && root.name, path: path.map((p) => p.label) }) };
+  WB.gallery = { init, open, save, useFolder, canDrop, ref: null, /* the open board's file in the gallery: { dir, name } */ _clean: clean, _state: () => ({ kind, root: root && root.name, path: path.map((p) => p.label) }) };
 })();

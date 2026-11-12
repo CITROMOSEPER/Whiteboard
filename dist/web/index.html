@@ -1429,24 +1429,81 @@ body.pipetting #canvas { cursor: crosshair; }
   };
   for (const l in SAVEFILE) if (D[l]) [D[l].mSaveFile, D[l].tSavedFile, D[l].tSaveDenied] = SAVEFILE[l];
 
-  /* The browser closed its open dialog at once: offer the simple file chooser instead. */
-  const OPENFB = {
-    en: 'The browser’s open dialog did not appear. Use the simple file chooser:',
-    hu: 'A böngésző megnyitási ablaka nem jelent meg. Használd az egyszerű fájlválasztót:',
-    de: 'Der Öffnen-Dialog des Browsers ist nicht erschienen. Nutze die einfache Dateiauswahl:',
-    fr: 'La fenêtre d’ouverture du navigateur ne s’est pas affichée. Utilisez le sélecteur de fichiers simple :',
-    it: 'La finestra di apertura del browser non è comparsa. Usa il selettore di file semplice:',
-    es: 'No apareció el diálogo de apertura del navegador. Usa el selector de archivos simple:',
-    pt: 'A janela de abrir do navegador não apareceu. Use o seletor de arquivos simples:',
-    ru: 'Окно открытия файла в браузере не появилось. Используйте простой выбор файла:',
-    uk: 'Вікно відкриття файлу в браузері не з’явилося. Скористайтеся простим вибором файлу:',
-    tr: 'Tarayıcının açma penceresi görünmedi. Basit dosya seçiciyi kullanın:',
-    zh: '浏览器的打开对话框没有出现。请使用简单的文件选择器：',
-    ja: 'ブラウザの「開く」ダイアログが表示されませんでした。簡易ファイル選択を使ってください：',
-    ar: 'لم تظهر نافذة الفتح في المتصفح. استخدم أداة اختيار الملفات البسيطة:',
-    hi: 'ब्राउज़र का खोलने वाला डायलॉग नहीं दिखा। साधारण फ़ाइल चयनकर्ता इस्तेमाल करें:',
+  /* When the browser's own dialogs cancel by themselves (some systems do, even after a choice):
+     [open fallback, save-as cancelled, gallery hint, gallery footer hint, gallery folder dialog cancelled]. */
+  const NODIALOG = {
+    en: ['Nothing was opened. If you chose a file, try the simple file chooser, or drag the file onto the board:',
+      'Not saved. If you chose an existing file to replace, the browser may have refused: choose a new name instead.',
+      'You can also drag a folder here from File Explorer: the gallery is kept in that folder.',
+      'Drag a folder here from File Explorer to keep the gallery there.',
+      'No folder was chosen. If you did choose one and still see this, your browser cancelled the folder dialog by itself: drag the folder from File Explorer onto this window instead.'],
+    hu: ['Semmi sem nyílt meg. Ha választottál fájlt, próbáld az egyszerű fájlválasztót, vagy húzd a fájlt a táblára:',
+      'Nincs mentve. Ha egy meglévő fájlt választottál felülírásra, lehet, hogy a böngésző nem engedte: adj inkább új nevet.',
+      'Mappát is ide húzhatsz a Fájlkezelőből: a galéria abban a mappában lesz.',
+      'Húzz ide egy mappát a Fájlkezelőből, hogy a galéria ott legyen.',
+      'Nem lett mappa kiválasztva. Ha mégis választottál, és ezt látod, a böngésző magától bezárta a mappaválasztót: húzd inkább a mappát a Fájlkezelőből erre az ablakra.'],
+    de: ['Nichts wurde geöffnet. Wenn du eine Datei gewählt hast, versuche die einfache Dateiauswahl oder ziehe die Datei auf die Tafel:',
+      'Nicht gespeichert. Wenn du eine vorhandene Datei zum Ersetzen gewählt hast, hat der Browser das evtl. abgelehnt: wähle stattdessen einen neuen Namen.',
+      'Du kannst auch einen Ordner aus dem Explorer hierher ziehen: Die Galerie liegt dann in diesem Ordner.',
+      'Ziehe einen Ordner aus dem Explorer hierher, um die Galerie dort zu speichern.',
+      'Kein Ordner gewählt. Wenn du einen gewählt hast und dies trotzdem siehst, hat der Browser den Ordnerdialog von selbst abgebrochen: Ziehe den Ordner stattdessen aus dem Explorer auf dieses Fenster.'],
+    fr: ['Rien n’a été ouvert. Si vous avez choisi un fichier, essayez le sélecteur simple, ou faites glisser le fichier sur le tableau :',
+      'Non enregistré. Si vous avez choisi un fichier existant à remplacer, le navigateur a pu refuser : choisissez plutôt un nouveau nom.',
+      'Vous pouvez aussi faire glisser un dossier ici depuis l’Explorateur : la galerie sera gardée dans ce dossier.',
+      'Faites glisser un dossier ici depuis l’Explorateur pour y garder la galerie.',
+      'Aucun dossier choisi. Si vous en avez choisi un et voyez quand même ceci, le navigateur a annulé la fenêtre de lui-même : faites plutôt glisser le dossier depuis l’Explorateur sur cette fenêtre.'],
+    it: ['Non è stato aperto nulla. Se hai scelto un file, prova il selettore semplice o trascina il file sulla lavagna:',
+      'Non salvato. Se hai scelto un file esistente da sostituire, il browser potrebbe averlo rifiutato: scegli invece un nuovo nome.',
+      'Puoi anche trascinare qui una cartella da Esplora file: la galleria sarà tenuta in quella cartella.',
+      'Trascina qui una cartella da Esplora file per tenerci la galleria.',
+      'Nessuna cartella scelta. Se ne hai scelta una e vedi comunque questo, il browser ha annullato da solo la finestra: trascina invece la cartella da Esplora file su questa finestra.'],
+    es: ['No se abrió nada. Si elegiste un archivo, prueba el selector simple o arrastra el archivo a la pizarra:',
+      'No se guardó. Si elegiste un archivo existente para reemplazarlo, puede que el navegador lo rechazara: elige un nombre nuevo.',
+      'También puedes arrastrar aquí una carpeta desde el Explorador: la galería se guardará en esa carpeta.',
+      'Arrastra aquí una carpeta desde el Explorador para guardar la galería en ella.',
+      'No se eligió ninguna carpeta. Si elegiste una y aun así ves esto, el navegador canceló el diálogo por sí solo: arrastra la carpeta desde el Explorador a esta ventana.'],
+    pt: ['Nada foi aberto. Se você escolheu um arquivo, tente o seletor simples ou arraste o arquivo para o quadro:',
+      'Não foi salvo. Se você escolheu um arquivo existente para substituir, o navegador pode ter recusado: escolha um novo nome.',
+      'Você também pode arrastar uma pasta do Explorador para cá: a galeria ficará nessa pasta.',
+      'Arraste uma pasta do Explorador para cá para manter a galeria nela.',
+      'Nenhuma pasta escolhida. Se você escolheu uma e ainda vê isto, o navegador cancelou a janela sozinho: arraste a pasta do Explorador para esta janela.'],
+    ru: ['Ничего не открыто. Если вы выбрали файл, попробуйте простой выбор файла или перетащите файл на доску:',
+      'Не сохранено. Если вы выбрали существующий файл для замены, браузер мог отказать: выберите новое имя.',
+      'Можно также перетащить сюда папку из Проводника: галерея будет храниться в ней.',
+      'Перетащите сюда папку из Проводника, чтобы хранить галерею в ней.',
+      'Папка не выбрана. Если вы её выбрали, но видите это, браузер сам закрыл окно выбора: перетащите папку из Проводника в это окно.'],
+    uk: ['Нічого не відкрито. Якщо ви вибрали файл, спробуйте простий вибір файлу або перетягніть файл на дошку:',
+      'Не збережено. Якщо ви вибрали наявний файл для заміни, браузер міг відмовити: виберіть нову назву.',
+      'Можна також перетягнути сюди папку з Провідника: галерея зберігатиметься в ній.',
+      'Перетягніть сюди папку з Провідника, щоб зберігати галерею в ній.',
+      'Папку не вибрано. Якщо ви її вибрали, але бачите це, браузер сам закрив вікно вибору: перетягніть папку з Провідника в це вікно.'],
+    tr: ['Hiçbir şey açılmadı. Bir dosya seçtiyseniz basit dosya seçiciyi deneyin veya dosyayı tahtaya sürükleyin:',
+      'Kaydedilmedi. Değiştirmek için var olan bir dosya seçtiyseniz tarayıcı reddetmiş olabilir: bunun yerine yeni bir ad seçin.',
+      'Dosya Gezgini’nden buraya bir klasör de sürükleyebilirsiniz: galeri o klasörde tutulur.',
+      'Galeriyi orada tutmak için Dosya Gezgini’nden buraya bir klasör sürükleyin.',
+      'Klasör seçilmedi. Bir klasör seçtiyseniz ve yine de bunu görüyorsanız tarayıcı pencereyi kendiliğinden kapattı: klasörü Dosya Gezgini’nden bu pencereye sürükleyin.'],
+    zh: ['未打开任何文件。如果你选了文件，请试试简单文件选择器，或把文件拖到白板上：',
+      '未保存。如果你选择了要替换的已有文件，浏览器可能拒绝了：请改用新名称。',
+      '也可以从文件资源管理器把文件夹拖到这里：图库将保存在该文件夹中。',
+      '从文件资源管理器把文件夹拖到这里，即可把图库放在那里。',
+      '未选择文件夹。如果你已选择却仍看到此提示，说明浏览器自行取消了对话框：请从文件资源管理器把文件夹拖到此窗口。'],
+    ja: ['何も開かれませんでした。ファイルを選んだ場合は、簡易ファイル選択を試すか、ファイルをボードにドラッグしてください：',
+      '保存されませんでした。既存のファイルを置き換えようとした場合、ブラウザが拒否した可能性があります。新しい名前を選んでください。',
+      'エクスプローラーからフォルダをここにドラッグすることもできます。ギャラリーはそのフォルダに保存されます。',
+      'エクスプローラーからフォルダをここにドラッグすると、ギャラリーをそこに保存できます。',
+      'フォルダが選ばれていません。選んだのにこれが表示される場合、ブラウザがダイアログを自動的に取り消しています。エクスプローラーからフォルダをこのウィンドウにドラッグしてください。'],
+    ar: ['لم يُفتح شيء. إذا اخترت ملفًا فجرّب أداة الاختيار البسيطة، أو اسحب الملف إلى اللوح:',
+      'لم يتم الحفظ. إذا اخترت ملفًا موجودًا لاستبداله فربما رفض المتصفح ذلك: اختر اسمًا جديدًا بدلًا منه.',
+      'يمكنك أيضًا سحب مجلد إلى هنا من مستكشف الملفات: سيُحفظ المعرض في ذلك المجلد.',
+      'اسحب مجلدًا إلى هنا من مستكشف الملفات لحفظ المعرض فيه.',
+      'لم يتم اختيار مجلد. إذا اخترت مجلدًا وما زلت ترى هذا، فقد ألغى المتصفح النافذة من تلقاء نفسه: اسحب المجلد من مستكشف الملفات إلى هذه النافذة.'],
+    hi: ['कुछ नहीं खुला। अगर आपने फ़ाइल चुनी थी, तो साधारण फ़ाइल चयनकर्ता आज़माएँ या फ़ाइल को बोर्ड पर खींचें:',
+      'सहेजा नहीं गया। अगर आपने बदलने के लिए कोई मौजूदा फ़ाइल चुनी थी, तो ब्राउज़र ने मना किया होगा: इसके बजाय नया नाम चुनें।',
+      'आप File Explorer से कोई फ़ोल्डर यहाँ खींच भी सकते हैं: गैलरी उसी फ़ोल्डर में रहेगी।',
+      'गैलरी को वहाँ रखने के लिए File Explorer से कोई फ़ोल्डर यहाँ खींचें।',
+      'कोई फ़ोल्डर नहीं चुना गया। अगर आपने चुना था और फिर भी यह दिख रहा है, तो ब्राउज़र ने डायलॉग अपने-आप रद्द कर दिया: इसके बजाय File Explorer से फ़ोल्डर को इस विंडो पर खींचें।'],
   };
-  for (const l in OPENFB) if (D[l]) D[l].tOpenFallback = OPENFB[l];
+  for (const l in NODIALOG) if (D[l]) [D[l].tOpenFallback, D[l].tSaveAsAbort, D[l].gDrop, D[l].gDropShort, D[l].gPickAbort] = NODIALOG[l];
 
   /* Limits of running from a local file (file://): no folder access, and existing files cannot be replaced. */
   const LOCAL = {
@@ -3450,6 +3507,8 @@ body.pipetting #canvas { cursor: crosshair; }
   const fromLocalFile = location.protocol === 'file:';
   const canPickFolder = () => typeof window.showDirectoryPicker === 'function' && !fromLocalFile;
   const canUseBrowser = () => typeof indexedDB !== 'undefined';
+  /* Folders can be dragged in from the file manager (Chrome and Edge on computers). */
+  const canDrop = () => canPickFolder() && typeof DataTransferItem !== 'undefined' && 'getAsFileSystemHandle' in DataTransferItem.prototype;
 
   async function useBrowser() {
     let dir = null;
@@ -3733,6 +3792,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (!browsing) {
       msg.textContent = '';
       msg.appendChild(el('p', '', tr(state === 'allow' ? 'gAllow' : state === 'none' ? 'gError' : 'gSetup')));
+      if (state === 'setup' && canDrop()) msg.appendChild(el('p', '', tr('gDrop')));
       const row = el('div', 'g-actions');
       if (state === 'allow') row.appendChild(button(tr('gAllowBtn'), 'primary', () => show(true)));
       if (state === 'setup' || state === 'allow') row.appendChild(button(tr(state === 'allow' ? 'gChange' : 'gChoose'), state === 'allow' ? 'pill-btn quiet' : 'primary', pickFolder));
@@ -3903,7 +3963,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const foot = $('#g-foot');
     foot.textContent = '';
     if (!browsing) return;
-    foot.appendChild(el('span', '', kind === 'browser' ? tr(fromLocalFile ? 'gLocalNote' : 'gBrowserNote') : root.name));
+    foot.appendChild(el('span', '', kind === 'browser' ? tr(fromLocalFile ? 'gLocalNote' : 'gBrowserNote') + (canDrop() ? ' ' + tr('gDropShort') : '') : root.name));
     if (canPickFolder()) foot.appendChild(button(tr(kind === 'browser' ? 'gChoose' : 'gChange'), 'g-link', pickFolder));
   }
   /* Choose the gallery folder, checking each step so that a failure names the step that failed. */
@@ -3926,9 +3986,9 @@ body.pipetting #canvas { cursor: crosshair; }
       await kvSet('galleryDir', { kind: 'folder', handle: root });
     } catch (e) {
       if (e && e.name === 'AbortError') {
-        lastError = 'Nothing was selected (the folder dialog was closed, or the browser\'s question about editing files in the folder was not allowed). ' +
-          'If the browser said the folder "contains system files": Documents, Desktop, Downloads and your user folder cannot be chosen themselves. ' +
-          'Open Documents in the dialog, click a folder inside it (for example "Whiteboard gallery") so its name appears in the Folder box, then press Select Folder.';
+        // Either a real cancel, or the browser cancelled by itself (it does on some systems even
+        // after a folder was chosen). Dragging the folder in works without the dialog.
+        lastError = tr('gPickAbort');
         return show();
       }
       fail(e, step);
@@ -3937,6 +3997,27 @@ body.pipetting #canvas { cursor: crosshair; }
     lastError = '';
     WB.gallery.ref = null;
     afterConnect();
+  }
+  /* A folder dragged in from the file manager becomes the gallery itself. This needs no folder
+     dialog, which some systems' browsers cancel no matter what is chosen. Editing it still needs
+     the browser's permission; that question can only be asked right after a click, so when the
+     drop alone cannot ask, the gallery shows its Allow button and asks on that click. */
+  async function useFolder(handle) {
+    host.commit();
+    lastError = '';
+    try {
+      await kvSet('galleryDir', { kind: 'folder', handle });
+      root = null; path = []; WB.gallery.ref = null;
+      let p = await handle.queryPermission({ mode: 'readwrite' });
+      if (p !== 'granted') { try { p = await handle.requestPermission({ mode: 'readwrite' }); } catch (e) { /* needs a click: the Allow button asks */ } }
+      if (p === 'granted') {
+        await writeFile(handle, '.gallery-test', 'ok');
+        await handle.removeEntry('.gallery-test');
+        root = handle; kind = 'folder';
+      }
+    } catch (e) { fail(e, 'using the folder "' + handle.name + '"'); }
+    if (!$('#gallery').classList.contains('open')) host.openSheet('#gallery');
+    if (root) afterConnect(); else show();
   }
   function afterConnect() {
     if (pendingSave) { host.closeSheets(); return save(); }
@@ -3970,7 +4051,7 @@ body.pipetting #canvas { cursor: crosshair; }
     $('#g-grid').addEventListener('scroll', () => $('#g-menu').classList.remove('open'), { passive: true });
   }
 
-  WB.gallery = { init, open, save, ref: null, /* the open board's file in the gallery: { dir, name } */ _clean: clean, _state: () => ({ kind, root: root && root.name, path: path.map((p) => p.label) }) };
+  WB.gallery = { init, open, save, useFolder, canDrop, ref: null, /* the open board's file in the gallery: { dir, name } */ _clean: clean, _state: () => ({ kind, root: root && root.name, path: path.map((p) => p.label) }) };
 })();
 
 </script>
@@ -5211,6 +5292,8 @@ body.pipetting #canvas { cursor: crosshair; }
       if (e.name !== 'AbortError') report(tr('tSaveFail'), 'save dialog', e);
       // Opened from a local file, the browser reports a refused overwrite exactly like a cancel.
       else if (location.protocol === 'file:') toast(tr('tLocalSave'), null, null, 9000);
+      // Some systems' browsers also cancel when an existing file is chosen to be replaced.
+      else toast(tr('tSaveAsAbort'), null, null, 9000);
       return;                                                   // cancelled, or the dialog itself failed: nothing is written anywhere
     }
     // An unnamed board takes the name it was saved under, before the file is written.
@@ -5234,16 +5317,13 @@ body.pipetting #canvas { cursor: crosshair; }
   async function openBoard() {
     if (!canUseFiles() || !window.showOpenFilePicker) return $('#file-input').click();
     let h;
-    const asked = performance.now();
     try { [h] = await window.showOpenFilePicker({ id: 'whiteboard-file', types: BOARD_TYPES, excludeAcceptAllOption: false }); }
     catch (e) {
-      // Ended at once, before anyone could have used it: the browser refused to show its dialog.
-      // The simple file chooser still works; it needs a fresh tap, so offer it as a button.
-      const instant = performance.now() - asked < 700;
-      if (e.name !== 'AbortError' || instant) {
-        console.error('open dialog', e);
-        toast(tr('tOpenFallback'), tr('mOpenFrom'), () => $('#file-input').click(), 12000);
-      }
+      // A cancel looks exactly like the browser cancelling by itself, which some systems do even
+      // after a file was chosen (and then refuse every later dialog at once). The simple file
+      // chooser still works there; it needs a fresh tap, so it is offered as a button.
+      if (e.name !== 'AbortError') console.error('open dialog', e);
+      toast(tr('tOpenFallback'), tr('mOpenFrom'), () => $('#file-input').click(), 10000);
       return;
     }
     try { loadText(await (await h.getFile()).text(), h); } catch (err) { toast(tr('eInvalid')); }
@@ -5255,10 +5335,21 @@ body.pipetting #canvas { cursor: crosshair; }
     try { loadText(await file.text()); } catch (err) { toast(tr('eInvalid')); }
   });
   window.addEventListener('dragover', (e) => e.preventDefault());
+  /* Dropped from the file manager: a folder becomes the gallery; a board opens, and where the
+     browser hands over the file itself, Save writes back into it like after "Open from…". */
   window.addEventListener('drop', async (e) => {
     e.preventDefault();
-    const file = e.dataTransfer && e.dataTransfer.files[0];
-    if (file) loadText(await file.text());
+    const dt = e.dataTransfer;
+    if (!dt) return;
+    const item = dt.items && [...dt.items].find((i) => i.kind === 'file');
+    const file = dt.files[0];
+    // The handle has to be asked for during the event itself, before anything is awaited.
+    const pending = item && WB.gallery.canDrop() ? item.getAsFileSystemHandle() : null;
+    let handle = null;
+    try { handle = pending ? await pending : null; } catch (err) { handle = null; }
+    if (handle && handle.kind === 'directory') return WB.gallery.useFolder(handle);
+    if (handle) { try { return loadText(await (await handle.getFile()).text(), handle); } catch (err) { /* read it as a plain file */ } }
+    if (file) { try { loadText(await file.text()); } catch (err) { toast(tr('eInvalid')); } }
   });
 
   /* ---- Export -------------------------------------------------------- */

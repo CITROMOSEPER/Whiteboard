@@ -1234,6 +1234,8 @@
       if (e.name !== 'AbortError') report(tr('tSaveFail'), 'save dialog', e);
       // Opened from a local file, the browser reports a refused overwrite exactly like a cancel.
       else if (location.protocol === 'file:') toast(tr('tLocalSave'), null, null, 9000);
+      // Some systems' browsers also cancel when an existing file is chosen to be replaced.
+      else toast(tr('tSaveAsAbort'), null, null, 9000);
       return;                                                   // cancelled, or the dialog itself failed: nothing is written anywhere
     }
     // An unnamed board takes the name it was saved under, before the file is written.
@@ -1257,16 +1259,13 @@
   async function openBoard() {
     if (!canUseFiles() || !window.showOpenFilePicker) return $('#file-input').click();
     let h;
-    const asked = performance.now();
     try { [h] = await window.showOpenFilePicker({ id: 'whiteboard-file', types: BOARD_TYPES, excludeAcceptAllOption: false }); }
     catch (e) {
-      // Ended at once, before anyone could have used it: the browser refused to show its dialog.
-      // The simple file chooser still works; it needs a fresh tap, so offer it as a button.
-      const instant = performance.now() - asked < 700;
-      if (e.name !== 'AbortError' || instant) {
-        console.error('open dialog', e);
-        toast(tr('tOpenFallback'), tr('mOpenFrom'), () => $('#file-input').click(), 12000);
-      }
+      // A cancel looks exactly like the browser cancelling by itself, which some systems do even
+      // after a file was chosen (and then refuse every later dialog at once). The simple file
+      // chooser still works there; it needs a fresh tap, so it is offered as a button.
+      if (e.name !== 'AbortError') console.error('open dialog', e);
+      toast(tr('tOpenFallback'), tr('mOpenFrom'), () => $('#file-input').click(), 10000);
       return;
     }
     try { loadText(await (await h.getFile()).text(), h); } catch (err) { toast(tr('eInvalid')); }
@@ -1278,10 +1277,21 @@
     try { loadText(await file.text()); } catch (err) { toast(tr('eInvalid')); }
   });
   window.addEventListener('dragover', (e) => e.preventDefault());
+  /* Dropped from the file manager: a folder becomes the gallery; a board opens, and where the
+     browser hands over the file itself, Save writes back into it like after "Open from…". */
   window.addEventListener('drop', async (e) => {
     e.preventDefault();
-    const file = e.dataTransfer && e.dataTransfer.files[0];
-    if (file) loadText(await file.text());
+    const dt = e.dataTransfer;
+    if (!dt) return;
+    const item = dt.items && [...dt.items].find((i) => i.kind === 'file');
+    const file = dt.files[0];
+    // The handle has to be asked for during the event itself, before anything is awaited.
+    const pending = item && WB.gallery.canDrop() ? item.getAsFileSystemHandle() : null;
+    let handle = null;
+    try { handle = pending ? await pending : null; } catch (err) { handle = null; }
+    if (handle && handle.kind === 'directory') return WB.gallery.useFolder(handle);
+    if (handle) { try { return loadText(await (await handle.getFile()).text(), handle); } catch (err) { /* read it as a plain file */ } }
+    if (file) { try { loadText(await file.text()); } catch (err) { toast(tr('eInvalid')); } }
   });
 
   /* ---- Export -------------------------------------------------------- */
