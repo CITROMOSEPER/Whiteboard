@@ -295,6 +295,7 @@
       const text = host.serialize(), h = await writeFile(dir, name, text);
       if ((await h.getFile()).size === 0 && text.length) throw new Error('the file is empty after writing');
       WB.gallery.ref = { dir, name };
+      if (host.saved) host.saved();
       host.toast(tr('tSavedGallery'));
       if ($('#gallery').classList.contains('open')) show();
     } catch (e) { host.report(tr('tSaveFail'), 'saving to the gallery', e); }
@@ -587,7 +588,9 @@
       await kvSet('galleryDir', { kind: 'folder', handle: root });
     } catch (e) {
       if (e && e.name === 'AbortError') {
-        lastError = 'Nothing was selected (the folder dialog was closed, or the browser\'s question about editing files in the folder was not allowed).';
+        lastError = 'Nothing was selected (the folder dialog was closed, or the browser\'s question about editing files in the folder was not allowed). ' +
+          'If the browser said the folder "contains system files": Documents, Desktop, Downloads and your user folder cannot be chosen themselves. ' +
+          'Open Documents in the dialog, click a folder inside it (for example "Whiteboard gallery") so its name appears in the Folder box, then press Select Folder.';
         return show();
       }
       fail(e, step);

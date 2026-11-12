@@ -588,6 +588,25 @@
   D.ar.gSetup = 'اختر مكان المعرض. لا تسمح المتصفحات باختيار مجلد المستندات نفسه: افتح المستندات، وأنشئ داخله مجلدًا جديدًا (مثل «Whiteboard gallery») ثم اختره.';
   D.hi.gSetup = 'चुनें कि आपकी गैलरी कहाँ रहेगी। ब्राउज़र स्वयं दस्तावेज़ फ़ोल्डर चुनने नहीं देते: दस्तावेज़ खोलें, उसमें एक नया फ़ोल्डर बनाएँ (जैसे “Whiteboard gallery”) और उसी फ़ोल्डर को चुनें।';
 
+  /* Saving back into the board's own file: [menu item, done, refused]. */
+  const SAVEFILE = {
+    en: ['Save to “{t}”', 'Saved to “{t}”', 'Not saved: the browser did not allow changing “{t}”.'],
+    hu: ['Mentés ide: „{t}”', 'Mentve ide: „{t}”', 'Nincs mentve: a böngésző nem engedte módosítani ezt: „{t}”.'],
+    de: ['In „{t}“ speichern', 'In „{t}“ gespeichert', 'Nicht gespeichert: Der Browser hat das Ändern von „{t}“ nicht erlaubt.'],
+    fr: ['Enregistrer dans « {t} »', 'Enregistré dans « {t} »', 'Non enregistré : le navigateur n’a pas autorisé la modification de « {t} ».'],
+    it: ['Salva in “{t}”', 'Salvato in “{t}”', 'Non salvato: il browser non ha permesso di modificare “{t}”.'],
+    es: ['Guardar en «{t}»', 'Guardado en «{t}»', 'No se guardó: el navegador no permitió modificar «{t}».'],
+    pt: ['Salvar em “{t}”', 'Salvo em “{t}”', 'Não foi salvo: o navegador não permitiu alterar “{t}”.'],
+    ru: ['Сохранить в «{t}»', 'Сохранено в «{t}»', 'Не сохранено: браузер не разрешил изменить «{t}».'],
+    uk: ['Зберегти в «{t}»', 'Збережено в «{t}»', 'Не збережено: браузер не дозволив змінити «{t}».'],
+    tr: ['“{t}” dosyasına kaydet', '“{t}” dosyasına kaydedildi', 'Kaydedilmedi: tarayıcı “{t}” dosyasının değiştirilmesine izin vermedi.'],
+    zh: ['保存到“{t}”', '已保存到“{t}”', '未保存：浏览器不允许修改“{t}”。'],
+    ja: ['「{t}」に保存', '「{t}」に保存しました', '保存されませんでした：ブラウザが「{t}」の変更を許可しませんでした。'],
+    ar: ['حفظ في «{t}»', 'تم الحفظ في «{t}»', 'لم يتم الحفظ: لم يسمح المتصفح بتعديل «{t}».'],
+    hi: ['“{t}” में सहेजें', '“{t}” में सहेजा गया', 'सहेजा नहीं गया: ब्राउज़र ने “{t}” बदलने की अनुमति नहीं दी।'],
+  };
+  for (const l in SAVEFILE) if (D[l]) [D[l].mSaveFile, D[l].tSavedFile, D[l].tSaveDenied] = SAVEFILE[l];
+
   /* Limits of running from a local file (file://): no folder access, and existing files cannot be replaced. */
   const LOCAL = {
     en: ['Stored inside this browser. A page opened from a local file is not allowed to use folders; open the app from its web address or install it to keep the gallery in a real folder.',

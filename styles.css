@@ -212,6 +212,7 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
 .mi:hover, .mi:focus-visible { background: var(--accent); color: #fff; outline: none; }
 .mi:active { opacity: 0.8; }
 .mi kbd { font: inherit; font-size: 0.75rem; opacity: 0.55; }
+.menu .mi[hidden], .menu kbd[hidden] { display: none; }
 .menu hr { border: 0; height: 1px; background: var(--hairline); margin: 5px 10px; }
 
 /* ---------- Sheets ---------- */

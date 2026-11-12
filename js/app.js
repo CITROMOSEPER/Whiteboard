@@ -1172,50 +1172,95 @@
     await w.write(blob); await w.close();
   }
 
+  /* Where Ctrl S saves: the device file the board was last saved to or opened from ('file'),
+     or the gallery ('gallery'). Whichever was used last wins. */
+  let saveTarget = 'gallery';
+  const BOARD_TYPES = [{ description: 'Whiteboard', accept: { 'application/x-whtbd': ['.whtbd'] } }];
+  const canUseFiles = () => typeof window.showSaveFilePicker === 'function' && location.protocol !== 'file:';
+  const commitPending = () => { if (edit) commitText(); inkConvert(); };
+
+  /* Write the board into a file the page already has, then read it back to prove it arrived.
+     Comparing the text (not just the size) catches a write that silently left the old file in place. */
+  async function writeBoardFile(h) {
+    let step = 'permission to change "' + h.name + '"';
+    const text = WB.serialize(doc, view);
+    if (h.queryPermission && (await h.queryPermission({ mode: 'readwrite' })) !== 'granted' &&
+        (await h.requestPermission({ mode: 'readwrite' })) !== 'granted') {
+      throw Object.assign(new Error('the browser did not allow changing the file'), { name: 'NotAllowedError', step });
+    }
+    try {
+      step = 'opening the file for writing';
+      const w = await h.createWritable({ keepExistingData: false });
+      step = 'writing';
+      await w.write(new Blob([text], { type: 'application/json' }));
+      step = 'finishing the file';
+      await w.close();
+      step = 'checking the result';
+      const back = await (await h.getFile()).text();
+      if (back !== text) throw new Error(`the file on disk still holds different content (${back.length} characters, expected ${text.length})`);
+    } catch (e) { e.step = e.step || step; throw e; }
+  }
+  function fileSaved(h) {
+    fileHandle = h; saveTarget = 'file';
+    toast(tr('tSavedFile', { t: h.name }));
+  }
+
+  /* "Save": straight back into the file the board came from, with no dialog. */
+  async function saveBoardFile() {
+    if (!fileHandle) return saveBoardTo();
+    commitPending();
+    try { await writeBoardFile(fileHandle); fileSaved(fileHandle); }
+    catch (e) {
+      if (e.name === 'AbortError' || e.name === 'NotAllowedError') return toast(tr('tSaveDenied', { t: fileHandle.name }), tr('mSaveTo'), saveBoardTo, 9000);
+      report(tr('tSaveFail'), e.step, e);
+    }
+  }
+  const saveDefault = () => (fileHandle && saveTarget === 'file' ? saveBoardFile() : WB.gallery.save());
+
   /* "Save to…": always asks where, writes the file there, and checks that it really arrived. */
   async function saveBoardTo() {
+    commitPending();
     const name = safeName() + '.whtbd';
     if (!window.showSaveFilePicker) {                           // this browser has no save dialog
       download(new Blob([WB.serialize(doc, view)], { type: 'application/json' }), name);
       return toast(tr('tSavedDl'));
     }
-    let h, step = 'save dialog';
+    let h;
     try {
-      h = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'Whiteboard', accept: { 'application/x-whtbd': ['.whtbd'] } }] });
+      const opts = { id: 'whiteboard-file', suggestedName: fileHandle ? fileHandle.name : name, types: BOARD_TYPES };
+      if (fileHandle) opts.startIn = fileHandle;                // open the dialog next to the board's own file
+      h = await window.showSaveFilePicker(opts);
     } catch (e) {
-      if (e.name !== 'AbortError') report(tr('tSaveFail'), step, e);
+      if (e.name !== 'AbortError') report(tr('tSaveFail'), 'save dialog', e);
       // Opened from a local file, the browser reports a refused overwrite exactly like a cancel.
       else if (location.protocol === 'file:') toast(tr('tLocalSave'), null, null, 9000);
       return;                                                   // cancelled, or the dialog itself failed: nothing is written anywhere
     }
     // An unnamed board takes the name it was saved under, before the file is written.
     if (untitled()) { doc.title = h.name.replace(/\.whtbd$/i, '') || 'Untitled'; titleEl.value = shownTitle(); updateChrome(); autosave(); }
-    const blob = new Blob([WB.serialize(doc, view)], { type: 'application/json' });
-    try {
-      step = 'opening the file for writing';
-      const w = await h.createWritable();
-      step = 'writing';
-      await w.write(blob);
-      step = 'finishing the file';
-      await w.close();
-      step = 'checking the result';
-      const size = (await h.getFile()).size;
-      if (size !== blob.size) throw new Error(`the file is ${size} bytes, expected ${blob.size}`);
-      fileHandle = h;
-      toast(tr('tSaved'));
-    } catch (e) { report(tr('tSaveFail'), step, e); }
+    try { await writeBoardFile(h); fileSaved(h); }
+    catch (e) { report(tr('tSaveFail'), e.step, e); }
   }
 
   function loadText(text, handle, gref) {
     let d;
     try { d = WB.parse(text); } catch (e) { return toast(tr(e.message)); }
     replaceBoard({ title: d.title, created: d.created, strokes: d.strokes, handle: handle || null, gref: gref || null }, '');
+    saveTarget = handle ? 'file' : 'gallery';
     toast(tr('tOpened', { t: shownTitle() }), tr('undo'), undo);
     fitView(true);
   }
-  /* "Open from…": the standard file chooser. It is opened directly from the click, with nothing
-     awaited first, because browsers only allow it while handling the user's own action. */
-  function openBoard() { $('#file-input').click(); }
+  /* "Open from…": the browser's file dialog, which also gives the page the file itself, so that
+     Save can later write back into it. Where that dialog is missing, the standard file chooser.
+     Either is opened directly from the click, with nothing awaited first, because browsers only
+     allow it while handling the user's own action. */
+  async function openBoard() {
+    if (!canUseFiles() || !window.showOpenFilePicker) return $('#file-input').click();
+    let h;
+    try { [h] = await window.showOpenFilePicker({ id: 'whiteboard-file', types: BOARD_TYPES, excludeAcceptAllOption: false }); }
+    catch (e) { if (e.name !== 'AbortError') report(tr('eInvalid'), 'open dialog', e); return; }
+    try { loadText(await (await h.getFile()).text(), h); } catch (err) { toast(tr('eInvalid')); }
+  }
   $('#file-input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     e.target.value = '';
@@ -1297,8 +1342,17 @@
     for (const [m, b] of POPS) if (m !== except) { $(m).classList.remove('open'); $(b).setAttribute('aria-expanded', 'false'); }
     $('#font-menu').classList.remove('open'); $('#lang-menu').classList.remove('open');
   }
+  /* The file menu shows "Save to “name.whtbd”" while the board has a device file; Ctrl S goes to whichever save was used last. */
+  function refreshFileMenu() {
+    const fileItem = $('#mi-save-file'), toFile = !!fileHandle && saveTarget === 'file';
+    fileItem.hidden = !fileHandle;
+    if (fileHandle) fileItem.firstElementChild.textContent = tr('mSaveFile', { t: fileHandle.name });
+    fileItem.lastElementChild.hidden = !toFile;
+    $('#mi-save-gallery').lastElementChild.hidden = toFile;
+  }
   for (const [m, b] of POPS) {
     $(b).addEventListener('click', () => {
+      if (m === '#menu') refreshFileMenu();
       const open = !$(m).classList.contains('open');
       closePopovers(m);
       $(m).classList.toggle('open', open); $(b).setAttribute('aria-expanded', String(open));
@@ -1318,6 +1372,7 @@
     open: openBoard,
     gallery: () => WB.gallery.open(),
     'save-gallery': () => WB.gallery.save(),
+    'save-file': saveBoardFile,
     'save-to': saveBoardTo,
     export: () => openSheet('#export'),
     clear: () => { if (doc.strokes.length) replaceBoard({ ...snapshot(), strokes: [] }, tr('tCleared')); },
@@ -1577,7 +1632,7 @@
         for (const s of doc.strokes) if (s.tool !== 'eraser') selection.add(s);
         return selectionChanged();
       }
-      const act = { z: e.shiftKey ? redo : undo, y: redo, s: e.shiftKey ? saveBoardTo : ACTIONS['save-gallery'], o: openBoard, g: ACTIONS.gallery, e: ACTIONS.export,
+      const act = { z: e.shiftKey ? redo : undo, y: redo, s: e.shiftKey ? saveBoardTo : saveDefault, o: openBoard, g: ACTIONS.gallery, e: ACTIONS.export,
         0: ACTIONS['zoom-100'], 1: ACTIONS['zoom-fit'], '=': ACTIONS['zoom-in'], '+': ACTIONS['zoom-in'], '-': ACTIONS['zoom-out'] }[k];
       if (act) { e.preventDefault(); if (!sheetOpen() || k === 's') act(); }
       return;
@@ -1605,7 +1660,8 @@
     title: () => shownTitle(),
     load: (text, gref) => loadText(text, null, gref),
     retitle: (label) => { doc.title = label; titleEl.value = shownTitle(); updateChrome(); autosave(); },
-    commit: () => { if (edit) commitText(); inkConvert(); },
+    commit: commitPending,
+    saved: () => { saveTarget = 'gallery'; },
     canvasColor: () => canvasColor(),
     toast, report, openSheet, closeSheets,
   });
