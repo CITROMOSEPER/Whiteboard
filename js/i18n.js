@@ -446,7 +446,7 @@
 
   /* Gallery and file menu. */
   Object.assign(D.en, {
-    mGallery: 'Gallery', mSaveGallery: 'Save to gallery', mSaveTo: 'Save to…', mOpenFrom: 'Open from…',
+    mGallery: 'Gallery', mSaveGallery: 'Save to gallery', mSaveTo: 'Save as…', mOpenFrom: 'Open from…',
     gNewFolder: 'New folder', gEmpty: 'Nothing here yet', gOpen: 'Open', gRename: 'Rename', gDuplicate: 'Duplicate', gMove: 'Move…', gMoveHere: 'Move here',
     gMoving: 'Choose where to move “{t}”', gDeleteAsk: 'Delete “{t}”? This cannot be undone.', gCopy: '{t} copy',
     gSetup: 'Choose where your gallery lives. A folder named “Whiteboard gallery” is created there. Your Documents folder is a good place.',
@@ -455,7 +455,7 @@
     tSavedGallery: 'Saved to gallery', tSaveFail: 'Could not save the file',
   });
   Object.assign(D.hu, {
-    mGallery: 'Galéria', mSaveGallery: 'Mentés a galériába', mSaveTo: 'Mentés ide…', mOpenFrom: 'Megnyitás innen…',
+    mGallery: 'Galéria', mSaveGallery: 'Mentés a galériába', mSaveTo: 'Mentés másként…', mOpenFrom: 'Megnyitás innen…',
     gNewFolder: 'Új mappa', gEmpty: 'Itt még nincs semmi', gOpen: 'Megnyitás', gRename: 'Átnevezés', gDuplicate: 'Másolat készítése', gMove: 'Áthelyezés…', gMoveHere: 'Áthelyezés ide',
     gMoving: 'Válaszd ki, hová kerüljön: „{t}”', gDeleteAsk: 'Törlöd ezt: „{t}”? Ez nem vonható vissza.', gCopy: '{t} másolata',
     gSetup: 'Válaszd ki, hol legyen a galériád. Ott létrejön egy „Whiteboard gallery” nevű mappa. A Dokumentumok mappa jó választás.',
@@ -482,7 +482,7 @@
     tSavedGallery: 'Enregistré dans la galerie', tSaveFail: 'Impossible d’enregistrer le fichier',
   });
   Object.assign(D.it, {
-    mGallery: 'Galleria', mSaveGallery: 'Salva nella galleria', mSaveTo: 'Salva in…', mOpenFrom: 'Apri da…',
+    mGallery: 'Galleria', mSaveGallery: 'Salva nella galleria', mSaveTo: 'Salva con nome…', mOpenFrom: 'Apri da…',
     gNewFolder: 'Nuova cartella', gEmpty: 'Qui non c’è ancora niente', gOpen: 'Apri', gRename: 'Rinomina', gDuplicate: 'Duplica', gMove: 'Sposta…', gMoveHere: 'Sposta qui',
     gMoving: 'Scegli dove spostare “{t}”', gDeleteAsk: 'Eliminare “{t}”? L’operazione non può essere annullata.', gCopy: '{t} copia',
     gSetup: 'Scegli dove tenere la galleria. Lì verrà creata una cartella “Whiteboard gallery”. La cartella Documenti è una buona scelta.',
@@ -491,7 +491,7 @@
     tSavedGallery: 'Salvato nella galleria', tSaveFail: 'Impossibile salvare il file',
   });
   Object.assign(D.es, {
-    mGallery: 'Galería', mSaveGallery: 'Guardar en la galería', mSaveTo: 'Guardar en…', mOpenFrom: 'Abrir desde…',
+    mGallery: 'Galería', mSaveGallery: 'Guardar en la galería', mSaveTo: 'Guardar como…', mOpenFrom: 'Abrir desde…',
     gNewFolder: 'Nueva carpeta', gEmpty: 'Aquí todavía no hay nada', gOpen: 'Abrir', gRename: 'Renombrar', gDuplicate: 'Duplicar', gMove: 'Mover…', gMoveHere: 'Mover aquí',
     gMoving: 'Elige adónde mover «{t}»', gDeleteAsk: '¿Eliminar «{t}»? Esto no se puede deshacer.', gCopy: '{t} copia',
     gSetup: 'Elige dónde estará tu galería. Allí se creará una carpeta «Whiteboard gallery». La carpeta Documentos es un buen lugar.',
@@ -500,7 +500,7 @@
     tSavedGallery: 'Guardado en la galería', tSaveFail: 'No se pudo guardar el archivo',
   });
   Object.assign(D.pt, {
-    mGallery: 'Galeria', mSaveGallery: 'Salvar na galeria', mSaveTo: 'Salvar em…', mOpenFrom: 'Abrir de…',
+    mGallery: 'Galeria', mSaveGallery: 'Salvar na galeria', mSaveTo: 'Salvar como…', mOpenFrom: 'Abrir de…',
     gNewFolder: 'Nova pasta', gEmpty: 'Ainda não há nada aqui', gOpen: 'Abrir', gRename: 'Renomear', gDuplicate: 'Duplicar', gMove: 'Mover…', gMoveHere: 'Mover para cá',
     gMoving: 'Escolha para onde mover “{t}”', gDeleteAsk: 'Apagar “{t}”? Isso não pode ser desfeito.', gCopy: '{t} cópia',
     gSetup: 'Escolha onde a galeria vai ficar. Uma pasta “Whiteboard gallery” será criada lá. A pasta Documentos é um bom lugar.',
@@ -509,7 +509,7 @@
     tSavedGallery: 'Salvo na galeria', tSaveFail: 'Não foi possível salvar o arquivo',
   });
   Object.assign(D.ru, {
-    mGallery: 'Галерея', mSaveGallery: 'Сохранить в галерею', mSaveTo: 'Сохранить в…', mOpenFrom: 'Открыть из…',
+    mGallery: 'Галерея', mSaveGallery: 'Сохранить в галерею', mSaveTo: 'Сохранить как…', mOpenFrom: 'Открыть из…',
     gNewFolder: 'Новая папка', gEmpty: 'Здесь пока ничего нет', gOpen: 'Открыть', gRename: 'Переименовать', gDuplicate: 'Дублировать', gMove: 'Переместить…', gMoveHere: 'Переместить сюда',
     gMoving: 'Выберите, куда переместить «{t}»', gDeleteAsk: 'Удалить «{t}»? Это действие нельзя отменить.', gCopy: '{t} — копия',
     gSetup: 'Выберите, где будет находиться галерея. Там будет создана папка «Whiteboard gallery». Папка «Документы» — хорошее место.',
@@ -518,7 +518,7 @@
     tSavedGallery: 'Сохранено в галерею', tSaveFail: 'Не удалось сохранить файл',
   });
   Object.assign(D.uk, {
-    mGallery: 'Галерея', mSaveGallery: 'Зберегти в галерею', mSaveTo: 'Зберегти в…', mOpenFrom: 'Відкрити з…',
+    mGallery: 'Галерея', mSaveGallery: 'Зберегти в галерею', mSaveTo: 'Зберегти як…', mOpenFrom: 'Відкрити з…',
     gNewFolder: 'Нова папка', gEmpty: 'Тут поки що нічого немає', gOpen: 'Відкрити', gRename: 'Перейменувати', gDuplicate: 'Дублювати', gMove: 'Перемістити…', gMoveHere: 'Перемістити сюди',
     gMoving: 'Виберіть, куди перемістити «{t}»', gDeleteAsk: 'Видалити «{t}»? Цю дію не можна скасувати.', gCopy: '{t} — копія',
     gSetup: 'Виберіть, де буде ваша галерея. Там буде створено папку «Whiteboard gallery». Папка «Документи» — гарне місце.',
@@ -527,7 +527,7 @@
     tSavedGallery: 'Збережено в галерею', tSaveFail: 'Не вдалося зберегти файл',
   });
   Object.assign(D.tr, {
-    mGallery: 'Galeri', mSaveGallery: 'Galeriye kaydet', mSaveTo: 'Şuraya kaydet…', mOpenFrom: 'Şuradan aç…',
+    mGallery: 'Galeri', mSaveGallery: 'Galeriye kaydet', mSaveTo: 'Farklı kaydet…', mOpenFrom: 'Şuradan aç…',
     gNewFolder: 'Yeni klasör', gEmpty: 'Burada henüz bir şey yok', gOpen: 'Aç', gRename: 'Yeniden adlandır', gDuplicate: 'Çoğalt', gMove: 'Taşı…', gMoveHere: 'Buraya taşı',
     gMoving: '“{t}” nereye taşınsın?', gDeleteAsk: '“{t}” silinsin mi? Bu işlem geri alınamaz.', gCopy: '{t} kopyası',
     gSetup: 'Galerinizin nerede duracağını seçin. Orada “Whiteboard gallery” adlı bir klasör oluşturulur. Belgeler klasörü iyi bir yerdir.',
@@ -536,7 +536,7 @@
     tSavedGallery: 'Galeriye kaydedildi', tSaveFail: 'Dosya kaydedilemedi',
   });
   Object.assign(D.zh, {
-    mGallery: '图库', mSaveGallery: '保存到图库', mSaveTo: '保存到…', mOpenFrom: '从…打开',
+    mGallery: '图库', mSaveGallery: '保存到图库', mSaveTo: '另存为…', mOpenFrom: '从…打开',
     gNewFolder: '新建文件夹', gEmpty: '这里还没有内容', gOpen: '打开', gRename: '重命名', gDuplicate: '复制', gMove: '移动…', gMoveHere: '移到这里',
     gMoving: '选择要把“{t}”移到哪里', gDeleteAsk: '删除“{t}”？此操作无法撤销。', gCopy: '{t} 副本',
     gSetup: '选择图库存放的位置。那里会创建一个名为“Whiteboard gallery”的文件夹。“文档”文件夹是个不错的位置。',
@@ -545,7 +545,7 @@
     tSavedGallery: '已保存到图库', tSaveFail: '无法保存文件',
   });
   Object.assign(D.ja, {
-    mGallery: 'ギャラリー', mSaveGallery: 'ギャラリーに保存', mSaveTo: '保存先を選ぶ…', mOpenFrom: '場所を選んで開く…',
+    mGallery: 'ギャラリー', mSaveGallery: 'ギャラリーに保存', mSaveTo: '名前を付けて保存…', mOpenFrom: '場所を選んで開く…',
     gNewFolder: '新規フォルダ', gEmpty: 'まだ何もありません', gOpen: '開く', gRename: '名前を変更', gDuplicate: '複製', gMove: '移動…', gMoveHere: 'ここに移動',
     gMoving: '「{t}」の移動先を選んでください', gDeleteAsk: '「{t}」を削除しますか？この操作は取り消せません。', gCopy: '{t} のコピー',
     gSetup: 'ギャラリーの保存場所を選んでください。そこに「Whiteboard gallery」というフォルダが作られます。「ドキュメント」フォルダがおすすめです。',
@@ -554,7 +554,7 @@
     tSavedGallery: 'ギャラリーに保存しました', tSaveFail: 'ファイルを保存できませんでした',
   });
   Object.assign(D.ar, {
-    mGallery: 'المعرض', mSaveGallery: 'حفظ في المعرض', mSaveTo: 'حفظ في…', mOpenFrom: 'فتح من…',
+    mGallery: 'المعرض', mSaveGallery: 'حفظ في المعرض', mSaveTo: 'حفظ باسم…', mOpenFrom: 'فتح من…',
     gNewFolder: 'مجلد جديد', gEmpty: 'لا يوجد شيء هنا بعد', gOpen: 'فتح', gRename: 'إعادة تسمية', gDuplicate: 'تكرار', gMove: 'نقل…', gMoveHere: 'نقل إلى هنا',
     gMoving: 'اختر المكان الذي تريد نقل «{t}» إليه', gDeleteAsk: 'حذف «{t}»؟ لا يمكن التراجع عن هذا.', gCopy: 'نسخة من {t}',
     gSetup: 'اختر مكان المعرض. سيُنشأ هناك مجلد باسم «Whiteboard gallery». مجلد المستندات مكان مناسب.',
@@ -563,7 +563,7 @@
     tSavedGallery: 'تم الحفظ في المعرض', tSaveFail: 'تعذّر حفظ الملف',
   });
   Object.assign(D.hi, {
-    mGallery: 'गैलरी', mSaveGallery: 'गैलरी में सहेजें', mSaveTo: 'यहाँ सहेजें…', mOpenFrom: 'यहाँ से खोलें…',
+    mGallery: 'गैलरी', mSaveGallery: 'गैलरी में सहेजें', mSaveTo: 'इस रूप में सहेजें…', mOpenFrom: 'यहाँ से खोलें…',
     gNewFolder: 'नया फ़ोल्डर', gEmpty: 'यहाँ अभी कुछ नहीं है', gOpen: 'खोलें', gRename: 'नाम बदलें', gDuplicate: 'प्रतिलिपि बनाएँ', gMove: 'ले जाएँ…', gMoveHere: 'यहाँ ले जाएँ',
     gMoving: 'चुनें कि “{t}” को कहाँ ले जाना है', gDeleteAsk: '“{t}” हटाएँ? इसे पूर्ववत नहीं किया जा सकता।', gCopy: '{t} की प्रति',
     gSetup: 'चुनें कि आपकी गैलरी कहाँ रहेगी। वहाँ “Whiteboard gallery” नाम का फ़ोल्डर बनेगा। दस्तावेज़ फ़ोल्डर एक अच्छी जगह है।',
@@ -606,6 +606,25 @@
     hi: ['“{t}” में सहेजें', '“{t}” में सहेजा गया', 'सहेजा नहीं गया: ब्राउज़र ने “{t}” बदलने की अनुमति नहीं दी।'],
   };
   for (const l in SAVEFILE) if (D[l]) [D[l].mSaveFile, D[l].tSavedFile, D[l].tSaveDenied] = SAVEFILE[l];
+
+  /* The browser closed its open dialog at once: offer the simple file chooser instead. */
+  const OPENFB = {
+    en: 'The browser’s open dialog did not appear. Use the simple file chooser:',
+    hu: 'A böngésző megnyitási ablaka nem jelent meg. Használd az egyszerű fájlválasztót:',
+    de: 'Der Öffnen-Dialog des Browsers ist nicht erschienen. Nutze die einfache Dateiauswahl:',
+    fr: 'La fenêtre d’ouverture du navigateur ne s’est pas affichée. Utilisez le sélecteur de fichiers simple :',
+    it: 'La finestra di apertura del browser non è comparsa. Usa il selettore di file semplice:',
+    es: 'No apareció el diálogo de apertura del navegador. Usa el selector de archivos simple:',
+    pt: 'A janela de abrir do navegador não apareceu. Use o seletor de arquivos simples:',
+    ru: 'Окно открытия файла в браузере не появилось. Используйте простой выбор файла:',
+    uk: 'Вікно відкриття файлу в браузері не з’явилося. Скористайтеся простим вибором файлу:',
+    tr: 'Tarayıcının açma penceresi görünmedi. Basit dosya seçiciyi kullanın:',
+    zh: '浏览器的打开对话框没有出现。请使用简单的文件选择器：',
+    ja: 'ブラウザの「開く」ダイアログが表示されませんでした。簡易ファイル選択を使ってください：',
+    ar: 'لم تظهر نافذة الفتح في المتصفح. استخدم أداة اختيار الملفات البسيطة:',
+    hi: 'ब्राउज़र का खोलने वाला डायलॉग नहीं दिखा। साधारण फ़ाइल चयनकर्ता इस्तेमाल करें:',
+  };
+  for (const l in OPENFB) if (D[l]) D[l].tOpenFallback = OPENFB[l];
 
   /* Limits of running from a local file (file://): no folder access, and existing files cannot be replaced. */
   const LOCAL = {

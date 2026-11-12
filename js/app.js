@@ -1257,8 +1257,18 @@
   async function openBoard() {
     if (!canUseFiles() || !window.showOpenFilePicker) return $('#file-input').click();
     let h;
+    const asked = performance.now();
     try { [h] = await window.showOpenFilePicker({ id: 'whiteboard-file', types: BOARD_TYPES, excludeAcceptAllOption: false }); }
-    catch (e) { if (e.name !== 'AbortError') report(tr('eInvalid'), 'open dialog', e); return; }
+    catch (e) {
+      // Ended at once, before anyone could have used it: the browser refused to show its dialog.
+      // The simple file chooser still works; it needs a fresh tap, so offer it as a button.
+      const instant = performance.now() - asked < 700;
+      if (e.name !== 'AbortError' || instant) {
+        console.error('open dialog', e);
+        toast(tr('tOpenFallback'), tr('mOpenFrom'), () => $('#file-input').click(), 12000);
+      }
+      return;
+    }
     try { loadText(await (await h.getFile()).text(), h); } catch (err) { toast(tr('eInvalid')); }
   }
   $('#file-input').addEventListener('change', async (e) => {
