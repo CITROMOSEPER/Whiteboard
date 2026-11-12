@@ -459,6 +459,7 @@ body.pipetting #canvas { cursor: crosshair; }
 #g-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; min-height: 20px; font-size: 0.75rem; color: var(--ink-2); }
 #g-foot span { line-height: 1.35; }
 .g-link { color: var(--accent); font-weight: 500; white-space: nowrap; }
+.g-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 14px; }
 #g-menu { z-index: 61; min-width: 180px; transform-origin: 20px -10px; }
 .mi.danger { color: #ff3b30; }
 .mi.danger:hover { background: #ff3b30; color: #fff; }

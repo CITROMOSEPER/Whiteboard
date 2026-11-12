@@ -698,6 +698,43 @@
     ar: ['استيراد…', 'تمت إضافة الصورة', 'تعذّر استيراد هذا الملف.', 'يمكن استيراد ملفات PDF المصدَّرة من Whiteboard فقط. لملفات PDF الأخرى، استورد صورة PNG أو JPEG للصفحة.'],
     hi: ['इम्पोर्ट…', 'चित्र जोड़ा गया', 'यह फ़ाइल इम्पोर्ट नहीं हो सकी।', 'केवल Whiteboard से एक्सपोर्ट की गई PDF इम्पोर्ट की जा सकती हैं। दूसरी PDF के लिए पेज की PNG या JPEG इमेज इम्पोर्ट करें।'],
   };
+  /* Gallery backups: [back up, restore, share, backed up to {t}, downloaded {t}, ready to share,
+     cancelled, restored {n}, kept {n} beside, not a backup, choose a gallery first]. */
+  const BACKUP = {
+    en: ['Back up…', 'Restore…', 'Share', 'Gallery backed up to “{t}”', 'Gallery backup “{t}” saved to Downloads', 'The backup is ready.', 'Backup cancelled', 'Restored {n} boards.', '{n} with a name already in use were kept beside the existing ones.', 'This is not a Whiteboard gallery backup.', 'Choose where the gallery lives first, then restore the backup.'],
+    hu: ['Biztonsági mentés…', 'Visszaállítás…', 'Megosztás', 'A galéria mentve ide: „{t}”', 'A „{t}” galériamentés a Letöltések mappába került', 'A biztonsági mentés elkészült.', 'Biztonsági mentés megszakítva', '{n} tábla visszaállítva.', '{n} már foglalt nevű tábla a meglévők mellé került.', 'Ez nem Whiteboard galéria-mentés.', 'Előbb válaszd ki, hol legyen a galéria, aztán állítsd vissza a mentést.'],
+    de: ['Sichern…', 'Wiederherstellen…', 'Teilen', 'Galerie gesichert in „{t}“', 'Galeriesicherung „{t}“ in Downloads gespeichert', 'Die Sicherung ist bereit.', 'Sicherung abgebrochen', '{n} Tafeln wiederhergestellt.', '{n} mit bereits vergebenem Namen wurden neben den vorhandenen abgelegt.', 'Das ist keine Whiteboard-Galeriesicherung.', 'Wähle zuerst, wo die Galerie liegen soll, und stelle dann die Sicherung wieder her.'],
+    fr: ['Sauvegarder…', 'Restaurer…', 'Partager', 'Galerie sauvegardée dans « {t} »', 'Sauvegarde « {t} » enregistrée dans Téléchargements', 'La sauvegarde est prête.', 'Sauvegarde annulée', '{n} tableaux restaurés.', '{n} dont le nom était déjà pris ont été gardés à côté des existants.', 'Ce n’est pas une sauvegarde de galerie Whiteboard.', 'Choisissez d’abord l’emplacement de la galerie, puis restaurez la sauvegarde.'],
+    it: ['Backup…', 'Ripristina…', 'Condividi', 'Galleria salvata in “{t}”', 'Backup “{t}” salvato in Download', 'Il backup è pronto.', 'Backup annullato', '{n} lavagne ripristinate.', '{n} con un nome già usato sono state tenute accanto a quelle esistenti.', 'Questo non è un backup della galleria di Whiteboard.', 'Scegli prima dove tenere la galleria, poi ripristina il backup.'],
+    es: ['Copia de seguridad…', 'Restaurar…', 'Compartir', 'Galería guardada en «{t}»', 'Copia «{t}» guardada en Descargas', 'La copia de seguridad está lista.', 'Copia de seguridad cancelada', '{n} pizarras restauradas.', '{n} con un nombre ya usado se guardaron junto a las existentes.', 'Esto no es una copia de seguridad de la galería de Whiteboard.', 'Elige primero dónde estará la galería y luego restaura la copia.'],
+    pt: ['Fazer backup…', 'Restaurar…', 'Compartilhar', 'Galeria salva em “{t}”', 'Backup “{t}” salvo em Downloads', 'O backup está pronto.', 'Backup cancelado', '{n} quadros restaurados.', '{n} com nome já usado foram mantidos ao lado dos existentes.', 'Isto não é um backup de galeria do Whiteboard.', 'Escolha primeiro onde a galeria vai ficar e depois restaure o backup.'],
+    ru: ['Резервная копия…', 'Восстановить…', 'Поделиться', 'Галерея сохранена в «{t}»', 'Копия «{t}» сохранена в «Загрузки»', 'Резервная копия готова.', 'Резервное копирование отменено', 'Восстановлено досок: {n}.', '{n} с уже занятым именем сохранены рядом с существующими.', 'Это не резервная копия галереи Whiteboard.', 'Сначала выберите, где будет галерея, затем восстановите копию.'],
+    uk: ['Резервна копія…', 'Відновити…', 'Поділитися', 'Галерею збережено в «{t}»', 'Копію «{t}» збережено в «Завантаження»', 'Резервна копія готова.', 'Резервне копіювання скасовано', 'Відновлено дошок: {n}.', '{n} з уже зайнятою назвою збережено поруч з наявними.', 'Це не резервна копія галереї Whiteboard.', 'Спершу виберіть, де буде галерея, потім відновіть копію.'],
+    tr: ['Yedekle…', 'Geri yükle…', 'Paylaş', 'Galeri “{t}” dosyasına yedeklendi', '“{t}” yedeği İndirilenler’e kaydedildi', 'Yedek hazır.', 'Yedekleme iptal edildi', '{n} tahta geri yüklendi.', 'Adı zaten kullanılan {n} tahta mevcutların yanına konuldu.', 'Bu bir Whiteboard galeri yedeği değil.', 'Önce galerinin nerede duracağını seçin, sonra yedeği geri yükleyin.'],
+    zh: ['备份…', '恢复…', '共享', '图库已备份到“{t}”', '图库备份“{t}”已保存到“下载”', '备份已准备好。', '已取消备份', '已恢复 {n} 个白板。', '有 {n} 个名称已被占用，已放在现有白板旁边。', '这不是 Whiteboard 图库备份。', '请先选择图库的位置，再恢复备份。'],
+    ja: ['バックアップ…', '復元…', '共有', 'ギャラリーを「{t}」にバックアップしました', 'バックアップ「{t}」を「ダウンロード」に保存しました', 'バックアップの準備ができました。', 'バックアップを取り消しました', '{n} 個のボードを復元しました。', '名前が重複した {n} 個は既存のものの隣に保存しました。', 'これは Whiteboard のギャラリーのバックアップではありません。', '先にギャラリーの場所を選んでから、バックアップを復元してください。'],
+    ar: ['نسخ احتياطي…', 'استعادة…', 'مشاركة', 'تم نسخ المعرض احتياطيًا إلى «{t}»', 'حُفظت النسخة «{t}» في التنزيلات', 'النسخة الاحتياطية جاهزة.', 'أُلغي النسخ الاحتياطي', 'تمت استعادة {n} من الألواح.', 'تم الاحتفاظ بـ {n} ذات أسماء مستخدمة بجانب الموجودة.', 'هذه ليست نسخة احتياطية لمعرض Whiteboard.', 'اختر مكان المعرض أولًا، ثم استعد النسخة الاحتياطية.'],
+    hi: ['बैकअप…', 'पुनर्स्थापित करें…', 'साझा करें', 'गैलरी का बैकअप “{t}” में लिया गया', 'गैलरी बैकअप “{t}” डाउनलोड में सहेजा गया', 'बैकअप तैयार है।', 'बैकअप रद्द किया गया', '{n} बोर्ड पुनर्स्थापित किए गए।', 'पहले से इस्तेमाल नाम वाले {n} बोर्ड मौजूदा बोर्ड के बगल में रखे गए।', 'यह Whiteboard गैलरी बैकअप नहीं है।', 'पहले चुनें कि गैलरी कहाँ रहेगी, फिर बैकअप पुनर्स्थापित करें।'],
+  };
+  for (const l in BACKUP) if (D[l]) [D[l].gBackup, D[l].gRestore, D[l].gShare, D[l].tBackedUp, D[l].tBackedUpDl, D[l].tBackupReady, D[l].tBackupCancel, D[l].tRestored, D[l].tRestoredKept, D[l].tRestoreBad, D[l].tRestoreFirst] = BACKUP[l];
+  /* Counts as "label: n", which reads right for any number in every language: [restored, kept beside, nothing new]. */
+  const RESTORED = {
+    en: ['Boards restored: {n}.', 'Kept beside a board of the same name: {n}.', 'Everything in this backup is already in the gallery.'],
+    hu: ['Visszaállított táblák: {n}.', 'Azonos nevű tábla mellé került: {n}.', 'A mentés minden eleme már megvan a galériában.'],
+    de: ['Wiederhergestellte Tafeln: {n}.', 'Neben gleichnamige Tafel gelegt: {n}.', 'Alles aus dieser Sicherung ist schon in der Galerie.'],
+    fr: ['Tableaux restaurés : {n}.', 'Gardés à côté d’un tableau du même nom : {n}.', 'Tout le contenu de cette sauvegarde est déjà dans la galerie.'],
+    it: ['Lavagne ripristinate: {n}.', 'Tenute accanto a una lavagna con lo stesso nome: {n}.', 'Tutto il contenuto del backup è già nella galleria.'],
+    es: ['Pizarras restauradas: {n}.', 'Guardadas junto a una pizarra del mismo nombre: {n}.', 'Todo lo de esta copia ya está en la galería.'],
+    pt: ['Quadros restaurados: {n}.', 'Mantidos ao lado de um quadro com o mesmo nome: {n}.', 'Tudo deste backup já está na galeria.'],
+    ru: ['Восстановлено досок: {n}.', 'Сохранено рядом с доской того же имени: {n}.', 'Всё из этой копии уже есть в галерее.'],
+    uk: ['Відновлено дошок: {n}.', 'Збережено поруч із дошкою з такою ж назвою: {n}.', 'Усе з цієї копії вже є в галереї.'],
+    tr: ['Geri yüklenen tahta: {n}.', 'Aynı adlı tahtanın yanına konulan: {n}.', 'Bu yedekteki her şey zaten galeride.'],
+    zh: ['已恢复的白板：{n}。', '放在同名白板旁边：{n}。', '此备份中的内容已全部在图库中。'],
+    ja: ['復元したボード：{n}。', '同じ名前のボードの隣に保存：{n}。', 'このバックアップの内容はすべてギャラリーにあります。'],
+    ar: ['الألواح المستعادة: {n}.', 'حُفظت بجانب لوح بالاسم نفسه: {n}.', 'كل ما في هذه النسخة موجود بالفعل في المعرض.'],
+    hi: ['पुनर्स्थापित बोर्ड: {n}।', 'समान नाम वाले बोर्ड के बगल में रखे गए: {n}।', 'इस बैकअप की हर चीज़ पहले से गैलरी में है।'],
+  };
+  for (const l in RESTORED) if (D[l]) [D[l].tRestored, D[l].tRestoredKept, D[l].tRestoredNone] = RESTORED[l];
   for (const l in IMPORT) if (D[l]) [D[l].mImport, D[l].tImported, D[l].tImportFail, D[l].tImportPdf] = IMPORT[l];
   for (const l in NODIALOG) if (D[l]) [D[l].tOpenFallback, D[l].tSaveAsAbort, D[l].gDrop, D[l].gDropShort, D[l].gPickAbort] = NODIALOG[l];
 

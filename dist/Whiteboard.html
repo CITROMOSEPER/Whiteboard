@@ -469,6 +469,7 @@ body.pipetting #canvas { cursor: crosshair; }
 #g-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; min-height: 20px; font-size: 0.75rem; color: var(--ink-2); }
 #g-foot span { line-height: 1.35; }
 .g-link { color: var(--accent); font-weight: 500; white-space: nowrap; }
+.g-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 14px; }
 #g-menu { z-index: 61; min-width: 180px; transform-origin: 20px -10px; }
 .mi.danger { color: #ff3b30; }
 .mi.danger:hover { background: #ff3b30; color: #fff; }
@@ -749,7 +750,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.12.05.</p>
+      <p id="app-version">version: 2026.11.12.06.</p>
     </footer>
   </div>
 </div>
@@ -826,6 +827,7 @@ body.pipetting #canvas { cursor: crosshair; }
 <div class="glass" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button id="toast-action" hidden></button></div>
 <div id="drop-blob" aria-hidden="true"><i></i></div>
 <input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json" hidden>
+<input type="file" id="restore-input" accept=".wbgallery,.json,application/json" hidden>
 <input type="file" id="import-input" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml,application/pdf,.png,.jpg,.jpeg,.webp,.bmp,.svg,.pdf" hidden>
 
 <script>
@@ -1529,6 +1531,43 @@ body.pipetting #canvas { cursor: crosshair; }
     ar: ['استيراد…', 'تمت إضافة الصورة', 'تعذّر استيراد هذا الملف.', 'يمكن استيراد ملفات PDF المصدَّرة من Whiteboard فقط. لملفات PDF الأخرى، استورد صورة PNG أو JPEG للصفحة.'],
     hi: ['इम्पोर्ट…', 'चित्र जोड़ा गया', 'यह फ़ाइल इम्पोर्ट नहीं हो सकी।', 'केवल Whiteboard से एक्सपोर्ट की गई PDF इम्पोर्ट की जा सकती हैं। दूसरी PDF के लिए पेज की PNG या JPEG इमेज इम्पोर्ट करें।'],
   };
+  /* Gallery backups: [back up, restore, share, backed up to {t}, downloaded {t}, ready to share,
+     cancelled, restored {n}, kept {n} beside, not a backup, choose a gallery first]. */
+  const BACKUP = {
+    en: ['Back up…', 'Restore…', 'Share', 'Gallery backed up to “{t}”', 'Gallery backup “{t}” saved to Downloads', 'The backup is ready.', 'Backup cancelled', 'Restored {n} boards.', '{n} with a name already in use were kept beside the existing ones.', 'This is not a Whiteboard gallery backup.', 'Choose where the gallery lives first, then restore the backup.'],
+    hu: ['Biztonsági mentés…', 'Visszaállítás…', 'Megosztás', 'A galéria mentve ide: „{t}”', 'A „{t}” galériamentés a Letöltések mappába került', 'A biztonsági mentés elkészült.', 'Biztonsági mentés megszakítva', '{n} tábla visszaállítva.', '{n} már foglalt nevű tábla a meglévők mellé került.', 'Ez nem Whiteboard galéria-mentés.', 'Előbb válaszd ki, hol legyen a galéria, aztán állítsd vissza a mentést.'],
+    de: ['Sichern…', 'Wiederherstellen…', 'Teilen', 'Galerie gesichert in „{t}“', 'Galeriesicherung „{t}“ in Downloads gespeichert', 'Die Sicherung ist bereit.', 'Sicherung abgebrochen', '{n} Tafeln wiederhergestellt.', '{n} mit bereits vergebenem Namen wurden neben den vorhandenen abgelegt.', 'Das ist keine Whiteboard-Galeriesicherung.', 'Wähle zuerst, wo die Galerie liegen soll, und stelle dann die Sicherung wieder her.'],
+    fr: ['Sauvegarder…', 'Restaurer…', 'Partager', 'Galerie sauvegardée dans « {t} »', 'Sauvegarde « {t} » enregistrée dans Téléchargements', 'La sauvegarde est prête.', 'Sauvegarde annulée', '{n} tableaux restaurés.', '{n} dont le nom était déjà pris ont été gardés à côté des existants.', 'Ce n’est pas une sauvegarde de galerie Whiteboard.', 'Choisissez d’abord l’emplacement de la galerie, puis restaurez la sauvegarde.'],
+    it: ['Backup…', 'Ripristina…', 'Condividi', 'Galleria salvata in “{t}”', 'Backup “{t}” salvato in Download', 'Il backup è pronto.', 'Backup annullato', '{n} lavagne ripristinate.', '{n} con un nome già usato sono state tenute accanto a quelle esistenti.', 'Questo non è un backup della galleria di Whiteboard.', 'Scegli prima dove tenere la galleria, poi ripristina il backup.'],
+    es: ['Copia de seguridad…', 'Restaurar…', 'Compartir', 'Galería guardada en «{t}»', 'Copia «{t}» guardada en Descargas', 'La copia de seguridad está lista.', 'Copia de seguridad cancelada', '{n} pizarras restauradas.', '{n} con un nombre ya usado se guardaron junto a las existentes.', 'Esto no es una copia de seguridad de la galería de Whiteboard.', 'Elige primero dónde estará la galería y luego restaura la copia.'],
+    pt: ['Fazer backup…', 'Restaurar…', 'Compartilhar', 'Galeria salva em “{t}”', 'Backup “{t}” salvo em Downloads', 'O backup está pronto.', 'Backup cancelado', '{n} quadros restaurados.', '{n} com nome já usado foram mantidos ao lado dos existentes.', 'Isto não é um backup de galeria do Whiteboard.', 'Escolha primeiro onde a galeria vai ficar e depois restaure o backup.'],
+    ru: ['Резервная копия…', 'Восстановить…', 'Поделиться', 'Галерея сохранена в «{t}»', 'Копия «{t}» сохранена в «Загрузки»', 'Резервная копия готова.', 'Резервное копирование отменено', 'Восстановлено досок: {n}.', '{n} с уже занятым именем сохранены рядом с существующими.', 'Это не резервная копия галереи Whiteboard.', 'Сначала выберите, где будет галерея, затем восстановите копию.'],
+    uk: ['Резервна копія…', 'Відновити…', 'Поділитися', 'Галерею збережено в «{t}»', 'Копію «{t}» збережено в «Завантаження»', 'Резервна копія готова.', 'Резервне копіювання скасовано', 'Відновлено дошок: {n}.', '{n} з уже зайнятою назвою збережено поруч з наявними.', 'Це не резервна копія галереї Whiteboard.', 'Спершу виберіть, де буде галерея, потім відновіть копію.'],
+    tr: ['Yedekle…', 'Geri yükle…', 'Paylaş', 'Galeri “{t}” dosyasına yedeklendi', '“{t}” yedeği İndirilenler’e kaydedildi', 'Yedek hazır.', 'Yedekleme iptal edildi', '{n} tahta geri yüklendi.', 'Adı zaten kullanılan {n} tahta mevcutların yanına konuldu.', 'Bu bir Whiteboard galeri yedeği değil.', 'Önce galerinin nerede duracağını seçin, sonra yedeği geri yükleyin.'],
+    zh: ['备份…', '恢复…', '共享', '图库已备份到“{t}”', '图库备份“{t}”已保存到“下载”', '备份已准备好。', '已取消备份', '已恢复 {n} 个白板。', '有 {n} 个名称已被占用，已放在现有白板旁边。', '这不是 Whiteboard 图库备份。', '请先选择图库的位置，再恢复备份。'],
+    ja: ['バックアップ…', '復元…', '共有', 'ギャラリーを「{t}」にバックアップしました', 'バックアップ「{t}」を「ダウンロード」に保存しました', 'バックアップの準備ができました。', 'バックアップを取り消しました', '{n} 個のボードを復元しました。', '名前が重複した {n} 個は既存のものの隣に保存しました。', 'これは Whiteboard のギャラリーのバックアップではありません。', '先にギャラリーの場所を選んでから、バックアップを復元してください。'],
+    ar: ['نسخ احتياطي…', 'استعادة…', 'مشاركة', 'تم نسخ المعرض احتياطيًا إلى «{t}»', 'حُفظت النسخة «{t}» في التنزيلات', 'النسخة الاحتياطية جاهزة.', 'أُلغي النسخ الاحتياطي', 'تمت استعادة {n} من الألواح.', 'تم الاحتفاظ بـ {n} ذات أسماء مستخدمة بجانب الموجودة.', 'هذه ليست نسخة احتياطية لمعرض Whiteboard.', 'اختر مكان المعرض أولًا، ثم استعد النسخة الاحتياطية.'],
+    hi: ['बैकअप…', 'पुनर्स्थापित करें…', 'साझा करें', 'गैलरी का बैकअप “{t}” में लिया गया', 'गैलरी बैकअप “{t}” डाउनलोड में सहेजा गया', 'बैकअप तैयार है।', 'बैकअप रद्द किया गया', '{n} बोर्ड पुनर्स्थापित किए गए।', 'पहले से इस्तेमाल नाम वाले {n} बोर्ड मौजूदा बोर्ड के बगल में रखे गए।', 'यह Whiteboard गैलरी बैकअप नहीं है।', 'पहले चुनें कि गैलरी कहाँ रहेगी, फिर बैकअप पुनर्स्थापित करें।'],
+  };
+  for (const l in BACKUP) if (D[l]) [D[l].gBackup, D[l].gRestore, D[l].gShare, D[l].tBackedUp, D[l].tBackedUpDl, D[l].tBackupReady, D[l].tBackupCancel, D[l].tRestored, D[l].tRestoredKept, D[l].tRestoreBad, D[l].tRestoreFirst] = BACKUP[l];
+  /* Counts as "label: n", which reads right for any number in every language: [restored, kept beside, nothing new]. */
+  const RESTORED = {
+    en: ['Boards restored: {n}.', 'Kept beside a board of the same name: {n}.', 'Everything in this backup is already in the gallery.'],
+    hu: ['Visszaállított táblák: {n}.', 'Azonos nevű tábla mellé került: {n}.', 'A mentés minden eleme már megvan a galériában.'],
+    de: ['Wiederhergestellte Tafeln: {n}.', 'Neben gleichnamige Tafel gelegt: {n}.', 'Alles aus dieser Sicherung ist schon in der Galerie.'],
+    fr: ['Tableaux restaurés : {n}.', 'Gardés à côté d’un tableau du même nom : {n}.', 'Tout le contenu de cette sauvegarde est déjà dans la galerie.'],
+    it: ['Lavagne ripristinate: {n}.', 'Tenute accanto a una lavagna con lo stesso nome: {n}.', 'Tutto il contenuto del backup è già nella galleria.'],
+    es: ['Pizarras restauradas: {n}.', 'Guardadas junto a una pizarra del mismo nombre: {n}.', 'Todo lo de esta copia ya está en la galería.'],
+    pt: ['Quadros restaurados: {n}.', 'Mantidos ao lado de um quadro com o mesmo nome: {n}.', 'Tudo deste backup já está na galeria.'],
+    ru: ['Восстановлено досок: {n}.', 'Сохранено рядом с доской того же имени: {n}.', 'Всё из этой копии уже есть в галерее.'],
+    uk: ['Відновлено дошок: {n}.', 'Збережено поруч із дошкою з такою ж назвою: {n}.', 'Усе з цієї копії вже є в галереї.'],
+    tr: ['Geri yüklenen tahta: {n}.', 'Aynı adlı tahtanın yanına konulan: {n}.', 'Bu yedekteki her şey zaten galeride.'],
+    zh: ['已恢复的白板：{n}。', '放在同名白板旁边：{n}。', '此备份中的内容已全部在图库中。'],
+    ja: ['復元したボード：{n}。', '同じ名前のボードの隣に保存：{n}。', 'このバックアップの内容はすべてギャラリーにあります。'],
+    ar: ['الألواح المستعادة: {n}.', 'حُفظت بجانب لوح بالاسم نفسه: {n}.', 'كل ما في هذه النسخة موجود بالفعل في المعرض.'],
+    hi: ['पुनर्स्थापित बोर्ड: {n}।', 'समान नाम वाले बोर्ड के बगल में रखे गए: {n}।', 'इस बैकअप की हर चीज़ पहले से गैलरी में है।'],
+  };
+  for (const l in RESTORED) if (D[l]) [D[l].tRestored, D[l].tRestoredKept, D[l].tRestoredNone] = RESTORED[l];
   for (const l in IMPORT) if (D[l]) [D[l].mImport, D[l].tImported, D[l].tImportFail, D[l].tImportPdf] = IMPORT[l];
   for (const l in NODIALOG) if (D[l]) [D[l].tOpenFallback, D[l].tSaveAsAbort, D[l].gDrop, D[l].gDropShort, D[l].gPickAbort] = NODIALOG[l];
 
@@ -4215,7 +4254,103 @@ body.pipetting #canvas { cursor: crosshair; }
     foot.textContent = '';
     if (!browsing) return;
     foot.appendChild(el('span', '', kind === 'browser' ? tr(fromLocalFile ? 'gLocalNote' : 'gBrowserNote') + (canDrop() ? ' ' + tr('gDropShort') : '') : parentName));
-    if (canPickFolder()) foot.appendChild(button(tr(kind === 'browser' ? 'gChoose' : 'gChange'), 'g-link', pickFolder));
+    const links = el('div', 'g-links');
+    links.append(button(tr('gBackup'), 'g-link', backup), button(tr('gRestore'), 'g-link', () => $('#restore-input').click()));
+    if (canPickFolder()) links.appendChild(button(tr(kind === 'browser' ? 'gChoose' : 'gChange'), 'g-link', pickFolder));
+    foot.appendChild(links);
+  }
+
+  /* ---- Backup and restore -------------------------------------------------
+     The whole gallery as one file: every folder and every file in it (boards, and the small
+     index that keeps folder names and colours), so it can live somewhere safe, such as the
+     Files app on a phone, where a browser-kept gallery cannot. Restoring adds it back into the
+     gallery shown now: nothing there is overwritten, and a board whose name is taken but whose
+     content differs is kept beside it under a new name.
+       { "format": "WHTBD-GALLERY", "version": 1, "created": "…",
+         "entries": [ { "path": "math", "dir": true }, { "path": "math/Lesson.whtbd", "text": "…" }, … ] } */
+  const BACKUP_EXT = '.wbgallery';
+  async function collect(dir, prefix, out) {
+    for await (const [name, h] of dir.entries()) {
+      if (name === '.gallery-test') continue;
+      const p = prefix + name;
+      if (h.kind === 'directory') { out.push({ path: p, dir: true }); await collect(h, p + '/', out); }
+      else out.push({ path: p, text: await (await h.getFile()).text() });
+    }
+    return out;
+  }
+  async function backup() {
+    const name = `Whiteboard gallery backup ${new Date().toISOString().slice(0, 10)}${BACKUP_EXT}`;
+    // On computers the save dialog comes first, while the click still counts as the user's own action.
+    let handle = null;
+    if (typeof window.showSaveFilePicker === 'function' && !fromLocalFile && !/iP(hone|ad|od)|Android/.test(navigator.userAgent)) {
+      try { handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'Whiteboard gallery backup', accept: { 'application/json': [BACKUP_EXT] } }] }); }
+      catch (e) { if (e.name === 'AbortError') return host.toast(tr('tBackupCancel'), null, null, 7000); handle = null; }
+    }
+    let file;
+    try {
+      const entries = await collect(root, '', []);
+      const text = JSON.stringify({ format: 'WHTBD-GALLERY', version: 1, created: new Date().toISOString(), entries });
+      file = new File([text], name, { type: 'application/json' });
+      if (handle) {
+        const w = await handle.createWritable();
+        await w.write(file); await w.close();
+        return host.toast(tr('tBackedUp', { t: handle.name }));
+      }
+    } catch (e) { return fail(e, 'backing up the gallery'); }
+    // Phones: the share sheet, where "Save to Files" lets the person pick any folder.
+    const share = () => navigator.share({ files: [file], title: name }).then(() => host.toast(tr('tBackedUp', { t: name })), (e) => {
+      if (e.name === 'NotAllowedError') host.toast(tr('tBackupReady'), tr('gShare'), share, 15000);   // the tap went stale while the file was made
+      else if (e.name !== 'AbortError') saveDownload(file);
+    });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) return share();
+    saveDownload(file);
+  }
+  function saveDownload(file) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file); a.download = file.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    host.toast(tr('tBackedUpDl', { t: file.name }), null, null, 7000);
+  }
+  async function restore(file) {
+    let data;
+    try { data = JSON.parse(await file.text()); } catch (e) { data = null; }
+    if (!data || data.format !== 'WHTBD-GALLERY' || !Array.isArray(data.entries)) return host.toast(tr('tRestoreBad'), null, null, 7000);
+    if (data.version > 1) return host.toast(tr('eNewer'), null, null, 7000);
+    const state = await connect(true);
+    if (state !== 'ready') { await open(); return host.toast(tr('tRestoreFirst'), null, null, 7000); }
+    let added = 0, renamed = 0;
+    try {
+      // Folders first (shortest paths first, so parents exist), then files.
+      const ok = (p) => typeof p === 'string' && p && !p.split('/').some((n) => !n || n === '.' || n === '..' || /[\\:*?"<>|\u0000-\u001f]/.test(n));
+      const dirOf = async (parts) => { let d = root; for (const n of parts) d = await d.getDirectoryHandle(n, { create: true }); return d; };
+      const entries = data.entries.filter((e) => e && ok(e.path));
+      for (const e of entries.filter((e) => e.dir).sort((a, b) => a.path.length - b.path.length)) await dirOf(e.path.split('/'));
+      for (const e of entries.filter((e) => !e.dir && typeof e.text === 'string')) {
+        const parts = e.path.split('/'), name = parts.pop(), dir = await dirOf(parts);
+        let have = null;
+        try { have = await (await (await dir.getFileHandle(name)).getFile()).text(); } catch (err) {}
+        if (have === e.text) continue;                                   // already there, unchanged
+        if (have === null) { await writeFile(dir, name, e.text); if (name.endsWith(EXT)) added++; continue; }
+        if (name === INDEX) {                                            // folder names and colours: keep both sides' entries
+          let theirs = {}; try { theirs = JSON.parse(e.text) || {}; } catch (err) {}
+          const merged = { ...theirs, ...(await readIndex(dir)) };
+          await writeFile(dir, INDEX, JSON.stringify(merged, null, 1));
+          continue;
+        }
+        if (!name.toLowerCase().endsWith(EXT)) continue;
+        // Same name, different board: keep both, unless an earlier restore already put this exact board beside it.
+        let copy = false;
+        for await (const [n, h] of dir.entries()) {
+          if (h.kind === 'file' && n.toLowerCase().endsWith(EXT) && (await (await h.getFile()).text()) === e.text) { copy = true; break; }
+        }
+        if (copy) continue;
+        await writeFile(dir, await freeName(dir, stem(name), EXT), e.text);
+        added++; renamed++;
+      }
+    } catch (e) { fail(e, 'restoring the backup'); }
+    host.toast(added ? tr('tRestored', { n: added }) + (renamed ? ' ' + tr('tRestoredKept', { n: renamed }) : '') : tr('tRestoredNone'), null, null, 7000);
+    if ($('#gallery').classList.contains('open')) show();
   }
   /* Choose the gallery folder, checking each step so that a failure names the step that failed. */
   async function pickFolder() {
@@ -4300,6 +4435,9 @@ body.pipetting #canvas { cursor: crosshair; }
       show();
     });
     $('#g-back').addEventListener('click', () => { if (path.length) { path.pop(); show(); } });
+    const ri = $('#restore-input');
+    if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) ri.removeAttribute('accept');   // iOS greys out types it does not know
+    ri.addEventListener('change', () => { const f = ri.files[0]; ri.value = ''; if (f) restore(f); });
     document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#g-menu, .g-more')) $('#g-menu').classList.remove('open'); }, true);
     $('#g-grid').addEventListener('scroll', () => $('#g-menu').classList.remove('open'), { passive: true });
   }

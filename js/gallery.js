@@ -592,7 +592,103 @@
     foot.textContent = '';
     if (!browsing) return;
     foot.appendChild(el('span', '', kind === 'browser' ? tr(fromLocalFile ? 'gLocalNote' : 'gBrowserNote') + (canDrop() ? ' ' + tr('gDropShort') : '') : parentName));
-    if (canPickFolder()) foot.appendChild(button(tr(kind === 'browser' ? 'gChoose' : 'gChange'), 'g-link', pickFolder));
+    const links = el('div', 'g-links');
+    links.append(button(tr('gBackup'), 'g-link', backup), button(tr('gRestore'), 'g-link', () => $('#restore-input').click()));
+    if (canPickFolder()) links.appendChild(button(tr(kind === 'browser' ? 'gChoose' : 'gChange'), 'g-link', pickFolder));
+    foot.appendChild(links);
+  }
+
+  /* ---- Backup and restore -------------------------------------------------
+     The whole gallery as one file: every folder and every file in it (boards, and the small
+     index that keeps folder names and colours), so it can live somewhere safe, such as the
+     Files app on a phone, where a browser-kept gallery cannot. Restoring adds it back into the
+     gallery shown now: nothing there is overwritten, and a board whose name is taken but whose
+     content differs is kept beside it under a new name.
+       { "format": "WHTBD-GALLERY", "version": 1, "created": "…",
+         "entries": [ { "path": "math", "dir": true }, { "path": "math/Lesson.whtbd", "text": "…" }, … ] } */
+  const BACKUP_EXT = '.wbgallery';
+  async function collect(dir, prefix, out) {
+    for await (const [name, h] of dir.entries()) {
+      if (name === '.gallery-test') continue;
+      const p = prefix + name;
+      if (h.kind === 'directory') { out.push({ path: p, dir: true }); await collect(h, p + '/', out); }
+      else out.push({ path: p, text: await (await h.getFile()).text() });
+    }
+    return out;
+  }
+  async function backup() {
+    const name = `Whiteboard gallery backup ${new Date().toISOString().slice(0, 10)}${BACKUP_EXT}`;
+    // On computers the save dialog comes first, while the click still counts as the user's own action.
+    let handle = null;
+    if (typeof window.showSaveFilePicker === 'function' && !fromLocalFile && !/iP(hone|ad|od)|Android/.test(navigator.userAgent)) {
+      try { handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'Whiteboard gallery backup', accept: { 'application/json': [BACKUP_EXT] } }] }); }
+      catch (e) { if (e.name === 'AbortError') return host.toast(tr('tBackupCancel'), null, null, 7000); handle = null; }
+    }
+    let file;
+    try {
+      const entries = await collect(root, '', []);
+      const text = JSON.stringify({ format: 'WHTBD-GALLERY', version: 1, created: new Date().toISOString(), entries });
+      file = new File([text], name, { type: 'application/json' });
+      if (handle) {
+        const w = await handle.createWritable();
+        await w.write(file); await w.close();
+        return host.toast(tr('tBackedUp', { t: handle.name }));
+      }
+    } catch (e) { return fail(e, 'backing up the gallery'); }
+    // Phones: the share sheet, where "Save to Files" lets the person pick any folder.
+    const share = () => navigator.share({ files: [file], title: name }).then(() => host.toast(tr('tBackedUp', { t: name })), (e) => {
+      if (e.name === 'NotAllowedError') host.toast(tr('tBackupReady'), tr('gShare'), share, 15000);   // the tap went stale while the file was made
+      else if (e.name !== 'AbortError') saveDownload(file);
+    });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) return share();
+    saveDownload(file);
+  }
+  function saveDownload(file) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file); a.download = file.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    host.toast(tr('tBackedUpDl', { t: file.name }), null, null, 7000);
+  }
+  async function restore(file) {
+    let data;
+    try { data = JSON.parse(await file.text()); } catch (e) { data = null; }
+    if (!data || data.format !== 'WHTBD-GALLERY' || !Array.isArray(data.entries)) return host.toast(tr('tRestoreBad'), null, null, 7000);
+    if (data.version > 1) return host.toast(tr('eNewer'), null, null, 7000);
+    const state = await connect(true);
+    if (state !== 'ready') { await open(); return host.toast(tr('tRestoreFirst'), null, null, 7000); }
+    let added = 0, renamed = 0;
+    try {
+      // Folders first (shortest paths first, so parents exist), then files.
+      const ok = (p) => typeof p === 'string' && p && !p.split('/').some((n) => !n || n === '.' || n === '..' || /[\\:*?"<>|\u0000-\u001f]/.test(n));
+      const dirOf = async (parts) => { let d = root; for (const n of parts) d = await d.getDirectoryHandle(n, { create: true }); return d; };
+      const entries = data.entries.filter((e) => e && ok(e.path));
+      for (const e of entries.filter((e) => e.dir).sort((a, b) => a.path.length - b.path.length)) await dirOf(e.path.split('/'));
+      for (const e of entries.filter((e) => !e.dir && typeof e.text === 'string')) {
+        const parts = e.path.split('/'), name = parts.pop(), dir = await dirOf(parts);
+        let have = null;
+        try { have = await (await (await dir.getFileHandle(name)).getFile()).text(); } catch (err) {}
+        if (have === e.text) continue;                                   // already there, unchanged
+        if (have === null) { await writeFile(dir, name, e.text); if (name.endsWith(EXT)) added++; continue; }
+        if (name === INDEX) {                                            // folder names and colours: keep both sides' entries
+          let theirs = {}; try { theirs = JSON.parse(e.text) || {}; } catch (err) {}
+          const merged = { ...theirs, ...(await readIndex(dir)) };
+          await writeFile(dir, INDEX, JSON.stringify(merged, null, 1));
+          continue;
+        }
+        if (!name.toLowerCase().endsWith(EXT)) continue;
+        // Same name, different board: keep both, unless an earlier restore already put this exact board beside it.
+        let copy = false;
+        for await (const [n, h] of dir.entries()) {
+          if (h.kind === 'file' && n.toLowerCase().endsWith(EXT) && (await (await h.getFile()).text()) === e.text) { copy = true; break; }
+        }
+        if (copy) continue;
+        await writeFile(dir, await freeName(dir, stem(name), EXT), e.text);
+        added++; renamed++;
+      }
+    } catch (e) { fail(e, 'restoring the backup'); }
+    host.toast(added ? tr('tRestored', { n: added }) + (renamed ? ' ' + tr('tRestoredKept', { n: renamed }) : '') : tr('tRestoredNone'), null, null, 7000);
+    if ($('#gallery').classList.contains('open')) show();
   }
   /* Choose the gallery folder, checking each step so that a failure names the step that failed. */
   async function pickFolder() {
@@ -677,6 +773,9 @@
       show();
     });
     $('#g-back').addEventListener('click', () => { if (path.length) { path.pop(); show(); } });
+    const ri = $('#restore-input');
+    if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) ri.removeAttribute('accept');   // iOS greys out types it does not know
+    ri.addEventListener('change', () => { const f = ri.files[0]; ri.value = ''; if (f) restore(f); });
     document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#g-menu, .g-more')) $('#g-menu').classList.remove('open'); }, true);
     $('#g-grid').addEventListener('scroll', () => $('#g-menu').classList.remove('open'), { passive: true });
   }
