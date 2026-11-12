@@ -1686,6 +1686,8 @@
     toast, report, openSheet, closeSheets,
   });
   initUI();
+  // Credits: "2026" this year, "2026–2027" from next year on.
+  { const y = new Date().getFullYear(); if (y > 2026) $('#copy-years').textContent = '2026–' + y; }
   new ResizeObserver(resize).observe(board);
   window.addEventListener('resize', resize);
   resize();

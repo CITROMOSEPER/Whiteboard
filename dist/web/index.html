@@ -225,6 +225,9 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
 .mi:active { opacity: 0.8; }
 .mi kbd { font: inherit; font-size: 0.75rem; opacity: 0.55; }
 .menu .mi[hidden], .menu kbd[hidden] { display: none; }
+.credits { margin-top: 22px; text-align: center; font-size: 0.75rem; line-height: 1.5; color: var(--ink-2); user-select: text; -webkit-user-select: text; }
+.credits p { margin: 0; }
+#app-version { font-variant-numeric: tabular-nums; opacity: 0.8; }
 .menu hr { border: 0; height: 1px; background: var(--hairline); margin: 5px 10px; }
 
 /* ---------- Sheets ---------- */
@@ -743,6 +746,12 @@ body.pipetting #canvas { cursor: crosshair; }
         <button role="radio" data-value="lines" data-i18n="grid"></button>
       </div>
     </div>
+
+    <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
+    <footer class="credits">
+      <p>Nemes Dániel © <span id="copy-years">2026</span></p>
+      <p id="app-version">2026.11.12.01</p>
+    </footer>
   </div>
 </div>
 
@@ -5740,6 +5749,8 @@ body.pipetting #canvas { cursor: crosshair; }
     toast, report, openSheet, closeSheets,
   });
   initUI();
+  // Credits: "2026" this year, "2026–2027" from next year on.
+  { const y = new Date().getFullYear(); if (y > 2026) $('#copy-years').textContent = '2026–' + y; }
   new ResizeObserver(resize).observe(board);
   window.addEventListener('resize', resize);
   resize();
