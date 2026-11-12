@@ -124,6 +124,20 @@
     await kvSet('galleryDir', { kind: 'browser' });
     return true;
   }
+  /* A folder can only look downwards, so a gallery folder chosen directly cannot tell which folder
+     holds it. Every parent folder chosen before is remembered, and asked whether the gallery is
+     directly inside it; that names the parent whenever it is one the app has seen. */
+  async function rememberParent(dir) {
+    const known = (await kvGet('galleryParents')) || [];
+    for (const p of known) { try { if (await p.isSameEntry(dir)) return; } catch (e) {} }
+    await kvSet('galleryParents', [dir, ...known].slice(0, 12));
+  }
+  async function findParent(dir) {
+    for (const p of (await kvGet('galleryParents')) || []) {
+      try { const steps = await p.resolve(dir); if (steps && steps.length === 1) return p.name; } catch (e) {}
+    }
+    return '';
+  }
   /* 'ready' | 'setup' (nothing chosen yet) | 'allow' (the folder needs permission again) | 'none' (no storage at all) */
   async function connect(ask) {
     if (root) return 'ready';
@@ -133,7 +147,7 @@
         let p = await saved.handle.queryPermission({ mode: 'readwrite' });
         if (p !== 'granted' && ask) p = await saved.handle.requestPermission({ mode: 'readwrite' });
         if (p !== 'granted') return 'allow';
-        root = saved.handle; kind = 'folder'; parentName = saved.parent || '';
+        root = saved.handle; kind = 'folder'; parentName = saved.parent || (await findParent(root));
         return 'ready';
       }
       if ((saved && saved.kind === 'browser') || !canPickFolder()) return canUseBrowser() && (await useBrowser()) ? 'ready' : 'none';
@@ -582,7 +596,8 @@
       step = 'removing the test file';
       await dir.removeEntry('.gallery-test');
       root = dir; kind = 'folder'; path = [];
-      parentName = dir === picked ? '' : picked.name;          // picked "Whiteboard gallery" itself: its parent is not visible
+      if (dir === picked) parentName = await findParent(dir);  // picked "Whiteboard gallery" itself: its parent is known only if seen before
+      else { parentName = picked.name; await rememberParent(picked); }
       step = 'remembering the folder';
       await kvSet('galleryDir', { kind: 'folder', handle: root, parent: parentName });
     } catch (e) {
@@ -614,7 +629,7 @@
       if (p === 'granted') {
         await writeFile(handle, '.gallery-test', 'ok');
         await handle.removeEntry('.gallery-test');
-        root = handle; kind = 'folder';
+        root = handle; kind = 'folder'; parentName = await findParent(handle);
       }
     } catch (e) { fail(e, 'using the folder "' + handle.name + '"'); }
     if (!$('#gallery').classList.contains('open')) host.openSheet('#gallery');
