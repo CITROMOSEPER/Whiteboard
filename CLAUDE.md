@@ -5,7 +5,7 @@
 The version is shown at the bottom of the Settings window, in `index.html`:
 
 ```html
-<p id="app-version">version: 2026.11.13.01.</p>
+<p id="app-version">version: 2026.11.13.02.</p>
 ```
 
 Keep the text exactly in that shape: `version: YYYY.MM.DD.NN.` (lowercase "version:", one space, trailing dot).
