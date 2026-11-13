@@ -18,7 +18,7 @@
       `  "view": { "x": ${f(view.x)}, "y": ${f(view.y)}, "zoom": ${+view.zoom.toFixed(4)} },\n`;
     const lines = doc.strokes.map((s) => {
       if (s.tool === 'text') {
-        return `    { "tool": "text", "x": ${f(s.x)}, "y": ${f(s.y)}, "font": "${s.font}", "size": ${+s.size.toFixed(3)}, "color": "${s.color}", "opacity": ${+s.opacity.toFixed(3)}, "text": ${JSON.stringify(s.text)} }`;
+        return `    { "tool": "text", "x": ${f(s.x)}, "y": ${f(s.y)}, ${s.rot ? `"rot": ${f((s.rot * 180) / Math.PI)}, ` : ''}"font": "${s.font}", "size": ${+s.size.toFixed(3)}, "color": "${s.color}", "opacity": ${+s.opacity.toFixed(3)}, "text": ${JSON.stringify(s.text)} }`;
       }
       if (s.tool === 'image') {
         // "rot" is in degrees in the file (clockwise), and left out when the picture is upright.
@@ -33,6 +33,7 @@
       for (let i = 0; i < p.length; i += 2) pts.push(`[${f(p[i])},${f(p[i + 1])}]`);
       let o = `{ "tool": "${s.tool}", `;
       if (s.tool === 'pen') o += `"color": "${s.color}", `;
+      if (s.tool === 'pen' && s.dash && WB.DASHES[s.dash]) o += `"dash": "${s.dash}", `;
       o += `"width": ${+s.width.toFixed(3)}, "opacity": ${+s.opacity.toFixed(3)}, "smooth": ${!!s.smooth}, "closed": ${!!s.closed}, `;
       if (s.shape) o += `"shape": "${s.shape}", `;
       return `    ${o}"points": [${pts.join(',')}] }`;
@@ -53,7 +54,7 @@
     for (const s of d.strokes) {
       if (s && s.tool === 'text') {
         if (typeof s.text === 'string' && s.text.trim() && isFinite(s.x) && isFinite(s.y)) {
-          strokes.push({ tool: 'text', x: +s.x, y: +s.y, text: s.text.slice(0, 20000), font: WB.FONTS[s.font] ? s.font : 'sans',
+          strokes.push({ tool: 'text', x: +s.x, y: +s.y, rot: (num(s.rot, 0) % 360) * Math.PI / 180, text: s.text.slice(0, 20000), font: WB.FONTS[s.font] ? s.font : 'sans',
             size: Math.max(0.01, num(s.size, 24)), color: hex(s.color), opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), width: 0 });
         }
         continue;
@@ -90,6 +91,7 @@
         smooth: !!s.smooth,
         closed: !!s.closed,
       };
+      if (st.tool === 'pen' && typeof s.dash === 'string' && WB.DASHES[s.dash]) st.dash = s.dash;
       if (typeof s.shape === 'string') st.shape = s.shape.replace(/[^a-z]/gi, '').slice(0, 24);
       strokes.push(st);
     }
@@ -179,13 +181,16 @@
             body += `<image x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" preserveAspectRatio="none"${turn}${s.opacity < 1 ? ` opacity="${f(s.opacity)}"` : ''} xlink:href="${s.src}"/>\n`;
           } else if (s.tool === 'text') {
             const L = WB.textLayout(s);
-            body += `<text font-family="${esc(WB.FONTS[s.font] || WB.FONTS.sans)}" font-size="${f(s.size)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none" xml:space="preserve">` +
+            body += `<text${s.rot ? ` transform="rotate(${f((s.rot * 180) / Math.PI)} ${f(s.x)} ${f(s.y)})"` : ''} font-family="${esc(WB.FONTS[s.font] || WB.FONTS.sans)}" font-size="${f(s.size)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none" xml:space="preserve">` +
               L.lines.map((l, i) => `<tspan x="${f(s.x)}" y="${f(s.y + i * L.lh + L.base)}">${esc(l)}</tspan>`).join('') + '</text>\n';
           } else if (s.tool === 'fill') {
             // An "under" fill sits beneath everything drawn before it, so it goes first in the document.
             const el = `<path d="${svgPath(s)}" fill="${s.color}" fill-rule="evenodd"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
             body = s.under ? el + body : body + el;
-          } else body += `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}"${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n`;
+          } else {
+            const dash = WB.dashOf(s);
+            body += `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}"${dash ? ` stroke-dasharray="${dash.map(f).join(' ')}"` : ''}${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n`;
+          }
         }
       } else if (body) {
         const id = 'erase' + (++n);
@@ -306,11 +311,15 @@
             const imgId = await streamObj(`/Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceRGB /BitsPerComponent 8 /SMask ${maskId} 0 R`, new Uint8Array(c));
             const name = 'T' + (++tn);
             cur.xo.set(name, imgId);
-            cur.ops += `q /${alpha(cur, s.opacity)} gs ${f(tw)} 0 0 ${f(-th)} ${f(s.x - pad)} ${f(s.y - pad + th)} cm /${name} Do Q\n`;
+            // The text image's unit square onto its (possibly turned) box; the box turns about the text's anchor.
+            const co = Math.cos(s.rot || 0), si = Math.sin(s.rot || 0);
+            const bx = s.x - pad * co + pad * si, by = s.y - pad * si - pad * co;   // top-left corner of the padded box
+            const tm = [co * tw, si * tw, si * th, -co * th, bx - si * th, by + co * th];
+            cur.ops += `q /${alpha(cur, s.opacity)} gs ${tm.map(f).join(' ')} cm /${name} Do Q\n`;
           } else if (s.tool === 'fill') {
             const op = `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} rg ${pdfPath(s)}f*\n`;
             cur.ops = s.under ? op + cur.ops : cur.ops + op;
-          } else cur.ops += `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} RG ${f(s.width)} w ${pdfPath(s)}S\n`;
+          } else cur.ops += `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} RG ${f(s.width)} w [${(WB.dashOf(s) || []).map(f).join(' ')}] 0 d ${pdfPath(s)}S\n`;
         }
         has = true;
       } else if (has) {

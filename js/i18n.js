@@ -783,6 +783,73 @@
   };
   for (const code in SAVE_HERE) { D[code].gSaving = SAVE_HERE[code][0]; D[code].gSaveHere = SAVE_HERE[code][1]; }
 
+  /* Line types, the selection's style bar, duplicate and stickers. Keys in order:
+     lineType, dash_solid, dash_dotted, dash_dashed, dash_long, dash_dashdot, thinner, thicker,
+     duplicate, saveSticker, addSticker, mStickers, mStickersMenu, sticker, sSetup, sSaving,
+     tStickerSaved, tStickerAdded, tDuplicated, tRestoreBadStickers */
+  const EXTRA_KEYS = ['lineType', 'dash_solid', 'dash_dotted', 'dash_dashed', 'dash_long', 'dash_dashdot', 'thinner', 'thicker',
+    'duplicate', 'saveSticker', 'addSticker', 'mStickers', 'mStickersMenu', 'sticker', 'sSetup', 'sSaving',
+    'tStickerSaved', 'tStickerAdded', 'tDuplicated', 'tRestoreBadStickers'];
+  const EXTRA = {
+    en: ['Line type', 'Solid', 'Dotted', 'Dashed', 'Long dashes', 'Dash and dot', 'Thinner', 'Thicker',
+      'Duplicate', 'Save as sticker', 'Add sticker', 'Stickers', 'Stickers…', 'Sticker',
+      'Choose where your stickers live. A folder named “Whiteboard stickers” is created there. Browsers do not allow selecting Documents itself: open it and choose or create a folder inside.',
+      'Choose a folder for the sticker', 'Sticker saved. Type its name.', 'Sticker added', 'Duplicated', 'This is not a Whiteboard sticker backup.'],
+    hu: ['Vonaltípus', 'Folytonos', 'Pontozott', 'Szaggatott', 'Hosszú szaggatott', 'Pont-vonal', 'Vékonyabb', 'Vastagabb',
+      'Duplikálás', 'Mentés matricaként', 'Matrica hozzáadása', 'Matricák', 'Matricák…', 'Matrica',
+      'Válaszd ki, hol legyenek a matricáid. Ott létrejön egy „Whiteboard stickers” nevű mappa. A böngészők magát a Dokumentumok mappát nem engedik kiválasztani: nyisd meg, és válassz vagy hozz létre benne egy mappát.',
+      'Válassz mappát a matricának', 'Matrica mentve. Írd be a nevét.', 'Matrica hozzáadva', 'Duplikálva', 'Ez nem Whiteboard matrica-mentés.'],
+    de: ['Linienart', 'Durchgezogen', 'Gepunktet', 'Gestrichelt', 'Lange Striche', 'Strich-Punkt', 'Dünner', 'Dicker',
+      'Duplizieren', 'Als Sticker speichern', 'Sticker hinzufügen', 'Sticker', 'Sticker…', 'Sticker',
+      'Wähle, wo deine Sticker liegen sollen. Dort wird ein Ordner „Whiteboard stickers“ angelegt. Browser erlauben nicht, „Dokumente“ selbst zu wählen: Öffne es und wähle oder erstelle einen Ordner darin.',
+      'Wähle einen Ordner für den Sticker', 'Sticker gespeichert. Gib ihm einen Namen.', 'Sticker hinzugefügt', 'Dupliziert', 'Das ist keine Whiteboard-Stickersicherung.'],
+    fr: ['Type de ligne', 'Continue', 'Pointillée', 'Tiretée', 'Longs tirets', 'Tiret-point', 'Plus fin', 'Plus épais',
+      'Dupliquer', 'Enregistrer comme autocollant', 'Ajouter un autocollant', 'Autocollants', 'Autocollants…', 'Autocollant',
+      'Choisissez l’emplacement de vos autocollants. Un dossier « Whiteboard stickers » y sera créé. Les navigateurs n’autorisent pas la sélection du dossier Documents lui-même : ouvrez-le et choisissez ou créez un dossier dedans.',
+      'Choisissez un dossier pour l’autocollant', 'Autocollant enregistré. Saisissez son nom.', 'Autocollant ajouté', 'Dupliqué', 'Ce n’est pas une sauvegarde d’autocollants Whiteboard.'],
+    it: ['Tipo di linea', 'Continua', 'Punteggiata', 'Tratteggiata', 'Trattini lunghi', 'Tratto e punto', 'Più sottile', 'Più spessa',
+      'Duplica', 'Salva come adesivo', 'Aggiungi adesivo', 'Adesivi', 'Adesivi…', 'Adesivo',
+      'Scegli dove tenere i tuoi adesivi. Lì verrà creata una cartella “Whiteboard stickers”. I browser non permettono di selezionare la cartella Documenti stessa: aprila e scegli o crea una cartella al suo interno.',
+      'Scegli una cartella per l’adesivo', 'Adesivo salvato. Scrivi il suo nome.', 'Adesivo aggiunto', 'Duplicato', 'Questo non è un backup di adesivi di Whiteboard.'],
+    es: ['Tipo de línea', 'Continua', 'Punteada', 'Discontinua', 'Guiones largos', 'Raya y punto', 'Más fina', 'Más gruesa',
+      'Duplicar', 'Guardar como pegatina', 'Añadir pegatina', 'Pegatinas', 'Pegatinas…', 'Pegatina',
+      'Elige dónde estarán tus pegatinas. Allí se creará una carpeta «Whiteboard stickers». Los navegadores no permiten seleccionar la propia carpeta Documentos: ábrela y elige o crea una carpeta dentro.',
+      'Elige una carpeta para la pegatina', 'Pegatina guardada. Escribe su nombre.', 'Pegatina añadida', 'Duplicado', 'Esto no es una copia de seguridad de pegatinas de Whiteboard.'],
+    pt: ['Tipo de linha', 'Contínua', 'Pontilhada', 'Tracejada', 'Traços longos', 'Traço e ponto', 'Mais fina', 'Mais grossa',
+      'Duplicar', 'Salvar como adesivo', 'Adicionar adesivo', 'Adesivos', 'Adesivos…', 'Adesivo',
+      'Escolha onde ficam seus adesivos. Uma pasta “Whiteboard stickers” será criada lá. Os navegadores não permitem selecionar a própria pasta Documentos: abra-a e escolha ou crie uma pasta dentro.',
+      'Escolha uma pasta para o adesivo', 'Adesivo salvo. Digite o nome.', 'Adesivo adicionado', 'Duplicado', 'Isto não é um backup de adesivos do Whiteboard.'],
+    ru: ['Тип линии', 'Сплошная', 'Точечная', 'Штриховая', 'Длинные штрихи', 'Штрихпунктир', 'Тоньше', 'Толще',
+      'Дублировать', 'Сохранить как стикер', 'Добавить стикер', 'Стикеры', 'Стикеры…', 'Стикер',
+      'Выберите, где будут храниться стикеры. Там будет создана папка «Whiteboard stickers». Браузеры не позволяют выбрать саму папку «Документы»: откройте её и выберите или создайте папку внутри.',
+      'Выберите папку для стикера', 'Стикер сохранён. Введите его имя.', 'Стикер добавлен', 'Продублировано', 'Это не резервная копия стикеров Whiteboard.'],
+    uk: ['Тип лінії', 'Суцільна', 'Крапкова', 'Штрихова', 'Довгі штрихи', 'Штрихпунктир', 'Тонша', 'Товща',
+      'Дублювати', 'Зберегти як стікер', 'Додати стікер', 'Стікери', 'Стікери…', 'Стікер',
+      'Виберіть, де будуть стікери. Там буде створено папку «Whiteboard stickers». Браузери не дозволяють вибрати саму папку «Документи»: відкрийте її та виберіть або створіть папку всередині.',
+      'Виберіть папку для стікера', 'Стікер збережено. Введіть його назву.', 'Стікер додано', 'Продубльовано', 'Це не резервна копія стікерів Whiteboard.'],
+    tr: ['Çizgi türü', 'Düz', 'Noktalı', 'Kesikli', 'Uzun kesikli', 'Çizgi-nokta', 'Daha ince', 'Daha kalın',
+      'Çoğalt', 'Çıkartma olarak kaydet', 'Çıkartma ekle', 'Çıkartmalar', 'Çıkartmalar…', 'Çıkartma',
+      'Çıkartmalarınızın nerede duracağını seçin. Orada “Whiteboard stickers” adlı bir klasör oluşturulur. Tarayıcılar Belgeler klasörünün kendisinin seçilmesine izin vermez: açın ve içinde bir klasör seçin veya oluşturun.',
+      'Çıkartma için bir klasör seçin', 'Çıkartma kaydedildi. Adını yazın.', 'Çıkartma eklendi', 'Çoğaltıldı', 'Bu bir Whiteboard çıkartma yedeği değil.'],
+    zh: ['线条类型', '实线', '点线', '虚线', '长虚线', '点划线', '更细', '更粗',
+      '复制', '存为贴纸', '添加贴纸', '贴纸', '贴纸…', '贴纸',
+      '选择贴纸的存放位置。那里会创建一个名为“Whiteboard stickers”的文件夹。浏览器不允许直接选择“文档”文件夹本身：请打开它，并在其中选择或新建一个文件夹。',
+      '为贴纸选择文件夹', '贴纸已保存。请输入名称。', '已添加贴纸', '已复制', '这不是 Whiteboard 贴纸备份。'],
+    ja: ['線の種類', '実線', '点線', '破線', '長い破線', '一点鎖線', '細く', '太く',
+      '複製', 'ステッカーとして保存', 'ステッカーを追加', 'ステッカー', 'ステッカー…', 'ステッカー',
+      'ステッカーの保存場所を選んでください。そこに「Whiteboard stickers」というフォルダが作られます。ブラウザでは「ドキュメント」フォルダそのものは選べません。開いて、その中のフォルダを選ぶか作成してください。',
+      'ステッカーのフォルダを選んでください', 'ステッカーを保存しました。名前を入力してください。', 'ステッカーを追加しました', '複製しました', 'これは Whiteboard のステッカーのバックアップではありません。'],
+    ar: ['نوع الخط', 'متصل', 'منقّط', 'متقطع', 'شرطات طويلة', 'شرطة ونقطة', 'أرفع', 'أعرض',
+      'تكرار', 'حفظ كملصق', 'إضافة ملصق', 'الملصقات', 'الملصقات…', 'ملصق',
+      'اختر مكان ملصقاتك. سيُنشأ هناك مجلد باسم «Whiteboard stickers». لا تسمح المتصفحات باختيار مجلد المستندات نفسه: افتحه واختر أو أنشئ مجلدًا بداخله.',
+      'اختر مجلدًا للملصق', 'تم حفظ الملصق. اكتب اسمه.', 'تمت إضافة الملصق', 'تم التكرار', 'هذه ليست نسخة احتياطية لملصقات Whiteboard.'],
+    hi: ['रेखा का प्रकार', 'ठोस', 'बिंदुदार', 'डैश वाली', 'लंबे डैश', 'डैश और बिंदु', 'पतली', 'मोटी',
+      'डुप्लिकेट', 'स्टिकर के रूप में सहेजें', 'स्टिकर जोड़ें', 'स्टिकर', 'स्टिकर…', 'स्टिकर',
+      'चुनें कि आपके स्टिकर कहाँ रहेंगे। वहाँ “Whiteboard stickers” नाम का फ़ोल्डर बनेगा। ब्राउज़र स्वयं दस्तावेज़ फ़ोल्डर चुनने नहीं देते: उसे खोलें और उसके अंदर कोई फ़ोल्डर चुनें या बनाएँ।',
+      'स्टिकर के लिए फ़ोल्डर चुनें', 'स्टिकर सहेजा गया। उसका नाम लिखें।', 'स्टिकर जोड़ा गया', 'डुप्लिकेट किया गया', 'यह Whiteboard स्टिकर बैकअप नहीं है।'],
+  };
+  for (const l in EXTRA) if (D[l]) EXTRA_KEYS.forEach((k, i) => { D[l][k] = EXTRA[l][i]; });
+
   WB.I18N = D;
   let lang = 'en';
 

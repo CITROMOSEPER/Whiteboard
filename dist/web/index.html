@@ -180,6 +180,14 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
 }
 #side.hidden { opacity: 0; transform: translateY(-50%) translateX(-12px); pointer-events: none; }
 #side.no-opacity #sl-opacity { display: none; }
+.dash-btn { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--fill-strong); color: var(--ink); transition: transform 120ms ease-out, opacity 150ms ease; }
+.dash-btn:active { transform: scale(0.92); }
+.dash-btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+#side.erasing .dash-btn { display: none; }
+#dash-menu { transform-origin: -10px 50%; }
+.dash-mi svg { width: 48px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; margin-right: 12px; }
+.dash-mi { justify-content: flex-start; }
+.dash-mi[aria-checked="true"] { background: var(--fill); font-weight: 600; }
 .vslider {
   position: relative; width: 38px; height: 148px; border-radius: 12px; overflow: hidden;
   background: var(--fill-strong); touch-action: none; cursor: ns-resize;
@@ -401,6 +409,28 @@ body.pipetting #canvas { cursor: crosshair; }
 #sel-bar.on { transform: translate(-50%, 0); opacity: 1; visibility: visible; transition: transform 260ms var(--ease-out), opacity 150ms ease, visibility 0s; }
 #sel-delete { height: 34px; padding: 0 14px; border-radius: 10px; color: #ff3b30; font-weight: 600; background: var(--fill); transition: transform 120ms ease-out, background-color 150ms ease; }
 #sel-delete:active { transform: scale(0.95); background: var(--fill-strong); }
+#sel-bar { gap: 8px; }
+#sel-count { margin-right: 6px; }
+.sel-btn { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 10px; background: var(--fill); font-weight: 600; transition: transform 120ms ease-out, background-color 150ms ease; }
+.sel-btn:active { transform: scale(0.95); background: var(--fill-strong); }
+.sel-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 620px) { .sel-btn span { display: none; } .sel-btn { padding: 0 9px; } }
+
+/* ---------- Style of the selection ---------- */
+#sel-style {
+  position: fixed; left: 0; top: 0; z-index: 12; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 16px;
+  max-width: calc(100vw - 16px); opacity: 0; visibility: hidden; transition: opacity 160ms ease, visibility 0s linear 160ms;
+}
+#sel-style.on { opacity: 1; visibility: visible; transition: opacity 160ms ease, visibility 0s; }
+#sel-style.no-color #ss-colors, #sel-style.no-line .ss-line { display: none; }
+.ss-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center; }
+#ss-colors .swatch { width: 26px; height: 26px; }
+#sel-style .ibtn { width: 34px; height: 34px; border-radius: 10px; }
+#sel-style .ibtn svg { width: 20px; height: 20px; }
+#ss-width { min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.875rem; }
+#ss-dashes { display: flex; gap: 2px; }
+#ss-dashes .ibtn svg { stroke-width: 2.4; }
+#ss-dashes .ibtn[aria-checked="true"] { background: var(--fill-strong); }
 
 /* ---------- Gallery ---------- */
 .sheet.wide { width: min(58rem, 100%); height: min(44rem, calc(100% - 16px)); display: flex; flex-direction: column; overflow: hidden; }
@@ -583,6 +613,9 @@ body.pipetting #canvas { cursor: crosshair; }
     <div class="vslider-fill"></div>
     <svg class="vslider-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 5a7 7 0 0 1 0 14z" fill="currentColor" stroke="none"/></svg>
   </div>
+  <button class="dash-btn" id="btn-dash" data-i18n-label="lineType" data-i18n-title="lineType" aria-haspopup="menu" aria-expanded="false">
+    <svg viewBox="0 0 24 24"><path id="dash-icon" d="M3 12h18"/></svg>
+  </button>
 </aside>
 <div class="glass" id="preview" aria-hidden="true">
   <div id="preview-stage"><div id="preview-dot"></div></div>
@@ -599,6 +632,9 @@ body.pipetting #canvas { cursor: crosshair; }
   </button>
   <button class="ibtn tool" data-tool="text" data-i18n-label="text" data-i18n-title="text" data-keys="T" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+  </button>
+  <button class="ibtn" id="btn-sticker" data-i18n-label="addSticker" data-i18n-title="addSticker" aria-haspopup="dialog">
+    <svg viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9.5L21 14.5V5a2 2 0 0 0-2-2z"/><path d="M14.5 21v-4.5a2 2 0 0 1 2-2H21"/><path d="M8.5 9.5h.01M14.5 9.5h.01"/><path d="M8.5 13.5c1.8 1.6 4.2 1.6 6 0"/></svg>
   </button>
   <button class="ibtn tool" data-tool="select" data-i18n-label="select" data-i18n-title="select" data-keys="V" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M3 11 22 2l-9 19-2-8-8-2z"/></svg>
@@ -626,13 +662,40 @@ body.pipetting #canvas { cursor: crosshair; }
 <!-- Selection bar -->
 <div class="glass" id="sel-bar" role="status">
   <span id="sel-count"></span>
+  <button class="sel-btn" id="sel-duplicate" data-i18n-label="duplicate" data-i18n-title="duplicate">
+    <svg viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>
+    <span data-i18n="duplicate"></span>
+  </button>
+  <button class="sel-btn" id="sel-sticker" data-i18n-label="saveSticker" data-i18n-title="saveSticker">
+    <svg viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9.5L21 14.5V5a2 2 0 0 0-2-2z"/><path d="M14.5 21v-4.5a2 2 0 0 1 2-2H21"/></svg>
+    <span data-i18n="saveSticker"></span>
+  </button>
   <button id="sel-delete" data-i18n="delete"></button>
+</div>
+
+<!-- Style of the selected objects (floats under the selection) -->
+<div class="glass" id="sel-style" role="toolbar">
+  <div class="ss-row" id="ss-colors"></div>
+  <div class="ss-row ss-line">
+    <button class="ibtn" id="ss-thinner" data-i18n-label="thinner"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+    <output id="ss-width">4</output>
+    <button class="ibtn" id="ss-thicker" data-i18n-label="thicker"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
+    <span class="sep"></span>
+    <div id="ss-dashes" role="radiogroup"></div>
+  </div>
 </div>
 
 <!-- Other readings of the character that was just converted from handwriting -->
 <div class="glass" id="ink-alts" role="toolbar"></div>
 
 <!-- Popovers -->
+<div class="glass menu" id="dash-menu" role="menu">
+  <button class="mi dash-mi" role="menuitemradio" data-dash="solid"><svg viewBox="0 0 48 12"><path d="M5 6h38"/></svg><span data-i18n="dash_solid"></span></button>
+  <button class="mi dash-mi" role="menuitemradio" data-dash="dotted"><svg viewBox="0 0 48 12"><path d="M5 6h38" stroke-dasharray="0 5"/></svg><span data-i18n="dash_dotted"></span></button>
+  <button class="mi dash-mi" role="menuitemradio" data-dash="dashed"><svg viewBox="0 0 48 12"><path d="M5 6h38" stroke-dasharray="6 5"/></svg><span data-i18n="dash_dashed"></span></button>
+  <button class="mi dash-mi" role="menuitemradio" data-dash="long"><svg viewBox="0 0 48 12"><path d="M5 6h38" stroke-dasharray="13 6"/></svg><span data-i18n="dash_long"></span></button>
+  <button class="mi dash-mi" role="menuitemradio" data-dash="dashdot"><svg viewBox="0 0 48 12"><path d="M5 6h38" stroke-dasharray="10 5 0 5"/></svg><span data-i18n="dash_dashdot"></span></button>
+</div>
 <div class="glass menu" id="menu" role="menu">
   <button class="mi" role="menuitem" data-act="new"><span data-i18n="mNew"></span></button>
   <hr>
@@ -641,6 +704,8 @@ body.pipetting #canvas { cursor: crosshair; }
   <button class="mi" role="menuitem" data-act="save-gallery" id="mi-save-gallery"><span data-i18n="mSaveGallery"></span><kbd>Ctrl S</kbd></button>
   <button class="mi" role="menuitem" data-act="save-to"><span data-i18n="mSaveTo"></span><kbd>Ctrl ⇧ S</kbd></button>
   <button class="mi" role="menuitem" data-act="open"><span data-i18n="mOpenFrom"></span><kbd>Ctrl O</kbd></button>
+  <hr>
+  <button class="mi" role="menuitem" data-act="stickers"><span data-i18n="mStickersMenu"></span></button>
   <hr>
   <button class="mi" role="menuitem" data-act="export"><span data-i18n="mExport"></span><kbd>Ctrl E</kbd></button>
   <button class="mi" role="menuitem" data-act="import"><span data-i18n="mImport"></span></button>
@@ -752,7 +817,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.12.06.</p>
+      <p id="app-version">version: 2026.11.13.01.</p>
     </footer>
   </div>
 </div>
@@ -829,7 +894,7 @@ body.pipetting #canvas { cursor: crosshair; }
 <div class="glass" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button id="toast-action" hidden></button></div>
 <div id="drop-blob" aria-hidden="true"><i></i></div>
 <input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json" hidden>
-<input type="file" id="restore-input" accept=".wbgallery,.json,application/json" hidden>
+<input type="file" id="restore-input" accept=".wbgallery,.wbstickers,.json,application/json" hidden>
 <input type="file" id="import-input" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml,application/pdf,.png,.jpg,.jpeg,.webp,.bmp,.svg,.pdf" hidden>
 
 <script>
@@ -1618,6 +1683,73 @@ body.pipetting #canvas { cursor: crosshair; }
   };
   for (const code in SAVE_HERE) { D[code].gSaving = SAVE_HERE[code][0]; D[code].gSaveHere = SAVE_HERE[code][1]; }
 
+  /* Line types, the selection's style bar, duplicate and stickers. Keys in order:
+     lineType, dash_solid, dash_dotted, dash_dashed, dash_long, dash_dashdot, thinner, thicker,
+     duplicate, saveSticker, addSticker, mStickers, mStickersMenu, sticker, sSetup, sSaving,
+     tStickerSaved, tStickerAdded, tDuplicated, tRestoreBadStickers */
+  const EXTRA_KEYS = ['lineType', 'dash_solid', 'dash_dotted', 'dash_dashed', 'dash_long', 'dash_dashdot', 'thinner', 'thicker',
+    'duplicate', 'saveSticker', 'addSticker', 'mStickers', 'mStickersMenu', 'sticker', 'sSetup', 'sSaving',
+    'tStickerSaved', 'tStickerAdded', 'tDuplicated', 'tRestoreBadStickers'];
+  const EXTRA = {
+    en: ['Line type', 'Solid', 'Dotted', 'Dashed', 'Long dashes', 'Dash and dot', 'Thinner', 'Thicker',
+      'Duplicate', 'Save as sticker', 'Add sticker', 'Stickers', 'Stickers…', 'Sticker',
+      'Choose where your stickers live. A folder named “Whiteboard stickers” is created there. Browsers do not allow selecting Documents itself: open it and choose or create a folder inside.',
+      'Choose a folder for the sticker', 'Sticker saved. Type its name.', 'Sticker added', 'Duplicated', 'This is not a Whiteboard sticker backup.'],
+    hu: ['Vonaltípus', 'Folytonos', 'Pontozott', 'Szaggatott', 'Hosszú szaggatott', 'Pont-vonal', 'Vékonyabb', 'Vastagabb',
+      'Duplikálás', 'Mentés matricaként', 'Matrica hozzáadása', 'Matricák', 'Matricák…', 'Matrica',
+      'Válaszd ki, hol legyenek a matricáid. Ott létrejön egy „Whiteboard stickers” nevű mappa. A böngészők magát a Dokumentumok mappát nem engedik kiválasztani: nyisd meg, és válassz vagy hozz létre benne egy mappát.',
+      'Válassz mappát a matricának', 'Matrica mentve. Írd be a nevét.', 'Matrica hozzáadva', 'Duplikálva', 'Ez nem Whiteboard matrica-mentés.'],
+    de: ['Linienart', 'Durchgezogen', 'Gepunktet', 'Gestrichelt', 'Lange Striche', 'Strich-Punkt', 'Dünner', 'Dicker',
+      'Duplizieren', 'Als Sticker speichern', 'Sticker hinzufügen', 'Sticker', 'Sticker…', 'Sticker',
+      'Wähle, wo deine Sticker liegen sollen. Dort wird ein Ordner „Whiteboard stickers“ angelegt. Browser erlauben nicht, „Dokumente“ selbst zu wählen: Öffne es und wähle oder erstelle einen Ordner darin.',
+      'Wähle einen Ordner für den Sticker', 'Sticker gespeichert. Gib ihm einen Namen.', 'Sticker hinzugefügt', 'Dupliziert', 'Das ist keine Whiteboard-Stickersicherung.'],
+    fr: ['Type de ligne', 'Continue', 'Pointillée', 'Tiretée', 'Longs tirets', 'Tiret-point', 'Plus fin', 'Plus épais',
+      'Dupliquer', 'Enregistrer comme autocollant', 'Ajouter un autocollant', 'Autocollants', 'Autocollants…', 'Autocollant',
+      'Choisissez l’emplacement de vos autocollants. Un dossier « Whiteboard stickers » y sera créé. Les navigateurs n’autorisent pas la sélection du dossier Documents lui-même : ouvrez-le et choisissez ou créez un dossier dedans.',
+      'Choisissez un dossier pour l’autocollant', 'Autocollant enregistré. Saisissez son nom.', 'Autocollant ajouté', 'Dupliqué', 'Ce n’est pas une sauvegarde d’autocollants Whiteboard.'],
+    it: ['Tipo di linea', 'Continua', 'Punteggiata', 'Tratteggiata', 'Trattini lunghi', 'Tratto e punto', 'Più sottile', 'Più spessa',
+      'Duplica', 'Salva come adesivo', 'Aggiungi adesivo', 'Adesivi', 'Adesivi…', 'Adesivo',
+      'Scegli dove tenere i tuoi adesivi. Lì verrà creata una cartella “Whiteboard stickers”. I browser non permettono di selezionare la cartella Documenti stessa: aprila e scegli o crea una cartella al suo interno.',
+      'Scegli una cartella per l’adesivo', 'Adesivo salvato. Scrivi il suo nome.', 'Adesivo aggiunto', 'Duplicato', 'Questo non è un backup di adesivi di Whiteboard.'],
+    es: ['Tipo de línea', 'Continua', 'Punteada', 'Discontinua', 'Guiones largos', 'Raya y punto', 'Más fina', 'Más gruesa',
+      'Duplicar', 'Guardar como pegatina', 'Añadir pegatina', 'Pegatinas', 'Pegatinas…', 'Pegatina',
+      'Elige dónde estarán tus pegatinas. Allí se creará una carpeta «Whiteboard stickers». Los navegadores no permiten seleccionar la propia carpeta Documentos: ábrela y elige o crea una carpeta dentro.',
+      'Elige una carpeta para la pegatina', 'Pegatina guardada. Escribe su nombre.', 'Pegatina añadida', 'Duplicado', 'Esto no es una copia de seguridad de pegatinas de Whiteboard.'],
+    pt: ['Tipo de linha', 'Contínua', 'Pontilhada', 'Tracejada', 'Traços longos', 'Traço e ponto', 'Mais fina', 'Mais grossa',
+      'Duplicar', 'Salvar como adesivo', 'Adicionar adesivo', 'Adesivos', 'Adesivos…', 'Adesivo',
+      'Escolha onde ficam seus adesivos. Uma pasta “Whiteboard stickers” será criada lá. Os navegadores não permitem selecionar a própria pasta Documentos: abra-a e escolha ou crie uma pasta dentro.',
+      'Escolha uma pasta para o adesivo', 'Adesivo salvo. Digite o nome.', 'Adesivo adicionado', 'Duplicado', 'Isto não é um backup de adesivos do Whiteboard.'],
+    ru: ['Тип линии', 'Сплошная', 'Точечная', 'Штриховая', 'Длинные штрихи', 'Штрихпунктир', 'Тоньше', 'Толще',
+      'Дублировать', 'Сохранить как стикер', 'Добавить стикер', 'Стикеры', 'Стикеры…', 'Стикер',
+      'Выберите, где будут храниться стикеры. Там будет создана папка «Whiteboard stickers». Браузеры не позволяют выбрать саму папку «Документы»: откройте её и выберите или создайте папку внутри.',
+      'Выберите папку для стикера', 'Стикер сохранён. Введите его имя.', 'Стикер добавлен', 'Продублировано', 'Это не резервная копия стикеров Whiteboard.'],
+    uk: ['Тип лінії', 'Суцільна', 'Крапкова', 'Штрихова', 'Довгі штрихи', 'Штрихпунктир', 'Тонша', 'Товща',
+      'Дублювати', 'Зберегти як стікер', 'Додати стікер', 'Стікери', 'Стікери…', 'Стікер',
+      'Виберіть, де будуть стікери. Там буде створено папку «Whiteboard stickers». Браузери не дозволяють вибрати саму папку «Документи»: відкрийте її та виберіть або створіть папку всередині.',
+      'Виберіть папку для стікера', 'Стікер збережено. Введіть його назву.', 'Стікер додано', 'Продубльовано', 'Це не резервна копія стікерів Whiteboard.'],
+    tr: ['Çizgi türü', 'Düz', 'Noktalı', 'Kesikli', 'Uzun kesikli', 'Çizgi-nokta', 'Daha ince', 'Daha kalın',
+      'Çoğalt', 'Çıkartma olarak kaydet', 'Çıkartma ekle', 'Çıkartmalar', 'Çıkartmalar…', 'Çıkartma',
+      'Çıkartmalarınızın nerede duracağını seçin. Orada “Whiteboard stickers” adlı bir klasör oluşturulur. Tarayıcılar Belgeler klasörünün kendisinin seçilmesine izin vermez: açın ve içinde bir klasör seçin veya oluşturun.',
+      'Çıkartma için bir klasör seçin', 'Çıkartma kaydedildi. Adını yazın.', 'Çıkartma eklendi', 'Çoğaltıldı', 'Bu bir Whiteboard çıkartma yedeği değil.'],
+    zh: ['线条类型', '实线', '点线', '虚线', '长虚线', '点划线', '更细', '更粗',
+      '复制', '存为贴纸', '添加贴纸', '贴纸', '贴纸…', '贴纸',
+      '选择贴纸的存放位置。那里会创建一个名为“Whiteboard stickers”的文件夹。浏览器不允许直接选择“文档”文件夹本身：请打开它，并在其中选择或新建一个文件夹。',
+      '为贴纸选择文件夹', '贴纸已保存。请输入名称。', '已添加贴纸', '已复制', '这不是 Whiteboard 贴纸备份。'],
+    ja: ['線の種類', '実線', '点線', '破線', '長い破線', '一点鎖線', '細く', '太く',
+      '複製', 'ステッカーとして保存', 'ステッカーを追加', 'ステッカー', 'ステッカー…', 'ステッカー',
+      'ステッカーの保存場所を選んでください。そこに「Whiteboard stickers」というフォルダが作られます。ブラウザでは「ドキュメント」フォルダそのものは選べません。開いて、その中のフォルダを選ぶか作成してください。',
+      'ステッカーのフォルダを選んでください', 'ステッカーを保存しました。名前を入力してください。', 'ステッカーを追加しました', '複製しました', 'これは Whiteboard のステッカーのバックアップではありません。'],
+    ar: ['نوع الخط', 'متصل', 'منقّط', 'متقطع', 'شرطات طويلة', 'شرطة ونقطة', 'أرفع', 'أعرض',
+      'تكرار', 'حفظ كملصق', 'إضافة ملصق', 'الملصقات', 'الملصقات…', 'ملصق',
+      'اختر مكان ملصقاتك. سيُنشأ هناك مجلد باسم «Whiteboard stickers». لا تسمح المتصفحات باختيار مجلد المستندات نفسه: افتحه واختر أو أنشئ مجلدًا بداخله.',
+      'اختر مجلدًا للملصق', 'تم حفظ الملصق. اكتب اسمه.', 'تمت إضافة الملصق', 'تم التكرار', 'هذه ليست نسخة احتياطية لملصقات Whiteboard.'],
+    hi: ['रेखा का प्रकार', 'ठोस', 'बिंदुदार', 'डैश वाली', 'लंबे डैश', 'डैश और बिंदु', 'पतली', 'मोटी',
+      'डुप्लिकेट', 'स्टिकर के रूप में सहेजें', 'स्टिकर जोड़ें', 'स्टिकर', 'स्टिकर…', 'स्टिकर',
+      'चुनें कि आपके स्टिकर कहाँ रहेंगे। वहाँ “Whiteboard stickers” नाम का फ़ोल्डर बनेगा। ब्राउज़र स्वयं दस्तावेज़ फ़ोल्डर चुनने नहीं देते: उसे खोलें और उसके अंदर कोई फ़ोल्डर चुनें या बनाएँ।',
+      'स्टिकर के लिए फ़ोल्डर चुनें', 'स्टिकर सहेजा गया। उसका नाम लिखें।', 'स्टिकर जोड़ा गया', 'डुप्लिकेट किया गया', 'यह Whiteboard स्टिकर बैकअप नहीं है।'],
+  };
+  for (const l in EXTRA) if (D[l]) EXTRA_KEYS.forEach((k, i) => { D[l][k] = EXTRA[l][i]; });
+
   WB.I18N = D;
   let lang = 'en';
 
@@ -1761,10 +1893,19 @@ body.pipetting #canvas { cursor: crosshair; }
     const c = Math.cos(s.rot || 0), n = Math.sin(s.rot || 0);
     return { x: s.x + s.w / 2 + lx * c - ly * n, y: s.y + s.h / 2 + lx * n + ly * c };
   };
+  /* An object's box as a frame { x, y, w, h, rot }: the unturned box, turned by rot about its centre.
+     A picture is already one. A text turns about its top-left corner (where typing starts), so
+     its frame's centre is that corner plus half its turned size. */
+  WB.frameOf = function (s) {
+    if (s.tool !== 'text') return s;
+    const L = WB.textLayout(s), r = s.rot || 0, c = Math.cos(r), n = Math.sin(r);
+    const cx = s.x + (L.w / 2) * c - (L.h / 2) * n, cy = s.y + (L.w / 2) * n + (L.h / 2) * c;
+    return { x: cx - L.w / 2, y: cy - L.h / 2, w: L.w, h: L.h, rot: r };
+  };
   /* The four corners on the board: top-left, top-right, bottom-right, bottom-left, as x, y pairs. */
   WB.corners = function (s) {
-    const out = [];
-    for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const p = WB.toWorld(s, a * s.w / 2, b * s.h / 2); out.push(p.x, p.y); }
+    const F = WB.frameOf(s), out = [];
+    for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const p = WB.toWorld(F, a * F.w / 2, b * F.h / 2); out.push(p.x, p.y); }
     return out;
   };
   /* Resolves once the image has loaded (true) or failed (false). Waits for the load event rather
@@ -1798,7 +1939,7 @@ body.pipetting #canvas { cursor: crosshair; }
       c.globalCompositeOperation = 'source-over';
       c.globalAlpha = s.opacity;
       c.fillStyle = s.color;
-      c.translate(s.x, s.y); c.scale(k, k);
+      c.translate(s.x, s.y); if (s.rot) c.rotate(s.rot); c.scale(k, k);
       c.font = '100px ' + family(s); c.textBaseline = 'alphabetic';
       for (let i = 0; i < L.lines.length; i++) if (L.lines[i]) c.fillText(L.lines[i], 0, (i * L.lh + L.base) / k);
       c.restore();
@@ -1817,13 +1958,22 @@ body.pipetting #canvas { cursor: crosshair; }
     c.globalAlpha = s.opacity;
     c.strokeStyle = erase ? '#000' : s.color;
     c.lineWidth = s.width;
+    c.setLineDash((!erase && WB.dashOf(s)) || NO_DASH);
     c.stroke(path || WB.pathOf(s));
+    c.setLineDash(NO_DASH);
   };
+
+  /* ---- Line types -------------------------------------------------------
+     A pen stroke may carry dash: 'dotted' | 'dashed' | 'long' | 'dashdot' (none = solid).
+     Patterns are in multiples of the line width, so they keep their look at any thickness;
+     round caps add half a width at each end, so a 0-length dash is a round dot. */
+  const NO_DASH = [];
+  WB.DASHES = { solid: null, dotted: [0, 2], dashed: [2, 2.5], long: [5, 3], dashdot: [4, 2.5, 0, 2.5] };
+  WB.dashOf = (s) => { const d = s.dash && WB.DASHES[s.dash]; return d ? d.map((k) => k * s.width) : null; };
 
   WB.boundsOf = function (s) {
     if (s._b) return s._b;
-    if (s.tool === 'text') { const L = WB.textLayout(s); return (s._b = { x0: s.x, y0: s.y, x1: s.x + L.w, y1: s.y + L.h }); }
-    if (s.tool === 'image') {
+    if (s.tool === 'text' || s.tool === 'image') {
       const q = WB.corners(s);
       return (s._b = { x0: Math.min(q[0], q[2], q[4], q[6]), y0: Math.min(q[1], q[3], q[5], q[7]), x1: Math.max(q[0], q[2], q[4], q[6]), y1: Math.max(q[1], q[3], q[5], q[7]) });
     }
@@ -1856,8 +2006,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (s.tool === 'eraser') return false;
     const b = WB.boundsOf(s);
     if (x < b.x0 - tol || x > b.x1 + tol || y < b.y0 - tol || y > b.y1 + tol) return false;
-    if (s.tool === 'text') return true;
-    if (s.tool === 'image') { const p = WB.toLocal(s, x, y); return Math.abs(p.x) <= s.w / 2 + tol && Math.abs(p.y) <= s.h / 2 + tol; }
+    if (s.tool === 'text' || s.tool === 'image') { const F = WB.frameOf(s), p = WB.toLocal(F, x, y); return Math.abs(p.x) <= F.w / 2 + tol && Math.abs(p.y) <= F.h / 2 + tol; }
     mctx.setTransform(1, 0, 0, 1, 0, 0);
     if (s.tool === 'fill') return mctx.isPointInPath(WB.pathOf(s), x, y, 'evenodd');
     mctx.lineWidth = s.width + 2 * tol; mctx.lineCap = 'round'; mctx.lineJoin = 'round';
@@ -1868,8 +2017,7 @@ body.pipetting #canvas { cursor: crosshair; }
   WB.inLasso = function (s, poly) {
     if (s.tool === 'eraser') return false;
     let pts;
-    if (s.tool === 'image') pts = [...WB.corners(s), s.x + s.w / 2, s.y + s.h / 2];
-    else if (s.tool === 'text') { const b = WB.boundsOf(s), mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2; pts = [b.x0, b.y0, b.x1, b.y0, b.x1, b.y1, b.x0, b.y1, mx, my]; }
+    if (s.tool === 'image' || s.tool === 'text') { const q = WB.corners(s); pts = [...q, (q[0] + q[4]) / 2, (q[1] + q[5]) / 2]; }
     else pts = s.rings ? s.rings[0] : s.points;
     const n = pts.length >> 1, step = Math.max(1, Math.floor(n / 64)), m = poly.length;
     let inside = 0, total = 0;
@@ -2201,7 +2349,7 @@ body.pipetting #canvas { cursor: crosshair; }
       `  "view": { "x": ${f(view.x)}, "y": ${f(view.y)}, "zoom": ${+view.zoom.toFixed(4)} },\n`;
     const lines = doc.strokes.map((s) => {
       if (s.tool === 'text') {
-        return `    { "tool": "text", "x": ${f(s.x)}, "y": ${f(s.y)}, "font": "${s.font}", "size": ${+s.size.toFixed(3)}, "color": "${s.color}", "opacity": ${+s.opacity.toFixed(3)}, "text": ${JSON.stringify(s.text)} }`;
+        return `    { "tool": "text", "x": ${f(s.x)}, "y": ${f(s.y)}, ${s.rot ? `"rot": ${f((s.rot * 180) / Math.PI)}, ` : ''}"font": "${s.font}", "size": ${+s.size.toFixed(3)}, "color": "${s.color}", "opacity": ${+s.opacity.toFixed(3)}, "text": ${JSON.stringify(s.text)} }`;
       }
       if (s.tool === 'image') {
         // "rot" is in degrees in the file (clockwise), and left out when the picture is upright.
@@ -2216,6 +2364,7 @@ body.pipetting #canvas { cursor: crosshair; }
       for (let i = 0; i < p.length; i += 2) pts.push(`[${f(p[i])},${f(p[i + 1])}]`);
       let o = `{ "tool": "${s.tool}", `;
       if (s.tool === 'pen') o += `"color": "${s.color}", `;
+      if (s.tool === 'pen' && s.dash && WB.DASHES[s.dash]) o += `"dash": "${s.dash}", `;
       o += `"width": ${+s.width.toFixed(3)}, "opacity": ${+s.opacity.toFixed(3)}, "smooth": ${!!s.smooth}, "closed": ${!!s.closed}, `;
       if (s.shape) o += `"shape": "${s.shape}", `;
       return `    ${o}"points": [${pts.join(',')}] }`;
@@ -2236,7 +2385,7 @@ body.pipetting #canvas { cursor: crosshair; }
     for (const s of d.strokes) {
       if (s && s.tool === 'text') {
         if (typeof s.text === 'string' && s.text.trim() && isFinite(s.x) && isFinite(s.y)) {
-          strokes.push({ tool: 'text', x: +s.x, y: +s.y, text: s.text.slice(0, 20000), font: WB.FONTS[s.font] ? s.font : 'sans',
+          strokes.push({ tool: 'text', x: +s.x, y: +s.y, rot: (num(s.rot, 0) % 360) * Math.PI / 180, text: s.text.slice(0, 20000), font: WB.FONTS[s.font] ? s.font : 'sans',
             size: Math.max(0.01, num(s.size, 24)), color: hex(s.color), opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), width: 0 });
         }
         continue;
@@ -2273,6 +2422,7 @@ body.pipetting #canvas { cursor: crosshair; }
         smooth: !!s.smooth,
         closed: !!s.closed,
       };
+      if (st.tool === 'pen' && typeof s.dash === 'string' && WB.DASHES[s.dash]) st.dash = s.dash;
       if (typeof s.shape === 'string') st.shape = s.shape.replace(/[^a-z]/gi, '').slice(0, 24);
       strokes.push(st);
     }
@@ -2362,13 +2512,16 @@ body.pipetting #canvas { cursor: crosshair; }
             body += `<image x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" preserveAspectRatio="none"${turn}${s.opacity < 1 ? ` opacity="${f(s.opacity)}"` : ''} xlink:href="${s.src}"/>\n`;
           } else if (s.tool === 'text') {
             const L = WB.textLayout(s);
-            body += `<text font-family="${esc(WB.FONTS[s.font] || WB.FONTS.sans)}" font-size="${f(s.size)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none" xml:space="preserve">` +
+            body += `<text${s.rot ? ` transform="rotate(${f((s.rot * 180) / Math.PI)} ${f(s.x)} ${f(s.y)})"` : ''} font-family="${esc(WB.FONTS[s.font] || WB.FONTS.sans)}" font-size="${f(s.size)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none" xml:space="preserve">` +
               L.lines.map((l, i) => `<tspan x="${f(s.x)}" y="${f(s.y + i * L.lh + L.base)}">${esc(l)}</tspan>`).join('') + '</text>\n';
           } else if (s.tool === 'fill') {
             // An "under" fill sits beneath everything drawn before it, so it goes first in the document.
             const el = `<path d="${svgPath(s)}" fill="${s.color}" fill-rule="evenodd"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
             body = s.under ? el + body : body + el;
-          } else body += `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}"${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n`;
+          } else {
+            const dash = WB.dashOf(s);
+            body += `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}"${dash ? ` stroke-dasharray="${dash.map(f).join(' ')}"` : ''}${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n`;
+          }
         }
       } else if (body) {
         const id = 'erase' + (++n);
@@ -2489,11 +2642,15 @@ body.pipetting #canvas { cursor: crosshair; }
             const imgId = await streamObj(`/Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceRGB /BitsPerComponent 8 /SMask ${maskId} 0 R`, new Uint8Array(c));
             const name = 'T' + (++tn);
             cur.xo.set(name, imgId);
-            cur.ops += `q /${alpha(cur, s.opacity)} gs ${f(tw)} 0 0 ${f(-th)} ${f(s.x - pad)} ${f(s.y - pad + th)} cm /${name} Do Q\n`;
+            // The text image's unit square onto its (possibly turned) box; the box turns about the text's anchor.
+            const co = Math.cos(s.rot || 0), si = Math.sin(s.rot || 0);
+            const bx = s.x - pad * co + pad * si, by = s.y - pad * si - pad * co;   // top-left corner of the padded box
+            const tm = [co * tw, si * tw, si * th, -co * th, bx - si * th, by + co * th];
+            cur.ops += `q /${alpha(cur, s.opacity)} gs ${tm.map(f).join(' ')} cm /${name} Do Q\n`;
           } else if (s.tool === 'fill') {
             const op = `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} rg ${pdfPath(s)}f*\n`;
             cur.ops = s.under ? op + cur.ops : cur.ops + op;
-          } else cur.ops += `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} RG ${f(s.width)} w ${pdfPath(s)}S\n`;
+          } else cur.ops += `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} RG ${f(s.width)} w [${(WB.dashOf(s) || []).map(f).join(' ')}] 0 d ${pdfPath(s)}S\n`;
         }
         has = true;
       } else if (has) {
@@ -2646,7 +2803,9 @@ body.pipetting #canvas { cursor: crosshair; }
      'open' means the flood reached the edge of the region: no closed shape contains the point. */
   WB.flood = function (strokes, b, scale, wx, wy) {
     // Pictures are backgrounds, not walls: a shape drawn over a photo still fills.
-    const canvas = WB.renderToCanvas(strokes.filter((s) => s.tool !== 'image'), b, scale, null).canvas;
+    // A dashed outline still encloses its shape: walls are drawn solid.
+    const walls = strokes.filter((s) => s.tool !== 'image').map((s) => (s.dash ? { ...s, dash: null } : s));
+    const canvas = WB.renderToCanvas(walls, b, scale, null).canvas;
     const w = canvas.width, h = canvas.height, kx = w / b.w, ky = h / b.h;
     const sx = Math.floor((wx - b.x) * kx), sy = Math.floor((wy - b.y) * ky);
     if (sx < 0 || sy < 0 || sx >= w || sy >= h) return { status: 'outside' };
@@ -3680,7 +3839,29 @@ body.pipetting #canvas { cursor: crosshair; }
   const WB = (window.WB = window.WB || {});
   const $ = (s, r = document) => r.querySelector(s);
   const tr = (k, v) => WB.t(k, v);
-  const DIR_NAME = 'Whiteboard gallery', INDEX = '.gallery.json', EXT = '.whtbd';
+  const INDEX = '.gallery.json';
+
+  /* ---- Two collections ------------------------------------------------
+     The same window and code serve two collections: the gallery of boards, and the sticker
+     gallery. Each has its own folder, its own remembered place and its own file type. Only one
+     is shown at a time; setMode() puts the other one's state aside and brings this one's back. */
+  const MODES = {
+    boards: { dir: 'Whiteboard gallery', ext: '.whtbd', kv: 'gallery', title: 'mGallery', setup: 'gSetup',
+      backupExt: '.wbgallery', backupFormat: 'WHTBD-GALLERY', backupName: 'Whiteboard gallery backup' },
+    stickers: { dir: 'Whiteboard stickers', ext: '.wbsticker', kv: 'stickers', title: 'mStickers', setup: 'sSetup',
+      backupExt: '.wbstickers', backupFormat: 'WHTBD-STICKERS', backupName: 'Whiteboard stickers backup' },
+  };
+  let mode = 'boards', cfg = MODES.boards, DIR_NAME = cfg.dir, EXT = cfg.ext;
+  const kvKey = (name) => cfg.kv + name;     // 'galleryDir', 'stickersDir', ...
+  const parked = {};                         // the collection not shown: its root, kind, path, parent name and tree
+  function setMode(m) {
+    if (m === mode) return;
+    parked[mode] = { root, kind, path, parentName, tree };
+    mode = m; cfg = MODES[m]; DIR_NAME = cfg.dir; EXT = cfg.ext;
+    ({ root, kind, path, parentName, tree } = parked[m] || { root: null, kind: null, path: [], parentName: '', tree: null });
+    moving = null; saving = false; pendingSave = false; renameNext = null;
+  }
+  let sticker = null;   // the sticker waiting to be saved: { text, label }
 
   let host = null;        // set by the app: how to read and replace the open board
   let root = null;        // the gallery folder
@@ -3721,7 +3902,7 @@ body.pipetting #canvas { cursor: crosshair; }
      straight from a local file. It imitates the parts of the folder interface the gallery uses,
      so everything else works unchanged. The whole tree is one record, rewritten on each change. */
   let tree = null;
-  const flush = () => kvSet('galleryTree', tree);
+  const flush = () => kvSet(kvKey('Tree'), tree);
   const missing = (name) => Object.assign(new Error('"' + name + '" was not found'), { name: 'NotFoundError' });
   class VFile {
     constructor(node, name) { this.node = node; this.name = name; this.kind = 'file'; }
@@ -3765,7 +3946,7 @@ body.pipetting #canvas { cursor: crosshair; }
     }
   }
   async function virtualRoot() {
-    const saved = await kvGet('galleryTree');
+    const saved = await kvGet(kvKey('Tree'));
     tree = saved && saved.dirs instanceof Map ? saved : { dirs: new Map(), files: new Map() };
     return new VDir(tree, DIR_NAME);
   }
@@ -3797,7 +3978,7 @@ body.pipetting #canvas { cursor: crosshair; }
       if (files && !tree.dirs.size && !tree.files.size) { try { await copyTree(files, dir); } catch (e) {} }
     }
     root = dir; kind = 'browser'; path = [];
-    await kvSet('galleryDir', { kind: 'browser' });
+    await kvSet(kvKey('Dir'), { kind: 'browser' });
     return true;
   }
   /* A folder can only look downwards, so a gallery folder chosen directly cannot tell which folder
@@ -3817,7 +3998,7 @@ body.pipetting #canvas { cursor: crosshair; }
   /* 'ready' | 'setup' (nothing chosen yet) | 'allow' (the folder needs permission again) | 'none' (no storage at all) */
   async function connect(ask) {
     if (root) return 'ready';
-    const saved = await kvGet('galleryDir');
+    const saved = await kvGet(kvKey('Dir'));
     try {
       if (saved && saved.kind === 'folder' && saved.handle) {
         let p = await saved.handle.queryPermission({ mode: 'readwrite' });
@@ -4000,6 +4181,32 @@ body.pipetting #canvas { cursor: crosshair; }
     await show(true);
   }
 
+  /* ---- Stickers --------------------------------------------------------
+     A sticker is a small board (a .wbsticker file, in the .whtbd format) holding the objects it
+     was made from, moved to start at 0, 0. Saving one opens the sticker gallery to choose its
+     folder; afterwards its name is open for typing. Choosing one puts it on the board. */
+  async function saveSticker(text, label) {
+    host.commit();
+    setMode('stickers');
+    sticker = { text, label };
+    const state = await connect(true);
+    if (state !== 'ready') { pendingSave = true; host.openSheet('#gallery'); return show(); }   // choose where stickers live first
+    saving = true; moving = null; path = [];
+    host.openSheet('#gallery');
+    show();
+  }
+  async function writeSticker(dir) {
+    const st = sticker;
+    sticker = null; saving = false;
+    try {
+      const name = await freeName(dir, clean(st.label), EXT);
+      await writeFile(dir, name, st.text);
+      renameNext = name;                        // ready to be named
+      host.toast(tr('tStickerSaved'));
+    } catch (e) { fail(e, 'saving the sticker'); }
+    show();
+  }
+
   /* ---- Drag and drop ---------------------------------------------------
      Pick up a tile by its picture and drop it on a folder, on a step of the path at the top,
      or on the back arrow. With a mouse or pen it lifts as soon as it moves; with a finger it
@@ -4074,14 +4281,16 @@ body.pipetting #canvas { cursor: crosshair; }
     if (my !== token) return;
     const browsing = state === 'ready';
     grid.hidden = !browsing; msg.hidden = browsing;
-    $('#g-crumbs').hidden = $('#g-new').hidden = $('#g-new-board').hidden = !browsing;
+    $('#g-crumbs').hidden = $('#g-new').hidden = !browsing;
+    $('#g-new-board').hidden = !browsing || mode !== 'boards';
+    $('#gallery-title').textContent = tr(cfg.title);
     const back = $('#g-back');
     back.disabled = !browsing || !path.length;
     back._dir = browsing && path.length ? (path.length > 1 ? path[path.length - 2].handle : root) : null;   // also a drop target
     renderBar(); renderFoot(browsing);
     if (!browsing) {
       msg.textContent = '';
-      msg.appendChild(el('p', '', tr(state === 'allow' ? 'gAllow' : state === 'none' ? 'gError' : 'gSetup')));
+      msg.appendChild(el('p', '', tr(state === 'allow' ? 'gAllow' : state === 'none' ? 'gError' : cfg.setup)));
       if (state === 'setup' && canDrop()) msg.appendChild(el('p', '', tr('gDrop')));
       const row = el('div', 'g-actions');
       if (state === 'allow') row.appendChild(button(tr('gAllowBtn'), 'primary', () => show(true)));
@@ -4094,7 +4303,7 @@ body.pipetting #canvas { cursor: crosshair; }
     // Breadcrumbs
     const crumbs = $('#g-crumbs');
     crumbs.textContent = '';
-    [{ label: tr('mGallery') }, ...path].forEach((p, i) => {
+    [{ label: tr(cfg.title) }, ...path].forEach((p, i) => {
       if (i) crumbs.appendChild(el('span', 'g-sep', '›'));
       const b = el('button', i === path.length ? 'g-crumb here' : 'g-crumb', p.label);
       b._dir = p.handle || root;
@@ -4108,7 +4317,7 @@ body.pipetting #canvas { cursor: crosshair; }
       // The folder is gone or unreadable. Back to the top once; if the gallery folder itself fails, ask for it again.
       fail(e);
       if (path.length) { path = []; return show(); }
-      root = null; await kvSet('galleryDir', null);
+      root = null; await kvSet(kvKey('Dir'), null);
       return show();
     }
     if (my !== token) return;
@@ -4166,7 +4375,8 @@ body.pipetting #canvas { cursor: crosshair; }
     const dir = here();
     item.handle.getFile().then((f) => f.text()).then((text) => {
       host.closeSheets();
-      host.load(text, { dir, name: item.name });
+      if (mode === 'stickers') host.placeSticker(text);
+      else host.load(text, { dir, name: item.name });
     }).catch(fail);
   }
 
@@ -4231,6 +4441,10 @@ body.pipetting #canvas { cursor: crosshair; }
       bar.appendChild(el('span', '', confirm.ask));
       bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => renderBar()));
       bar.appendChild(button(confirm.yes, 'pill-btn' + (confirm.danger ? ' danger' : ''), () => { renderBar(); confirm.run(); }));
+    } else if (saving && mode === 'stickers' && sticker) {
+      bar.appendChild(el('span', '', tr('sSaving')));
+      bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => { saving = false; sticker = null; host.closeSheets(); }));
+      bar.appendChild(button(tr('gSaveHere'), 'pill-btn', () => writeSticker(here())));
     } else if (saving) {
       bar.appendChild(el('span', '', tr('gSaving', { t: host.title() })));
       bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => { saving = false; host.closeSheets(); }));
@@ -4270,7 +4484,6 @@ body.pipetting #canvas { cursor: crosshair; }
      content differs is kept beside it under a new name.
        { "format": "WHTBD-GALLERY", "version": 1, "created": "…",
          "entries": [ { "path": "math", "dir": true }, { "path": "math/Lesson.whtbd", "text": "…" }, … ] } */
-  const BACKUP_EXT = '.wbgallery';
   async function collect(dir, prefix, out) {
     for await (const [name, h] of dir.entries()) {
       if (name === '.gallery-test') continue;
@@ -4281,17 +4494,17 @@ body.pipetting #canvas { cursor: crosshair; }
     return out;
   }
   async function backup() {
-    const name = `Whiteboard gallery backup ${new Date().toISOString().slice(0, 10)}${BACKUP_EXT}`;
+    const name = `${cfg.backupName} ${new Date().toISOString().slice(0, 10)}${cfg.backupExt}`;
     // On computers the save dialog comes first, while the click still counts as the user's own action.
     let handle = null;
     if (typeof window.showSaveFilePicker === 'function' && !fromLocalFile && !/iP(hone|ad|od)|Android/.test(navigator.userAgent)) {
-      try { handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'Whiteboard gallery backup', accept: { 'application/json': [BACKUP_EXT] } }] }); }
+      try { handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: cfg.backupName, accept: { 'application/json': [cfg.backupExt] } }] }); }
       catch (e) { if (e.name === 'AbortError') return host.toast(tr('tBackupCancel'), null, null, 7000); handle = null; }
     }
     let file;
     try {
       const entries = await collect(root, '', []);
-      const text = JSON.stringify({ format: 'WHTBD-GALLERY', version: 1, created: new Date().toISOString(), entries });
+      const text = JSON.stringify({ format: cfg.backupFormat, version: 1, created: new Date().toISOString(), entries });
       file = new File([text], name, { type: 'application/json' });
       if (handle) {
         const w = await handle.createWritable();
@@ -4317,7 +4530,7 @@ body.pipetting #canvas { cursor: crosshair; }
   async function restore(file) {
     let data;
     try { data = JSON.parse(await file.text()); } catch (e) { data = null; }
-    if (!data || data.format !== 'WHTBD-GALLERY' || !Array.isArray(data.entries)) return host.toast(tr('tRestoreBad'), null, null, 7000);
+    if (!data || data.format !== cfg.backupFormat || !Array.isArray(data.entries)) return host.toast(tr(mode === 'stickers' ? 'tRestoreBadStickers' : 'tRestoreBad'), null, null, 7000);
     if (data.version > 1) return host.toast(tr('eNewer'), null, null, 7000);
     const state = await connect(true);
     if (state !== 'ready') { await open(); return host.toast(tr('tRestoreFirst'), null, null, 7000); }
@@ -4373,7 +4586,7 @@ body.pipetting #canvas { cursor: crosshair; }
       if (dir === picked) parentName = await findParent(dir);  // picked "Whiteboard gallery" itself: its parent is known only if seen before
       else { parentName = picked.name; await rememberParent(picked); }
       step = 'remembering the folder';
-      await kvSet('galleryDir', { kind: 'folder', handle: root, parent: parentName });
+      await kvSet(kvKey('Dir'), { kind: 'folder', handle: root, parent: parentName });
     } catch (e) {
       if (e && e.name === 'AbortError') {
         // Either a real cancel, or the browser cancelled by itself (it does on some systems even
@@ -4396,7 +4609,7 @@ body.pipetting #canvas { cursor: crosshair; }
     host.commit();
     lastError = '';
     try {
-      await kvSet('galleryDir', { kind: 'folder', handle });
+      await kvSet(kvKey('Dir'), { kind: 'folder', handle });
       root = null; path = []; parentName = ''; WB.gallery.ref = null;
       let p = await handle.queryPermission({ mode: 'readwrite' });
       if (p !== 'granted') { try { p = await handle.requestPermission({ mode: 'readwrite' }); } catch (e) { /* needs a click: the Allow button asks */ } }
@@ -4410,6 +4623,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (root) afterConnect(); else show();
   }
   function afterConnect() {
+    if (pendingSave && mode === 'stickers' && sticker) { pendingSave = false; saving = true; path = []; return show(); }
     if (pendingSave) { host.closeSheets(); return save(); }
     show();
   }
@@ -4444,7 +4658,11 @@ body.pipetting #canvas { cursor: crosshair; }
     $('#g-grid').addEventListener('scroll', () => $('#g-menu').classList.remove('open'), { passive: true });
   }
 
-  WB.gallery = { init, open, save, useFolder, canDrop, ref: null, /* the open board's file in the gallery: { dir, name } */ _clean: clean, _state: () => ({ kind, root: root && root.name, path: path.map((p) => p.label) }) };
+  const inMode = (m, fn) => (...a) => { setMode(m); return fn(...a); };
+  // A folder dragged in goes to the collection on screen, or to the boards when none is.
+  const dropFolder = (h) => { if (!$('#gallery').classList.contains('open')) setMode('boards'); return useFolder(h); };
+  WB.stickers = { open: inMode('stickers', open), save: saveSticker };
+  WB.gallery = { init, open: inMode('boards', open), save: inMode('boards', save), useFolder: dropFolder, canDrop, ref: null, /* the open board's file in the gallery: { dir, name } */ _clean: clean, _state: () => ({ kind, root: root && root.name, path: path.map((p) => p.label) }) };
 })();
 
 </script>
@@ -4648,6 +4866,7 @@ body.pipetting #canvas { cursor: crosshair; }
     live = {
       id: e.pointerId, ptype: e.pointerType, t0: now,
       tool, color: tools.pen.color, width: t.width / z, opacity: t.opacity,
+      dash: tool === 'pen' && WB.DASHES[tools.pen.dash] ? tools.pen.dash : undefined,
       points: [x, y], smooth: sm > 0, closed: false,
       tau: sm * 140, sx: x, sy: y, tx: x, ty: y,
       hold: { x: e.clientX, y: e.clientY, t: now, tol: e.pointerType === 'mouse' ? 3 : 7 },
@@ -4767,6 +4986,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (L.tool === 'eraser' && !doc.strokes.length) return updateChrome();
     const s = { tool: L.tool, color: L.color, width: L.width, opacity: L.opacity, points: L.points, smooth: L.smooth, closed: L.closed };
     if (L.shape) s.shape = L.shape;
+    if (L.dash) s.dash = L.dash;
     s._at = performance.now();
     doc.strokes.push(s);
     if (!baseDirty) { worldTransform(bctx); WB.paint(bctx, s); }
@@ -4908,12 +5128,10 @@ body.pipetting #canvas { cursor: crosshair; }
 
   /* Is this screen point on the highlight box of something already selected? (Pressing there drags the selection.) */
   function onSelection(cx, cy) {
-    const z = view.zoom, x = (cx - view.x) / z, y = (cy - view.y) / z, pad = 6 / z;
-    for (const s of selection) {
-      const b = WB.boundsOf(s);
-      if (x >= b.x0 - pad && x <= b.x1 + pad && y >= b.y0 - pad && y <= b.y1 + pad) return true;
-    }
-    return false;
+    const z = view.zoom, x = (cx - view.x) / z, y = (cy - view.y) / z, pad = 6 / z, F = selFrame();
+    if (!F) return false;
+    const L = WB.toLocal(F, x, y);
+    return Math.abs(L.x) <= F.w / 2 + pad && Math.abs(L.y) <= F.h / 2 + pad;
   }
   function translate(items, dx, dy) {
     for (const s of items) {
@@ -4934,6 +5152,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const n = selection.size;
     $('#sel-bar').classList.toggle('on', n > 0);
     if (n) $('#sel-count').textContent = tr('selected', { n });
+    showStyleBar();
     requestFrame();
   }
   function deleteSelection() {
@@ -4950,10 +5169,11 @@ body.pipetting #canvas { cursor: crosshair; }
     worldTransform(ctx);
     ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = ctx.fillStyle = accent; ctx.lineWidth = 1.5 / z;
-    const pad = 5 / z, pic = picSelected();
-    if (pic) drawHandles(pic, accent);
+    const pad = 5 / z, F = !(selDrag && selDrag.lasso) && selFrame();
+    if (F) drawHandles(F, accent);
+    placeStyleBar();
     for (const s of selection) {
-      if (s === pic) continue;
+      if (selection.size === 1) break;            // one object: its frame says it all
       const b = WB.boundsOf(s);
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(b.x0 - pad, b.y0 - pad, b.x1 - b.x0 + 2 * pad, b.y1 - b.y0 + 2 * pad, 6 / z);
@@ -4971,55 +5191,73 @@ body.pipetting #canvas { cursor: crosshair; }
     }
   }
 
-  /* ---- Picture handles -------------------------------------------------
-     A single selected picture gets handles on its own (turned) outline: the corners scale it
-     keeping its shape, the side handles stretch it, and the knob above its top edge turns it.
-     Another finger on the screen while resizing makes it grow from the middle instead of from
-     the opposite side; while turning, it snaps the angle to 45° steps. With a mouse, Alt and
-     Shift do the same. Everything is worked out from the state at the start of the drag, so a
-     finger can be put down and lifted again freely. */
+  /* ---- Selection handles -----------------------------------------------
+     Whatever is selected gets a frame with handles: the corners scale it keeping its shape,
+     the side handles stretch it, and the knob above the frame's top edge turns it. A single
+     picture or text has its own (turned) box as the frame; anything else has the box around
+     the selection. Another finger on the screen while resizing makes it grow from the middle
+     instead of from the opposite side; while turning, it snaps the angle to 45° steps. With a
+     mouse, Alt and Shift do the same. Everything is worked out from the state at the start of
+     the drag, so a finger can be put down and lifted again freely.
+
+     The drag maps the old frame onto the new one, and every selected object follows: stroke
+     and fill points are mapped exactly, line widths and text sizes scale with the frame's
+     area, and pictures and texts keep their own box, moved, resized and turned with it. */
   const HANDLES = { nw: [-1, -1], n: [0, -1], ne: [1, -1], e: [1, 0], se: [1, 1], s: [0, 1], sw: [-1, 1], w: [-1, 0] };
   const ROT_GAP = 30;   // screen px between the top edge and the turning knob
-  let xf = null;        // the drag in progress: { id, k (handle), s, start, extra (other pointers), last, keys, off | a0 }
-  function picSelected() {
-    if (selection.size !== 1) return null;
-    const [s] = selection;
-    return s.tool === 'image' && doc.strokes.includes(s) ? s : null;
+  let xf = null;        // the drag in progress: { id, k (handle), items, start, cur, extra (other pointers), last, keys, off | a0 }
+
+  /* The frame of the selection: { x, y, w, h, rot } (the unturned box, turned by rot about its centre). */
+  function selFrame() {
+    if (xf) return xf.cur;
+    const items = [...selection].filter((s) => doc.strokes.includes(s));
+    if (!items.length) return null;
+    if (items.length === 1 && (items[0].tool === 'image' || items[0].tool === 'text')) {
+      const F = WB.frameOf(items[0]);
+      return { x: F.x, y: F.y, w: F.w, h: F.h, rot: F.rot || 0 };
+    }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const s of items) {
+      const b = WB.boundsOf(s);
+      x0 = Math.min(x0, b.x0); y0 = Math.min(y0, b.y0); x1 = Math.max(x1, b.x1); y1 = Math.max(y1, b.y1);
+    }
+    return { x: x0, y: y0, w: Math.max(x1 - x0, 1e-6), h: Math.max(y1 - y0, 1e-6), rot: 0 };
   }
-  function handlePoints(s) {
+  function handlePoints(F) {
     const out = [];
-    for (const k in HANDLES) { const [a, b] = HANDLES[k]; out.push({ k, ...WB.toWorld(s, (a * s.w) / 2, (b * s.h) / 2) }); }
-    out.push({ k: 'rot', ...WB.toWorld(s, 0, -s.h / 2 - ROT_GAP / view.zoom) });
+    for (const k in HANDLES) { const [a, b] = HANDLES[k]; out.push({ k, ...WB.toWorld(F, (a * F.w) / 2, (b * F.h) / 2) }); }
+    out.push({ k: 'rot', ...WB.toWorld(F, 0, -F.h / 2 - ROT_GAP / view.zoom) });
     return out;
   }
   /* The handle under a screen point, or null. Fingers get a bigger target than a mouse or pen. */
   function handleAt(cx, cy, touch) {
-    const s = picSelected();
-    if (!s || tools.tool !== 'select') return null;
+    if (tools.tool !== 'select' || !selection.size) return null;
+    const F = selFrame();
+    if (!F) return null;
     const z = view.zoom, r = touch ? 24 : 12;
     let best = null, bd = Infinity;
-    for (const h of handlePoints(s)) {
+    for (const h of handlePoints(F)) {
       const d = hyp(h.x * z + view.x - cx, h.y * z + view.y - cy);
       if (d <= r && d < bd) { best = h.k; bd = d; }
     }
     return best;
   }
-  /* The resize cursor pointing the way a handle pulls, turned with the picture. */
+  /* The resize cursor pointing the way a handle pulls, turned with the frame. */
   function handleCursor(k) {
     if (!k) return '';
     if (k === 'rot') return 'grab';
-    const [a, b] = HANDLES[k], s = picSelected();
-    const ang = Math.atan2(b * s.h, a * s.w) + (s.rot || 0);
+    const [a, b] = HANDLES[k], F = selFrame();
+    const ang = Math.atan2(b * F.h, a * F.w) + (F.rot || 0);
     return ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'][((Math.round(ang / (Math.PI / 4)) % 4) + 4) % 4];
   }
-  function drawHandles(s, accent) {
-    const z = view.zoom, q = WB.corners(s);
+  function drawHandles(F, accent) {
+    const z = view.zoom, q = WB.corners(F);
     ctx.beginPath(); ctx.moveTo(q[0], q[1]);
     for (let i = 2; i < 8; i += 2) ctx.lineTo(q[i], q[i + 1]);
     ctx.closePath();
     ctx.globalAlpha = 0.06; ctx.fill();
     ctx.globalAlpha = 1; ctx.stroke();
-    const top = WB.toWorld(s, 0, -s.h / 2), pts = handlePoints(s), knob = pts[pts.length - 1];
+    const top = WB.toWorld(F, 0, -F.h / 2), pts = handlePoints(F), knob = pts[pts.length - 1];
     ctx.beginPath(); ctx.moveTo(top.x, top.y); ctx.lineTo(knob.x, knob.y); ctx.stroke();
     for (const h of pts) {
       ctx.beginPath(); ctx.arc(h.x, h.y, (h.k === 'rot' ? 6.5 : 5) / z, 0, 2 * Math.PI);
@@ -5027,36 +5265,72 @@ body.pipetting #canvas { cursor: crosshair; }
     }
     ctx.fillStyle = accent;
   }
+
+  /* The geometry of an object, copied, so it can be put back or worked from. */
+  function geometry(s) {
+    const g = {};
+    for (const k of ['x', 'y', 'w', 'h', 'rot', 'size', 'width']) if (s[k] !== undefined) g[k] = s[k];
+    if (s.tool === 'image' || s.tool === 'text') g.rot = s.rot || 0;   // so putting it back also un-turns it
+    if (s.points) g.points = s.points.slice();
+    if (s.rings) g.rings = s.rings.map((r) => r.slice());
+    return g;
+  }
+  /* Give object s (whose geometry was g) the shape it has when frame A becomes frame B. */
+  function mapObject(s, g, A, B) {
+    const sx = B.w / A.w, sy = B.h / A.h, area = Math.sqrt(Math.abs(sx * sy));
+    const pt = (x, y) => { const L = WB.toLocal(A, x, y); return WB.toWorld(B, L.x * sx, L.y * sy); };
+    const ca = Math.cos(A.rot || 0), sa = Math.sin(A.rot || 0), cb = Math.cos(B.rot || 0), sb = Math.sin(B.rot || 0);
+    const vec = (x, y) => { const lx = (x * ca + y * sa) * sx, ly = (-x * sa + y * ca) * sy; return { x: lx * cb - ly * sb, y: lx * sb + ly * cb }; };
+    const flat = (p) => { const out = new Array(p.length); for (let i = 0; i < p.length; i += 2) { const q = pt(p[i], p[i + 1]); out[i] = q.x; out[i + 1] = q.y; } return out; };
+    if (g.points) { s.points = flat(g.points); s.width = g.width * area; }
+    if (g.rings) s.rings = g.rings.map(flat);
+    if (s.tool === 'image' || s.tool === 'text') {
+      const r = g.rot || 0, u = vec(Math.cos(r), Math.sin(r)), v = vec(-Math.sin(r), Math.cos(r));
+      const lu = hyp(u.x, u.y), lv = hyp(v.x, v.y);
+      s.rot = Math.atan2(u.y, u.x);
+      if (s.tool === 'image') {
+        const c = pt(g.x + g.w / 2, g.y + g.h / 2);
+        s.w = g.w * lu; s.h = g.h * lv; s.x = c.x - s.w / 2; s.y = c.y - s.h / 2;
+      } else {
+        const a = pt(g.x, g.y);
+        s.x = a.x; s.y = a.y; s.size = g.size * Math.sqrt(lu * lv);
+      }
+    }
+    delete s._path; delete s._b; delete s._t;
+  }
   function beginXform(e, k) {
-    const s = picSelected(), z = view.zoom;
+    const F = selFrame(), z = view.zoom;
     const px = (e.clientX - view.x) / z, py = (e.clientY - view.y) / z;
-    const start = { x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot || 0 };
+    const items = [...selection].filter((s) => doc.strokes.includes(s));
     mode = 'xform';
-    xf = { id: e.pointerId, k, s, start, extra: new Set(), last: { x: e.clientX, y: e.clientY }, keys: { alt: e.altKey, shift: e.shiftKey } };
-    if (k === 'rot') xf.a0 = Math.atan2(py - (s.y + s.h / 2), px - (s.x + s.w / 2));
+    xf = { id: e.pointerId, k, items, starts: items.map(geometry), start: F, cur: { ...F },
+      extra: new Set(), last: { x: e.clientX, y: e.clientY }, keys: { alt: e.altKey, shift: e.shiftKey } };
+    if (k === 'rot') xf.a0 = Math.atan2(py - (F.y + F.h / 2), px - (F.x + F.w / 2));
     else {
       // Where on the handle it was grabbed, so the edge does not jump to the pointer.
-      const [a, b] = HANDLES[k], L = WB.toLocal(s, px, py);
-      xf.off = { x: (a * s.w) / 2 - L.x, y: (b * s.h) / 2 - L.y };
+      const [a, b] = HANDLES[k], L = WB.toLocal(F, px, py);
+      xf.off = { x: (a * F.w) / 2 - L.x, y: (b * F.h) / 2 - L.y };
     }
     finishFill();
+    hideStyleBar();
   }
   function applyXform() {
-    const d = xf, s = d.s, st = d.start, z = view.zoom;
+    const d = xf, st = d.start, z = view.zoom;
     const px = (d.last.x - view.x) / z, py = (d.last.y - view.y) / z, more = d.extra.size > 0;
+    let F;
     if (d.k === 'rot') {
       let rot = st.rot + Math.atan2(py - (st.y + st.h / 2), px - (st.x + st.w / 2)) - d.a0;
       if (more || d.keys.shift) rot = Math.round(rot / (Math.PI / 4)) * (Math.PI / 4);
-      s.rot = Math.atan2(Math.sin(rot), Math.cos(rot));
+      F = { ...st, rot: Math.atan2(Math.sin(rot), Math.cos(rot)) };
     } else {
       const [ex, ey] = HANDLES[d.k], L = WB.toLocal(st, px, py), lx = L.x + d.off.x, ly = L.y + d.off.y;
       const centred = more || d.keys.alt, min = 8 / z;
-      let w = st.w, h = st.h, cx = 0, cy = 0;     // new size, and the new centre in the old picture's frame
+      let w = st.w, h = st.h, cx = 0, cy = 0;     // new size, and the new centre in the old frame
       if (ex && ey) {
         // A corner: one scale factor, measured along the diagonal from the fixed point (opposite corner, or the centre).
         const ax = centred ? 0 : (-ex * st.w) / 2, ay = centred ? 0 : (-ey * st.h) / 2;
         const dx = (ex * st.w) / 2 - ax, dy = (ey * st.h) / 2 - ay;
-        const k = Math.max(((lx - ax) * dx + (ly - ay) * dy) / (dx * dx + dy * dy), min / Math.min(st.w, st.h));
+        const k = Math.max(((lx - ax) * dx + (ly - ay) * dy) / (dx * dx + dy * dy), min / Math.max(Math.min(st.w, st.h), 1e-6));
         w = st.w * k; h = st.h * k;
         if (!centred) { cx = ax + (ex * w) / 2; cy = ay + (ey * h) / 2; }
       } else if (ex) {
@@ -5069,9 +5343,10 @@ body.pipetting #canvas { cursor: crosshair; }
         if (!centred) cy = ay + (ey * h) / 2;
       }
       const c = WB.toWorld(st, cx, cy);
-      s.x = c.x - w / 2; s.y = c.y - h / 2; s.w = w; s.h = h;
+      F = { x: c.x - w / 2, y: c.y - h / 2, w, h, rot: st.rot };
     }
-    delete s._b;
+    d.cur = F;
+    d.items.forEach((s, i) => mapObject(s, d.starts[i], st, F));
     invalidate();
   }
   for (const type of ['keydown', 'keyup']) {
@@ -5082,11 +5357,152 @@ body.pipetting #canvas { cursor: crosshair; }
     }, true);
   }
   function endXform(cancel) {
-    const d = xf, s = d.s, st = d.start;
+    const d = xf;
     xf = null; mode = null; canvas.style.cursor = '';
-    if (cancel) { Object.assign(s, st); delete s._b; invalidate(); return; }
-    const after = { x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot || 0 };
-    if (Object.keys(after).some((k) => after[k] !== st[k])) record({ type: 'edit', s, before: st, after });
+    if (cancel) { d.items.forEach((s, i) => retext(s, d.starts[i])); invalidate(); showStyleBar(); return; }
+    const list = d.items.map((s, i) => ({ type: 'edit', s, before: d.starts[i], after: geometry(s) }));
+    if (d.cur.x !== d.start.x || d.cur.y !== d.start.y || d.cur.w !== d.start.w || d.cur.h !== d.start.h || d.cur.rot !== d.start.rot) record({ type: 'batch', list });
+    showStyleBar();
+  }
+
+  /* ---- Style of the selection ------------------------------------------
+     A small bar under the selection (like the handwriting alternatives) changes the colour of
+     everything selected that has one (lines, texts, fills), and the thickness and line type of
+     the lines. Each change is one undo step; dragging around the colour mixer stays one step. */
+  const styleBar = $('#sel-style');
+  const selItems = () => [...selection].filter((s) => doc.strokes.includes(s));
+  const COLORED = new Set(['pen', 'text', 'fill']);
+  let styleRun = null;   // { key, action }: the last style change, so a picker drag can keep extending it
+  function showStyleBar() {
+    const items = selItems(), lines = items.some((s) => s.tool === 'pen'), colors = items.some((s) => COLORED.has(s.tool));
+    const on = (lines || colors) && tools.tool === 'select' && !xf && !(selDrag && selDrag.moved);
+    styleBar.classList.toggle('on', on);
+    if (!on) return;
+    styleBar.classList.toggle('no-line', !lines);
+    styleBar.classList.toggle('no-color', !colors);
+    refreshStyleBar();
+    placeStyleBar();
+  }
+  function hideStyleBar() { styleBar.classList.remove('on'); }
+  function refreshStyleBar() {
+    const items = selItems(), pen = items.find((s) => s.tool === 'pen'), col = items.find((s) => COLORED.has(s.tool));
+    const c = col ? col.color : null, inPalette = PALETTE.includes(c);
+    $$('#ss-colors .swatch[data-color]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.color === c)));
+    const cu = $('#ss-custom');
+    cu.setAttribute('aria-checked', String(!!c && !inPalette));
+    cu.style.setProperty('--c', c && !inPalette ? c : tools.custom);
+    if (pen) $('#ss-width').textContent = String(Math.round(pen.width * view.zoom * 10) / 10);
+    const dash = pen && WB.DASHES[pen.dash] ? pen.dash : 'solid';
+    $$('#ss-dashes [data-dash]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.dash === dash)));
+  }
+  /* Under the selection's frame, or above it when there is no room below (the dock lives there). */
+  function placeStyleBar() {
+    if (!styleBar.classList.contains('on')) return;
+    const F = selFrame();
+    if (!F) return;
+    const q = WB.corners(F), z = view.zoom;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < 8; i += 2) { const x = q[i] * z + view.x, y = q[i + 1] * z + view.y; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    const w = styleBar.offsetWidth, h = styleBar.offsetHeight;
+    let y = y1 + 18;
+    if (y + h > H - 96) y = y0 - ROT_GAP - 24 - h;
+    styleBar.style.transform = `translate(${clamp((x0 + x1) / 2 - w / 2, 8, Math.max(8, W - w - 8))}px, ${clamp(y, 8, Math.max(8, H - h - 8))}px)`;
+  }
+  /* Apply fn(object) -> changed properties (or null) to every selected object, as one undo step.
+     With a key, a change right after another one of the same key extends that step instead. */
+  function restyle(fn, key) {
+    const top = undoStack[undoStack.length - 1];
+    const extend = key && styleRun && styleRun.key === key && top === styleRun.action;
+    const list = extend ? top.list : [];
+    for (const s of selItems()) {
+      const after = fn(s);
+      if (!after) continue;
+      const old = extend && list.find((a) => a.s === s);
+      if (old) { old.after = after; retext(s, after); continue; }
+      const before = {};
+      for (const k in after) before[k] = s[k];
+      retext(s, after);
+      list.push({ type: 'edit', s, before, after });
+    }
+    if (!extend && list.length) { const action = { type: 'batch', list }; record(action); styleRun = { key, action }; }
+    else if (extend) changed();
+    invalidate(); refreshStyleBar();
+  }
+  const recolor = (c, key) => restyle((s) => (COLORED.has(s.tool) ? { color: c } : null), key);
+  function initStyleBar() {
+    const box = $('#ss-colors');
+    for (const c of PALETTE) {
+      const b = document.createElement('button');
+      b.className = 'swatch'; b.dataset.color = c; b.style.setProperty('--c', c); b.setAttribute('role', 'radio'); b.setAttribute('aria-label', c);
+      b.addEventListener('click', () => recolor(c));
+      box.appendChild(b);
+    }
+    const cu = document.createElement('button');
+    cu.className = 'swatch custom'; cu.id = 'ss-custom'; cu.setAttribute('aria-label', tr('customColor'));
+    cu.addEventListener('click', () => {
+      const col = selItems().find((s) => COLORED.has(s.tool)), run = {};    // one undo step per opening of the mixer
+      WB.picker.toggle({ anchor: cu, color: col ? col.color : tools.custom, onChange: (c) => { tools.custom = c; recolor(c, run); } });
+    });
+    box.appendChild(cu);
+    const step = (f) => restyle((s) => (s.tool === 'pen' ? { width: clamp(s.width * f, 0.5 / view.zoom, 400 / view.zoom) } : null));
+    $('#ss-thinner').addEventListener('click', () => step(0.8));
+    $('#ss-thicker').addEventListener('click', () => step(1.25));
+    const dashes = $('#ss-dashes');
+    for (const k of Object.keys(WB.DASHES)) {
+      const b = document.createElement('button');
+      b.className = 'ibtn'; b.dataset.dash = k; b.setAttribute('role', 'radio'); b.setAttribute('aria-label', tr('dash_' + k)); b.title = tr('dash_' + k);
+      b.innerHTML = `<svg viewBox="0 0 24 24"><path d="M3 12h18"${DASH_ICON[k] !== 'none' ? ` stroke-dasharray="${DASH_ICON[k]}"` : ''}/></svg>`;
+      b.addEventListener('click', () => restyle((s) => (s.tool === 'pen' ? { dash: k === 'solid' ? undefined : k } : null)));
+      dashes.appendChild(b);
+    }
+    styleBar.addEventListener('pointerdown', (e) => e.stopPropagation());
+  }
+
+  /* ---- Stickers ---------------------------------------------------------
+     "Save as sticker" copies the selection, moved to start at 0, 0, into the sticker gallery.
+     Choosing a sticker there puts a copy on the board, centred in view (shrunk to fit if it is
+     bigger than most of the screen), selected so it can be moved, resized or turned at once. */
+  function saveSticker() {
+    const items = selItems().sort((a, b) => doc.strokes.indexOf(a) - doc.strokes.indexOf(b));
+    if (!items.length) return;
+    commitPending();
+    const copies = items.map(cloneObject), b = WB.contentBounds(copies);
+    if (!b) return;
+    for (const c of copies) mapObject(c, geometry(c), { x: b.x, y: b.y, w: b.w, h: b.h, rot: 0 }, { x: 0, y: 0, w: b.w, h: b.h, rot: 0 });
+    const label = tr('sticker');
+    WB.stickers.save(WB.serialize({ title: label, created: Date.now(), strokes: copies }, { x: 0, y: 0, zoom: 1 }), label);
+  }
+  async function placeSticker(text) {
+    let d;
+    try { d = WB.parse(text); } catch (e) { return toast(tr(e.message)); }
+    const items = d.strokes, b = WB.contentBounds(items);
+    if (!b) return toast(tr('tNothing'));
+    const z = view.zoom, k = Math.min(1, (0.6 * W) / z / Math.max(b.w, 1e-6), (0.6 * H) / z / Math.max(b.h, 1e-6));
+    const w = b.w * k, h = b.h * k, cx = (W / 2 - view.x) / z, cy = (H / 2 - view.y) / z;
+    for (const s of items) mapObject(s, geometry(s), { x: b.x, y: b.y, w: b.w, h: b.h, rot: 0 }, { x: cx - w / 2, y: cy - h / 2, w, h, rot: 0 });
+    await WB.loadImages(items);
+    if (live) endStroke(true);
+    for (const s of items) doc.strokes.push(s);
+    record({ type: 'batch', list: items.map((s) => ({ type: 'add', stroke: s })) });
+    setTool('select');
+    selection.clear(); for (const s of items) selection.add(s);
+    selectionChanged(); invalidate();
+    toast(tr('tStickerAdded'), tr('undo'), undo);
+  }
+
+  /* ---- Duplicate --------------------------------------------------------
+     Copies of the selection, a little down and to the right, on top of everything, selected. */
+  const cloneObject = (s) => JSON.parse(JSON.stringify(s, (k, v) => (k && k[0] === '_' ? undefined : v)));
+  function duplicateSelection() {
+    const items = selItems().sort((a, b) => doc.strokes.indexOf(a) - doc.strokes.indexOf(b));
+    if (!items.length) return;
+    const copies = items.map(cloneObject), d = 16 / view.zoom;
+    translate(copies, d, d);
+    for (const c of copies) doc.strokes.push(c);
+    record({ type: 'batch', list: copies.map((c) => ({ type: 'add', stroke: c })) });
+    selection.clear(); for (const c of copies) selection.add(c);
+    selectionChanged(); invalidate();
+    toast(tr('tDuplicated'), tr('undo'), undo);
   }
 
   /* ---- Text ----------------------------------------------------------
@@ -5105,9 +5521,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const z = view.zoom, wx = (cx - view.x) / z, wy = (cy - view.y) / z, m = 4 / z;
     for (let i = doc.strokes.length - 1; i >= 0; i--) {
       const o = doc.strokes[i];
-      if (o.tool !== 'text') continue;
-      const b = WB.boundsOf(o);
-      if (wx >= b.x0 - m && wx <= b.x1 + m && wy >= b.y0 - m && wy <= b.y1 + m) return o;
+      if (o.tool === 'text' && WB.hit(o, wx, wy, m)) return o;
     }
     return null;
   }
@@ -5117,8 +5531,8 @@ body.pipetting #canvas { cursor: crosshair; }
     const z = view.zoom, wx = (cx - view.x) / z, wy = (cy - view.y) / z, T = tools.text;
     const s = textUnder(cx, cy);
     clearSelection(); inkDrop();
-    edit = s ? { s, x: s.x, y: s.y, font: s.font, size: s.size, color: s.color }
-      : { s: null, x: wx, y: wy - (T.size / z) * WB.LINE / 2, font: T.font, size: T.size / z, color: T.color };
+    edit = s ? { s, x: s.x, y: s.y, rot: s.rot || 0, font: s.font, size: s.size, color: s.color }
+      : { s: null, x: wx, y: wy - (T.size / z) * WB.LINE / 2, rot: 0, font: T.font, size: T.size / z, color: T.color };
     ta.value = s ? s.text : '';
     ta.classList.add('on'); textBar.classList.add('on');
     hint.classList.add('gone');
@@ -5136,7 +5550,8 @@ body.pipetting #canvas { cursor: crosshair; }
     ta.style.color = e.color;
     ta.style.width = Math.ceil(L.w * z + fs * 1.2) + 'px';
     ta.style.height = Math.ceil(L.h * z + 2) + 'px';
-    ta.style.transform = `translate(${sx}px, ${sy}px)`;
+    ta.style.transformOrigin = '0 0';
+    ta.style.transform = `translate(${sx}px, ${sy}px)` + (e.rot ? ` rotate(${e.rot}rad)` : '');
     $('#tb-font').textContent = tr(FONT_KEYS[e.font]);
     $('#tb-size').textContent = Math.round(fs);
     $('#tb-color').style.setProperty('--c', e.color);
@@ -5170,7 +5585,7 @@ body.pipetting #canvas { cursor: crosshair; }
     }
     invalidate(); updateChrome(); selectionChanged();
   }
-  function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; }
+  function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; delete s._path; }
 
   /* Change the font, size or colour of the text being typed (and remember it for the next one). */
   function styleText(props) {
@@ -5574,6 +5989,7 @@ body.pipetting #canvas { cursor: crosshair; }
       if (d.move) {                             // dragging the selection: it follows the pointer 1:1
         if (!d.moved && hyp(e.clientX - d.x, e.clientY - d.y) < 4) return;
         const dx = (e.clientX - d.lx) / z, dy = (e.clientY - d.ly) / z;
+        if (!d.moved) hideStyleBar();
         d.moved = true; d.lx = e.clientX; d.ly = e.clientY; d.dx += dx; d.dy += dy;
         translate(selection, dx, dy);
         return;
@@ -5601,7 +6017,7 @@ body.pipetting #canvas { cursor: crosshair; }
       mode = null;
       if (cancel) return cancelSelDrag();
       selDrag = null;
-      if (d.moved) record({ type: 'move', items: [...selection], dx: d.dx, dy: d.dy });
+      if (d.moved) { record({ type: 'move', items: [...selection], dx: d.dx, dy: d.dy }); showStyleBar(); }
       else if (d.lasso) selectLasso(d.lasso, d.add);
       else selectAt(d.x, d.y, d.add);
     } else if (mode === 'text' && textDown && e.pointerId === textDown.id) {
@@ -5987,7 +6403,7 @@ body.pipetting #canvas { cursor: crosshair; }
   }
   $('#toast-action').addEventListener('click', () => { $('#toast').classList.remove('on'); if (toastFn) toastFn(); });
 
-  const POPS = [['#menu', '#btn-menu'], ['#zoom-menu', '#btn-zoom']];
+  const POPS = [['#menu', '#btn-menu'], ['#zoom-menu', '#btn-zoom'], ['#dash-menu', '#btn-dash']];
   function closePopovers(except) {
     for (const [m, b] of POPS) if (m !== except) { $(m).classList.remove('open'); $(b).setAttribute('aria-expanded', 'false'); }
     $('#font-menu').classList.remove('open'); $('#lang-menu').classList.remove('open');
@@ -6021,6 +6437,7 @@ body.pipetting #canvas { cursor: crosshair; }
     new: () => replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], handle: null }, tr('mNew')) || animateView(W / 2, H / 2, 1),
     open: openBoard,
     gallery: () => WB.gallery.open(),
+    stickers: () => WB.stickers.open(),
     'save-gallery': () => WB.gallery.save(),
     'save-file': saveBoardFile,
     'save-to': saveBoardTo,
@@ -6043,6 +6460,9 @@ body.pipetting #canvas { cursor: crosshair; }
   $('#btn-undo').addEventListener('click', undo);
   $('#btn-redo').addEventListener('click', redo);
   $('#btn-export').addEventListener('click', doExport);
+  $('#sel-duplicate').addEventListener('click', duplicateSelection);
+  $('#btn-sticker').addEventListener('click', () => WB.stickers.open());
+  $('#sel-sticker').addEventListener('click', () => saveSticker());
 
   const titleEl = $('#doc-title');
   titleEl.addEventListener('input', () => { const v = titleEl.value.trim(); doc.title = v && v !== tr('untitled') ? v : 'Untitled'; updateChrome(); autosave(); });
@@ -6078,6 +6498,10 @@ body.pipetting #canvas { cursor: crosshair; }
     custom.style.setProperty('--c', c);
     $('#dock').classList.toggle('erasing', tools.tool === 'eraser');
     side.classList.toggle('hidden', !isBrush());
+    side.classList.toggle('erasing', tools.tool === 'eraser');
+    const dash = WB.DASHES[tools.pen.dash] ? tools.pen.dash : 'solid';
+    $('#dash-icon').setAttribute('stroke-dasharray', DASH_ICON[dash]);
+    $$('#dash-menu [data-dash]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.dash === dash)));
     canvas.classList.toggle('brush', isBrush() && !spaceHeld);
     canvas.classList.toggle('hand', tools.tool === 'hand' || spaceHeld);
     canvas.classList.toggle('t-text', tools.tool === 'text' && !spaceHeld);
@@ -6088,6 +6512,20 @@ body.pipetting #canvas { cursor: crosshair; }
     s2.style.setProperty('--t', ot); s2.setAttribute('aria-valuenow', Math.round(ot * 100)); s2.setAttribute('aria-valuetext', Math.round(b.opacity * 100) + ' percent');
     updateCursor();
   }
+
+  /* Line type: a button under the opacity slider opens the list of types. */
+  const DASH_ICON = { solid: 'none', dotted: '0 4.5', dashed: '5 5', long: '10 5', dashdot: '8 4.5 0 4.5' };
+  $('#btn-dash').addEventListener('click', () => {
+    const r = $('#btn-dash').getBoundingClientRect(), m = $('#dash-menu');
+    m.style.left = r.right + 10 + 'px';
+    m.style.top = Math.max(8, Math.min(innerHeight - m.offsetHeight - 8, r.top + r.height / 2 - m.offsetHeight / 2)) + 'px';
+  });
+  $('#dash-menu').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-dash]');
+    if (!b) return;
+    tools.pen.dash = b.dataset.dash; store.set('wb.tools', tools);
+    closePopovers(); refreshTools();
+  });
 
   function showPreview(kind) {
     const b = brush(), dot = $('#preview-dot'), d = clamp(b.width, 2, 86);
@@ -6283,6 +6721,7 @@ body.pipetting #canvas { cursor: crosshair; }
         for (const s of doc.strokes) if (s.tool !== 'eraser') selection.add(s);
         return selectionChanged();
       }
+      if (k === 'd' && selection.size && !sheetOpen()) { e.preventDefault(); return duplicateSelection(); }
       const act = { z: e.shiftKey ? redo : undo, y: redo, s: e.shiftKey ? saveBoardTo : saveDefault, o: openBoard, g: ACTIONS.gallery, e: ACTIONS.export,
         0: ACTIONS['zoom-100'], 1: ACTIONS['zoom-fit'], '=': ACTIONS['zoom-in'], '+': ACTIONS['zoom-in'], '-': ACTIONS['zoom-out'] }[k];
       if (act) { e.preventDefault(); if (!sheetOpen() || k === 's') act(); }
@@ -6312,11 +6751,13 @@ body.pipetting #canvas { cursor: crosshair; }
     load: (text, gref) => loadText(text, null, gref),
     retitle: (label) => { doc.title = label; titleEl.value = shownTitle(); updateChrome(); autosave(); },
     commit: commitPending,
+    placeSticker: (text) => placeSticker(text),
     saved: () => { saveTarget = 'gallery'; },
     canvasColor: () => canvasColor(),
     toast, report, openSheet, closeSheets,
   });
   initUI();
+  initStyleBar();
   WB.onImageReady = invalidate;                             // a picture finished decoding: draw it
   // iPhone and iPad only offer files whose type the system knows, and .whtbd is not one of them,
   // so there the chooser takes any file and the app checks it after choosing.

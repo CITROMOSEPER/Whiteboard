@@ -197,6 +197,7 @@
     live = {
       id: e.pointerId, ptype: e.pointerType, t0: now,
       tool, color: tools.pen.color, width: t.width / z, opacity: t.opacity,
+      dash: tool === 'pen' && WB.DASHES[tools.pen.dash] ? tools.pen.dash : undefined,
       points: [x, y], smooth: sm > 0, closed: false,
       tau: sm * 140, sx: x, sy: y, tx: x, ty: y,
       hold: { x: e.clientX, y: e.clientY, t: now, tol: e.pointerType === 'mouse' ? 3 : 7 },
@@ -316,6 +317,7 @@
     if (L.tool === 'eraser' && !doc.strokes.length) return updateChrome();
     const s = { tool: L.tool, color: L.color, width: L.width, opacity: L.opacity, points: L.points, smooth: L.smooth, closed: L.closed };
     if (L.shape) s.shape = L.shape;
+    if (L.dash) s.dash = L.dash;
     s._at = performance.now();
     doc.strokes.push(s);
     if (!baseDirty) { worldTransform(bctx); WB.paint(bctx, s); }
@@ -457,12 +459,10 @@
 
   /* Is this screen point on the highlight box of something already selected? (Pressing there drags the selection.) */
   function onSelection(cx, cy) {
-    const z = view.zoom, x = (cx - view.x) / z, y = (cy - view.y) / z, pad = 6 / z;
-    for (const s of selection) {
-      const b = WB.boundsOf(s);
-      if (x >= b.x0 - pad && x <= b.x1 + pad && y >= b.y0 - pad && y <= b.y1 + pad) return true;
-    }
-    return false;
+    const z = view.zoom, x = (cx - view.x) / z, y = (cy - view.y) / z, pad = 6 / z, F = selFrame();
+    if (!F) return false;
+    const L = WB.toLocal(F, x, y);
+    return Math.abs(L.x) <= F.w / 2 + pad && Math.abs(L.y) <= F.h / 2 + pad;
   }
   function translate(items, dx, dy) {
     for (const s of items) {
@@ -483,6 +483,7 @@
     const n = selection.size;
     $('#sel-bar').classList.toggle('on', n > 0);
     if (n) $('#sel-count').textContent = tr('selected', { n });
+    showStyleBar();
     requestFrame();
   }
   function deleteSelection() {
@@ -499,10 +500,11 @@
     worldTransform(ctx);
     ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = ctx.fillStyle = accent; ctx.lineWidth = 1.5 / z;
-    const pad = 5 / z, pic = picSelected();
-    if (pic) drawHandles(pic, accent);
+    const pad = 5 / z, F = !(selDrag && selDrag.lasso) && selFrame();
+    if (F) drawHandles(F, accent);
+    placeStyleBar();
     for (const s of selection) {
-      if (s === pic) continue;
+      if (selection.size === 1) break;            // one object: its frame says it all
       const b = WB.boundsOf(s);
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(b.x0 - pad, b.y0 - pad, b.x1 - b.x0 + 2 * pad, b.y1 - b.y0 + 2 * pad, 6 / z);
@@ -520,55 +522,73 @@
     }
   }
 
-  /* ---- Picture handles -------------------------------------------------
-     A single selected picture gets handles on its own (turned) outline: the corners scale it
-     keeping its shape, the side handles stretch it, and the knob above its top edge turns it.
-     Another finger on the screen while resizing makes it grow from the middle instead of from
-     the opposite side; while turning, it snaps the angle to 45° steps. With a mouse, Alt and
-     Shift do the same. Everything is worked out from the state at the start of the drag, so a
-     finger can be put down and lifted again freely. */
+  /* ---- Selection handles -----------------------------------------------
+     Whatever is selected gets a frame with handles: the corners scale it keeping its shape,
+     the side handles stretch it, and the knob above the frame's top edge turns it. A single
+     picture or text has its own (turned) box as the frame; anything else has the box around
+     the selection. Another finger on the screen while resizing makes it grow from the middle
+     instead of from the opposite side; while turning, it snaps the angle to 45° steps. With a
+     mouse, Alt and Shift do the same. Everything is worked out from the state at the start of
+     the drag, so a finger can be put down and lifted again freely.
+
+     The drag maps the old frame onto the new one, and every selected object follows: stroke
+     and fill points are mapped exactly, line widths and text sizes scale with the frame's
+     area, and pictures and texts keep their own box, moved, resized and turned with it. */
   const HANDLES = { nw: [-1, -1], n: [0, -1], ne: [1, -1], e: [1, 0], se: [1, 1], s: [0, 1], sw: [-1, 1], w: [-1, 0] };
   const ROT_GAP = 30;   // screen px between the top edge and the turning knob
-  let xf = null;        // the drag in progress: { id, k (handle), s, start, extra (other pointers), last, keys, off | a0 }
-  function picSelected() {
-    if (selection.size !== 1) return null;
-    const [s] = selection;
-    return s.tool === 'image' && doc.strokes.includes(s) ? s : null;
+  let xf = null;        // the drag in progress: { id, k (handle), items, start, cur, extra (other pointers), last, keys, off | a0 }
+
+  /* The frame of the selection: { x, y, w, h, rot } (the unturned box, turned by rot about its centre). */
+  function selFrame() {
+    if (xf) return xf.cur;
+    const items = [...selection].filter((s) => doc.strokes.includes(s));
+    if (!items.length) return null;
+    if (items.length === 1 && (items[0].tool === 'image' || items[0].tool === 'text')) {
+      const F = WB.frameOf(items[0]);
+      return { x: F.x, y: F.y, w: F.w, h: F.h, rot: F.rot || 0 };
+    }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const s of items) {
+      const b = WB.boundsOf(s);
+      x0 = Math.min(x0, b.x0); y0 = Math.min(y0, b.y0); x1 = Math.max(x1, b.x1); y1 = Math.max(y1, b.y1);
+    }
+    return { x: x0, y: y0, w: Math.max(x1 - x0, 1e-6), h: Math.max(y1 - y0, 1e-6), rot: 0 };
   }
-  function handlePoints(s) {
+  function handlePoints(F) {
     const out = [];
-    for (const k in HANDLES) { const [a, b] = HANDLES[k]; out.push({ k, ...WB.toWorld(s, (a * s.w) / 2, (b * s.h) / 2) }); }
-    out.push({ k: 'rot', ...WB.toWorld(s, 0, -s.h / 2 - ROT_GAP / view.zoom) });
+    for (const k in HANDLES) { const [a, b] = HANDLES[k]; out.push({ k, ...WB.toWorld(F, (a * F.w) / 2, (b * F.h) / 2) }); }
+    out.push({ k: 'rot', ...WB.toWorld(F, 0, -F.h / 2 - ROT_GAP / view.zoom) });
     return out;
   }
   /* The handle under a screen point, or null. Fingers get a bigger target than a mouse or pen. */
   function handleAt(cx, cy, touch) {
-    const s = picSelected();
-    if (!s || tools.tool !== 'select') return null;
+    if (tools.tool !== 'select' || !selection.size) return null;
+    const F = selFrame();
+    if (!F) return null;
     const z = view.zoom, r = touch ? 24 : 12;
     let best = null, bd = Infinity;
-    for (const h of handlePoints(s)) {
+    for (const h of handlePoints(F)) {
       const d = hyp(h.x * z + view.x - cx, h.y * z + view.y - cy);
       if (d <= r && d < bd) { best = h.k; bd = d; }
     }
     return best;
   }
-  /* The resize cursor pointing the way a handle pulls, turned with the picture. */
+  /* The resize cursor pointing the way a handle pulls, turned with the frame. */
   function handleCursor(k) {
     if (!k) return '';
     if (k === 'rot') return 'grab';
-    const [a, b] = HANDLES[k], s = picSelected();
-    const ang = Math.atan2(b * s.h, a * s.w) + (s.rot || 0);
+    const [a, b] = HANDLES[k], F = selFrame();
+    const ang = Math.atan2(b * F.h, a * F.w) + (F.rot || 0);
     return ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'][((Math.round(ang / (Math.PI / 4)) % 4) + 4) % 4];
   }
-  function drawHandles(s, accent) {
-    const z = view.zoom, q = WB.corners(s);
+  function drawHandles(F, accent) {
+    const z = view.zoom, q = WB.corners(F);
     ctx.beginPath(); ctx.moveTo(q[0], q[1]);
     for (let i = 2; i < 8; i += 2) ctx.lineTo(q[i], q[i + 1]);
     ctx.closePath();
     ctx.globalAlpha = 0.06; ctx.fill();
     ctx.globalAlpha = 1; ctx.stroke();
-    const top = WB.toWorld(s, 0, -s.h / 2), pts = handlePoints(s), knob = pts[pts.length - 1];
+    const top = WB.toWorld(F, 0, -F.h / 2), pts = handlePoints(F), knob = pts[pts.length - 1];
     ctx.beginPath(); ctx.moveTo(top.x, top.y); ctx.lineTo(knob.x, knob.y); ctx.stroke();
     for (const h of pts) {
       ctx.beginPath(); ctx.arc(h.x, h.y, (h.k === 'rot' ? 6.5 : 5) / z, 0, 2 * Math.PI);
@@ -576,36 +596,72 @@
     }
     ctx.fillStyle = accent;
   }
+
+  /* The geometry of an object, copied, so it can be put back or worked from. */
+  function geometry(s) {
+    const g = {};
+    for (const k of ['x', 'y', 'w', 'h', 'rot', 'size', 'width']) if (s[k] !== undefined) g[k] = s[k];
+    if (s.tool === 'image' || s.tool === 'text') g.rot = s.rot || 0;   // so putting it back also un-turns it
+    if (s.points) g.points = s.points.slice();
+    if (s.rings) g.rings = s.rings.map((r) => r.slice());
+    return g;
+  }
+  /* Give object s (whose geometry was g) the shape it has when frame A becomes frame B. */
+  function mapObject(s, g, A, B) {
+    const sx = B.w / A.w, sy = B.h / A.h, area = Math.sqrt(Math.abs(sx * sy));
+    const pt = (x, y) => { const L = WB.toLocal(A, x, y); return WB.toWorld(B, L.x * sx, L.y * sy); };
+    const ca = Math.cos(A.rot || 0), sa = Math.sin(A.rot || 0), cb = Math.cos(B.rot || 0), sb = Math.sin(B.rot || 0);
+    const vec = (x, y) => { const lx = (x * ca + y * sa) * sx, ly = (-x * sa + y * ca) * sy; return { x: lx * cb - ly * sb, y: lx * sb + ly * cb }; };
+    const flat = (p) => { const out = new Array(p.length); for (let i = 0; i < p.length; i += 2) { const q = pt(p[i], p[i + 1]); out[i] = q.x; out[i + 1] = q.y; } return out; };
+    if (g.points) { s.points = flat(g.points); s.width = g.width * area; }
+    if (g.rings) s.rings = g.rings.map(flat);
+    if (s.tool === 'image' || s.tool === 'text') {
+      const r = g.rot || 0, u = vec(Math.cos(r), Math.sin(r)), v = vec(-Math.sin(r), Math.cos(r));
+      const lu = hyp(u.x, u.y), lv = hyp(v.x, v.y);
+      s.rot = Math.atan2(u.y, u.x);
+      if (s.tool === 'image') {
+        const c = pt(g.x + g.w / 2, g.y + g.h / 2);
+        s.w = g.w * lu; s.h = g.h * lv; s.x = c.x - s.w / 2; s.y = c.y - s.h / 2;
+      } else {
+        const a = pt(g.x, g.y);
+        s.x = a.x; s.y = a.y; s.size = g.size * Math.sqrt(lu * lv);
+      }
+    }
+    delete s._path; delete s._b; delete s._t;
+  }
   function beginXform(e, k) {
-    const s = picSelected(), z = view.zoom;
+    const F = selFrame(), z = view.zoom;
     const px = (e.clientX - view.x) / z, py = (e.clientY - view.y) / z;
-    const start = { x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot || 0 };
+    const items = [...selection].filter((s) => doc.strokes.includes(s));
     mode = 'xform';
-    xf = { id: e.pointerId, k, s, start, extra: new Set(), last: { x: e.clientX, y: e.clientY }, keys: { alt: e.altKey, shift: e.shiftKey } };
-    if (k === 'rot') xf.a0 = Math.atan2(py - (s.y + s.h / 2), px - (s.x + s.w / 2));
+    xf = { id: e.pointerId, k, items, starts: items.map(geometry), start: F, cur: { ...F },
+      extra: new Set(), last: { x: e.clientX, y: e.clientY }, keys: { alt: e.altKey, shift: e.shiftKey } };
+    if (k === 'rot') xf.a0 = Math.atan2(py - (F.y + F.h / 2), px - (F.x + F.w / 2));
     else {
       // Where on the handle it was grabbed, so the edge does not jump to the pointer.
-      const [a, b] = HANDLES[k], L = WB.toLocal(s, px, py);
-      xf.off = { x: (a * s.w) / 2 - L.x, y: (b * s.h) / 2 - L.y };
+      const [a, b] = HANDLES[k], L = WB.toLocal(F, px, py);
+      xf.off = { x: (a * F.w) / 2 - L.x, y: (b * F.h) / 2 - L.y };
     }
     finishFill();
+    hideStyleBar();
   }
   function applyXform() {
-    const d = xf, s = d.s, st = d.start, z = view.zoom;
+    const d = xf, st = d.start, z = view.zoom;
     const px = (d.last.x - view.x) / z, py = (d.last.y - view.y) / z, more = d.extra.size > 0;
+    let F;
     if (d.k === 'rot') {
       let rot = st.rot + Math.atan2(py - (st.y + st.h / 2), px - (st.x + st.w / 2)) - d.a0;
       if (more || d.keys.shift) rot = Math.round(rot / (Math.PI / 4)) * (Math.PI / 4);
-      s.rot = Math.atan2(Math.sin(rot), Math.cos(rot));
+      F = { ...st, rot: Math.atan2(Math.sin(rot), Math.cos(rot)) };
     } else {
       const [ex, ey] = HANDLES[d.k], L = WB.toLocal(st, px, py), lx = L.x + d.off.x, ly = L.y + d.off.y;
       const centred = more || d.keys.alt, min = 8 / z;
-      let w = st.w, h = st.h, cx = 0, cy = 0;     // new size, and the new centre in the old picture's frame
+      let w = st.w, h = st.h, cx = 0, cy = 0;     // new size, and the new centre in the old frame
       if (ex && ey) {
         // A corner: one scale factor, measured along the diagonal from the fixed point (opposite corner, or the centre).
         const ax = centred ? 0 : (-ex * st.w) / 2, ay = centred ? 0 : (-ey * st.h) / 2;
         const dx = (ex * st.w) / 2 - ax, dy = (ey * st.h) / 2 - ay;
-        const k = Math.max(((lx - ax) * dx + (ly - ay) * dy) / (dx * dx + dy * dy), min / Math.min(st.w, st.h));
+        const k = Math.max(((lx - ax) * dx + (ly - ay) * dy) / (dx * dx + dy * dy), min / Math.max(Math.min(st.w, st.h), 1e-6));
         w = st.w * k; h = st.h * k;
         if (!centred) { cx = ax + (ex * w) / 2; cy = ay + (ey * h) / 2; }
       } else if (ex) {
@@ -618,9 +674,10 @@
         if (!centred) cy = ay + (ey * h) / 2;
       }
       const c = WB.toWorld(st, cx, cy);
-      s.x = c.x - w / 2; s.y = c.y - h / 2; s.w = w; s.h = h;
+      F = { x: c.x - w / 2, y: c.y - h / 2, w, h, rot: st.rot };
     }
-    delete s._b;
+    d.cur = F;
+    d.items.forEach((s, i) => mapObject(s, d.starts[i], st, F));
     invalidate();
   }
   for (const type of ['keydown', 'keyup']) {
@@ -631,11 +688,152 @@
     }, true);
   }
   function endXform(cancel) {
-    const d = xf, s = d.s, st = d.start;
+    const d = xf;
     xf = null; mode = null; canvas.style.cursor = '';
-    if (cancel) { Object.assign(s, st); delete s._b; invalidate(); return; }
-    const after = { x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot || 0 };
-    if (Object.keys(after).some((k) => after[k] !== st[k])) record({ type: 'edit', s, before: st, after });
+    if (cancel) { d.items.forEach((s, i) => retext(s, d.starts[i])); invalidate(); showStyleBar(); return; }
+    const list = d.items.map((s, i) => ({ type: 'edit', s, before: d.starts[i], after: geometry(s) }));
+    if (d.cur.x !== d.start.x || d.cur.y !== d.start.y || d.cur.w !== d.start.w || d.cur.h !== d.start.h || d.cur.rot !== d.start.rot) record({ type: 'batch', list });
+    showStyleBar();
+  }
+
+  /* ---- Style of the selection ------------------------------------------
+     A small bar under the selection (like the handwriting alternatives) changes the colour of
+     everything selected that has one (lines, texts, fills), and the thickness and line type of
+     the lines. Each change is one undo step; dragging around the colour mixer stays one step. */
+  const styleBar = $('#sel-style');
+  const selItems = () => [...selection].filter((s) => doc.strokes.includes(s));
+  const COLORED = new Set(['pen', 'text', 'fill']);
+  let styleRun = null;   // { key, action }: the last style change, so a picker drag can keep extending it
+  function showStyleBar() {
+    const items = selItems(), lines = items.some((s) => s.tool === 'pen'), colors = items.some((s) => COLORED.has(s.tool));
+    const on = (lines || colors) && tools.tool === 'select' && !xf && !(selDrag && selDrag.moved);
+    styleBar.classList.toggle('on', on);
+    if (!on) return;
+    styleBar.classList.toggle('no-line', !lines);
+    styleBar.classList.toggle('no-color', !colors);
+    refreshStyleBar();
+    placeStyleBar();
+  }
+  function hideStyleBar() { styleBar.classList.remove('on'); }
+  function refreshStyleBar() {
+    const items = selItems(), pen = items.find((s) => s.tool === 'pen'), col = items.find((s) => COLORED.has(s.tool));
+    const c = col ? col.color : null, inPalette = PALETTE.includes(c);
+    $$('#ss-colors .swatch[data-color]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.color === c)));
+    const cu = $('#ss-custom');
+    cu.setAttribute('aria-checked', String(!!c && !inPalette));
+    cu.style.setProperty('--c', c && !inPalette ? c : tools.custom);
+    if (pen) $('#ss-width').textContent = String(Math.round(pen.width * view.zoom * 10) / 10);
+    const dash = pen && WB.DASHES[pen.dash] ? pen.dash : 'solid';
+    $$('#ss-dashes [data-dash]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.dash === dash)));
+  }
+  /* Under the selection's frame, or above it when there is no room below (the dock lives there). */
+  function placeStyleBar() {
+    if (!styleBar.classList.contains('on')) return;
+    const F = selFrame();
+    if (!F) return;
+    const q = WB.corners(F), z = view.zoom;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < 8; i += 2) { const x = q[i] * z + view.x, y = q[i + 1] * z + view.y; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    const w = styleBar.offsetWidth, h = styleBar.offsetHeight;
+    let y = y1 + 18;
+    if (y + h > H - 96) y = y0 - ROT_GAP - 24 - h;
+    styleBar.style.transform = `translate(${clamp((x0 + x1) / 2 - w / 2, 8, Math.max(8, W - w - 8))}px, ${clamp(y, 8, Math.max(8, H - h - 8))}px)`;
+  }
+  /* Apply fn(object) -> changed properties (or null) to every selected object, as one undo step.
+     With a key, a change right after another one of the same key extends that step instead. */
+  function restyle(fn, key) {
+    const top = undoStack[undoStack.length - 1];
+    const extend = key && styleRun && styleRun.key === key && top === styleRun.action;
+    const list = extend ? top.list : [];
+    for (const s of selItems()) {
+      const after = fn(s);
+      if (!after) continue;
+      const old = extend && list.find((a) => a.s === s);
+      if (old) { old.after = after; retext(s, after); continue; }
+      const before = {};
+      for (const k in after) before[k] = s[k];
+      retext(s, after);
+      list.push({ type: 'edit', s, before, after });
+    }
+    if (!extend && list.length) { const action = { type: 'batch', list }; record(action); styleRun = { key, action }; }
+    else if (extend) changed();
+    invalidate(); refreshStyleBar();
+  }
+  const recolor = (c, key) => restyle((s) => (COLORED.has(s.tool) ? { color: c } : null), key);
+  function initStyleBar() {
+    const box = $('#ss-colors');
+    for (const c of PALETTE) {
+      const b = document.createElement('button');
+      b.className = 'swatch'; b.dataset.color = c; b.style.setProperty('--c', c); b.setAttribute('role', 'radio'); b.setAttribute('aria-label', c);
+      b.addEventListener('click', () => recolor(c));
+      box.appendChild(b);
+    }
+    const cu = document.createElement('button');
+    cu.className = 'swatch custom'; cu.id = 'ss-custom'; cu.setAttribute('aria-label', tr('customColor'));
+    cu.addEventListener('click', () => {
+      const col = selItems().find((s) => COLORED.has(s.tool)), run = {};    // one undo step per opening of the mixer
+      WB.picker.toggle({ anchor: cu, color: col ? col.color : tools.custom, onChange: (c) => { tools.custom = c; recolor(c, run); } });
+    });
+    box.appendChild(cu);
+    const step = (f) => restyle((s) => (s.tool === 'pen' ? { width: clamp(s.width * f, 0.5 / view.zoom, 400 / view.zoom) } : null));
+    $('#ss-thinner').addEventListener('click', () => step(0.8));
+    $('#ss-thicker').addEventListener('click', () => step(1.25));
+    const dashes = $('#ss-dashes');
+    for (const k of Object.keys(WB.DASHES)) {
+      const b = document.createElement('button');
+      b.className = 'ibtn'; b.dataset.dash = k; b.setAttribute('role', 'radio'); b.setAttribute('aria-label', tr('dash_' + k)); b.title = tr('dash_' + k);
+      b.innerHTML = `<svg viewBox="0 0 24 24"><path d="M3 12h18"${DASH_ICON[k] !== 'none' ? ` stroke-dasharray="${DASH_ICON[k]}"` : ''}/></svg>`;
+      b.addEventListener('click', () => restyle((s) => (s.tool === 'pen' ? { dash: k === 'solid' ? undefined : k } : null)));
+      dashes.appendChild(b);
+    }
+    styleBar.addEventListener('pointerdown', (e) => e.stopPropagation());
+  }
+
+  /* ---- Stickers ---------------------------------------------------------
+     "Save as sticker" copies the selection, moved to start at 0, 0, into the sticker gallery.
+     Choosing a sticker there puts a copy on the board, centred in view (shrunk to fit if it is
+     bigger than most of the screen), selected so it can be moved, resized or turned at once. */
+  function saveSticker() {
+    const items = selItems().sort((a, b) => doc.strokes.indexOf(a) - doc.strokes.indexOf(b));
+    if (!items.length) return;
+    commitPending();
+    const copies = items.map(cloneObject), b = WB.contentBounds(copies);
+    if (!b) return;
+    for (const c of copies) mapObject(c, geometry(c), { x: b.x, y: b.y, w: b.w, h: b.h, rot: 0 }, { x: 0, y: 0, w: b.w, h: b.h, rot: 0 });
+    const label = tr('sticker');
+    WB.stickers.save(WB.serialize({ title: label, created: Date.now(), strokes: copies }, { x: 0, y: 0, zoom: 1 }), label);
+  }
+  async function placeSticker(text) {
+    let d;
+    try { d = WB.parse(text); } catch (e) { return toast(tr(e.message)); }
+    const items = d.strokes, b = WB.contentBounds(items);
+    if (!b) return toast(tr('tNothing'));
+    const z = view.zoom, k = Math.min(1, (0.6 * W) / z / Math.max(b.w, 1e-6), (0.6 * H) / z / Math.max(b.h, 1e-6));
+    const w = b.w * k, h = b.h * k, cx = (W / 2 - view.x) / z, cy = (H / 2 - view.y) / z;
+    for (const s of items) mapObject(s, geometry(s), { x: b.x, y: b.y, w: b.w, h: b.h, rot: 0 }, { x: cx - w / 2, y: cy - h / 2, w, h, rot: 0 });
+    await WB.loadImages(items);
+    if (live) endStroke(true);
+    for (const s of items) doc.strokes.push(s);
+    record({ type: 'batch', list: items.map((s) => ({ type: 'add', stroke: s })) });
+    setTool('select');
+    selection.clear(); for (const s of items) selection.add(s);
+    selectionChanged(); invalidate();
+    toast(tr('tStickerAdded'), tr('undo'), undo);
+  }
+
+  /* ---- Duplicate --------------------------------------------------------
+     Copies of the selection, a little down and to the right, on top of everything, selected. */
+  const cloneObject = (s) => JSON.parse(JSON.stringify(s, (k, v) => (k && k[0] === '_' ? undefined : v)));
+  function duplicateSelection() {
+    const items = selItems().sort((a, b) => doc.strokes.indexOf(a) - doc.strokes.indexOf(b));
+    if (!items.length) return;
+    const copies = items.map(cloneObject), d = 16 / view.zoom;
+    translate(copies, d, d);
+    for (const c of copies) doc.strokes.push(c);
+    record({ type: 'batch', list: copies.map((c) => ({ type: 'add', stroke: c })) });
+    selection.clear(); for (const c of copies) selection.add(c);
+    selectionChanged(); invalidate();
+    toast(tr('tDuplicated'), tr('undo'), undo);
   }
 
   /* ---- Text ----------------------------------------------------------
@@ -654,9 +852,7 @@
     const z = view.zoom, wx = (cx - view.x) / z, wy = (cy - view.y) / z, m = 4 / z;
     for (let i = doc.strokes.length - 1; i >= 0; i--) {
       const o = doc.strokes[i];
-      if (o.tool !== 'text') continue;
-      const b = WB.boundsOf(o);
-      if (wx >= b.x0 - m && wx <= b.x1 + m && wy >= b.y0 - m && wy <= b.y1 + m) return o;
+      if (o.tool === 'text' && WB.hit(o, wx, wy, m)) return o;
     }
     return null;
   }
@@ -666,8 +862,8 @@
     const z = view.zoom, wx = (cx - view.x) / z, wy = (cy - view.y) / z, T = tools.text;
     const s = textUnder(cx, cy);
     clearSelection(); inkDrop();
-    edit = s ? { s, x: s.x, y: s.y, font: s.font, size: s.size, color: s.color }
-      : { s: null, x: wx, y: wy - (T.size / z) * WB.LINE / 2, font: T.font, size: T.size / z, color: T.color };
+    edit = s ? { s, x: s.x, y: s.y, rot: s.rot || 0, font: s.font, size: s.size, color: s.color }
+      : { s: null, x: wx, y: wy - (T.size / z) * WB.LINE / 2, rot: 0, font: T.font, size: T.size / z, color: T.color };
     ta.value = s ? s.text : '';
     ta.classList.add('on'); textBar.classList.add('on');
     hint.classList.add('gone');
@@ -685,7 +881,8 @@
     ta.style.color = e.color;
     ta.style.width = Math.ceil(L.w * z + fs * 1.2) + 'px';
     ta.style.height = Math.ceil(L.h * z + 2) + 'px';
-    ta.style.transform = `translate(${sx}px, ${sy}px)`;
+    ta.style.transformOrigin = '0 0';
+    ta.style.transform = `translate(${sx}px, ${sy}px)` + (e.rot ? ` rotate(${e.rot}rad)` : '');
     $('#tb-font').textContent = tr(FONT_KEYS[e.font]);
     $('#tb-size').textContent = Math.round(fs);
     $('#tb-color').style.setProperty('--c', e.color);
@@ -719,7 +916,7 @@
     }
     invalidate(); updateChrome(); selectionChanged();
   }
-  function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; }
+  function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; delete s._path; }
 
   /* Change the font, size or colour of the text being typed (and remember it for the next one). */
   function styleText(props) {
@@ -1123,6 +1320,7 @@
       if (d.move) {                             // dragging the selection: it follows the pointer 1:1
         if (!d.moved && hyp(e.clientX - d.x, e.clientY - d.y) < 4) return;
         const dx = (e.clientX - d.lx) / z, dy = (e.clientY - d.ly) / z;
+        if (!d.moved) hideStyleBar();
         d.moved = true; d.lx = e.clientX; d.ly = e.clientY; d.dx += dx; d.dy += dy;
         translate(selection, dx, dy);
         return;
@@ -1150,7 +1348,7 @@
       mode = null;
       if (cancel) return cancelSelDrag();
       selDrag = null;
-      if (d.moved) record({ type: 'move', items: [...selection], dx: d.dx, dy: d.dy });
+      if (d.moved) { record({ type: 'move', items: [...selection], dx: d.dx, dy: d.dy }); showStyleBar(); }
       else if (d.lasso) selectLasso(d.lasso, d.add);
       else selectAt(d.x, d.y, d.add);
     } else if (mode === 'text' && textDown && e.pointerId === textDown.id) {
@@ -1536,7 +1734,7 @@
   }
   $('#toast-action').addEventListener('click', () => { $('#toast').classList.remove('on'); if (toastFn) toastFn(); });
 
-  const POPS = [['#menu', '#btn-menu'], ['#zoom-menu', '#btn-zoom']];
+  const POPS = [['#menu', '#btn-menu'], ['#zoom-menu', '#btn-zoom'], ['#dash-menu', '#btn-dash']];
   function closePopovers(except) {
     for (const [m, b] of POPS) if (m !== except) { $(m).classList.remove('open'); $(b).setAttribute('aria-expanded', 'false'); }
     $('#font-menu').classList.remove('open'); $('#lang-menu').classList.remove('open');
@@ -1570,6 +1768,7 @@
     new: () => replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], handle: null }, tr('mNew')) || animateView(W / 2, H / 2, 1),
     open: openBoard,
     gallery: () => WB.gallery.open(),
+    stickers: () => WB.stickers.open(),
     'save-gallery': () => WB.gallery.save(),
     'save-file': saveBoardFile,
     'save-to': saveBoardTo,
@@ -1592,6 +1791,9 @@
   $('#btn-undo').addEventListener('click', undo);
   $('#btn-redo').addEventListener('click', redo);
   $('#btn-export').addEventListener('click', doExport);
+  $('#sel-duplicate').addEventListener('click', duplicateSelection);
+  $('#btn-sticker').addEventListener('click', () => WB.stickers.open());
+  $('#sel-sticker').addEventListener('click', () => saveSticker());
 
   const titleEl = $('#doc-title');
   titleEl.addEventListener('input', () => { const v = titleEl.value.trim(); doc.title = v && v !== tr('untitled') ? v : 'Untitled'; updateChrome(); autosave(); });
@@ -1627,6 +1829,10 @@
     custom.style.setProperty('--c', c);
     $('#dock').classList.toggle('erasing', tools.tool === 'eraser');
     side.classList.toggle('hidden', !isBrush());
+    side.classList.toggle('erasing', tools.tool === 'eraser');
+    const dash = WB.DASHES[tools.pen.dash] ? tools.pen.dash : 'solid';
+    $('#dash-icon').setAttribute('stroke-dasharray', DASH_ICON[dash]);
+    $$('#dash-menu [data-dash]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.dash === dash)));
     canvas.classList.toggle('brush', isBrush() && !spaceHeld);
     canvas.classList.toggle('hand', tools.tool === 'hand' || spaceHeld);
     canvas.classList.toggle('t-text', tools.tool === 'text' && !spaceHeld);
@@ -1637,6 +1843,20 @@
     s2.style.setProperty('--t', ot); s2.setAttribute('aria-valuenow', Math.round(ot * 100)); s2.setAttribute('aria-valuetext', Math.round(b.opacity * 100) + ' percent');
     updateCursor();
   }
+
+  /* Line type: a button under the opacity slider opens the list of types. */
+  const DASH_ICON = { solid: 'none', dotted: '0 4.5', dashed: '5 5', long: '10 5', dashdot: '8 4.5 0 4.5' };
+  $('#btn-dash').addEventListener('click', () => {
+    const r = $('#btn-dash').getBoundingClientRect(), m = $('#dash-menu');
+    m.style.left = r.right + 10 + 'px';
+    m.style.top = Math.max(8, Math.min(innerHeight - m.offsetHeight - 8, r.top + r.height / 2 - m.offsetHeight / 2)) + 'px';
+  });
+  $('#dash-menu').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-dash]');
+    if (!b) return;
+    tools.pen.dash = b.dataset.dash; store.set('wb.tools', tools);
+    closePopovers(); refreshTools();
+  });
 
   function showPreview(kind) {
     const b = brush(), dot = $('#preview-dot'), d = clamp(b.width, 2, 86);
@@ -1832,6 +2052,7 @@
         for (const s of doc.strokes) if (s.tool !== 'eraser') selection.add(s);
         return selectionChanged();
       }
+      if (k === 'd' && selection.size && !sheetOpen()) { e.preventDefault(); return duplicateSelection(); }
       const act = { z: e.shiftKey ? redo : undo, y: redo, s: e.shiftKey ? saveBoardTo : saveDefault, o: openBoard, g: ACTIONS.gallery, e: ACTIONS.export,
         0: ACTIONS['zoom-100'], 1: ACTIONS['zoom-fit'], '=': ACTIONS['zoom-in'], '+': ACTIONS['zoom-in'], '-': ACTIONS['zoom-out'] }[k];
       if (act) { e.preventDefault(); if (!sheetOpen() || k === 's') act(); }
@@ -1861,11 +2082,13 @@
     load: (text, gref) => loadText(text, null, gref),
     retitle: (label) => { doc.title = label; titleEl.value = shownTitle(); updateChrome(); autosave(); },
     commit: commitPending,
+    placeSticker: (text) => placeSticker(text),
     saved: () => { saveTarget = 'gallery'; },
     canvasColor: () => canvasColor(),
     toast, report, openSheet, closeSheets,
   });
   initUI();
+  initStyleBar();
   WB.onImageReady = invalidate;                             // a picture finished decoding: draw it
   // iPhone and iPad only offer files whose type the system knows, and .whtbd is not one of them,
   // so there the chooser takes any file and the app checks it after choosing.

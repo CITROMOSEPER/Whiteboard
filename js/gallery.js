@@ -16,7 +16,29 @@
   const WB = (window.WB = window.WB || {});
   const $ = (s, r = document) => r.querySelector(s);
   const tr = (k, v) => WB.t(k, v);
-  const DIR_NAME = 'Whiteboard gallery', INDEX = '.gallery.json', EXT = '.whtbd';
+  const INDEX = '.gallery.json';
+
+  /* ---- Two collections ------------------------------------------------
+     The same window and code serve two collections: the gallery of boards, and the sticker
+     gallery. Each has its own folder, its own remembered place and its own file type. Only one
+     is shown at a time; setMode() puts the other one's state aside and brings this one's back. */
+  const MODES = {
+    boards: { dir: 'Whiteboard gallery', ext: '.whtbd', kv: 'gallery', title: 'mGallery', setup: 'gSetup',
+      backupExt: '.wbgallery', backupFormat: 'WHTBD-GALLERY', backupName: 'Whiteboard gallery backup' },
+    stickers: { dir: 'Whiteboard stickers', ext: '.wbsticker', kv: 'stickers', title: 'mStickers', setup: 'sSetup',
+      backupExt: '.wbstickers', backupFormat: 'WHTBD-STICKERS', backupName: 'Whiteboard stickers backup' },
+  };
+  let mode = 'boards', cfg = MODES.boards, DIR_NAME = cfg.dir, EXT = cfg.ext;
+  const kvKey = (name) => cfg.kv + name;     // 'galleryDir', 'stickersDir', ...
+  const parked = {};                         // the collection not shown: its root, kind, path, parent name and tree
+  function setMode(m) {
+    if (m === mode) return;
+    parked[mode] = { root, kind, path, parentName, tree };
+    mode = m; cfg = MODES[m]; DIR_NAME = cfg.dir; EXT = cfg.ext;
+    ({ root, kind, path, parentName, tree } = parked[m] || { root: null, kind: null, path: [], parentName: '', tree: null });
+    moving = null; saving = false; pendingSave = false; renameNext = null;
+  }
+  let sticker = null;   // the sticker waiting to be saved: { text, label }
 
   let host = null;        // set by the app: how to read and replace the open board
   let root = null;        // the gallery folder
@@ -57,7 +79,7 @@
      straight from a local file. It imitates the parts of the folder interface the gallery uses,
      so everything else works unchanged. The whole tree is one record, rewritten on each change. */
   let tree = null;
-  const flush = () => kvSet('galleryTree', tree);
+  const flush = () => kvSet(kvKey('Tree'), tree);
   const missing = (name) => Object.assign(new Error('"' + name + '" was not found'), { name: 'NotFoundError' });
   class VFile {
     constructor(node, name) { this.node = node; this.name = name; this.kind = 'file'; }
@@ -101,7 +123,7 @@
     }
   }
   async function virtualRoot() {
-    const saved = await kvGet('galleryTree');
+    const saved = await kvGet(kvKey('Tree'));
     tree = saved && saved.dirs instanceof Map ? saved : { dirs: new Map(), files: new Map() };
     return new VDir(tree, DIR_NAME);
   }
@@ -133,7 +155,7 @@
       if (files && !tree.dirs.size && !tree.files.size) { try { await copyTree(files, dir); } catch (e) {} }
     }
     root = dir; kind = 'browser'; path = [];
-    await kvSet('galleryDir', { kind: 'browser' });
+    await kvSet(kvKey('Dir'), { kind: 'browser' });
     return true;
   }
   /* A folder can only look downwards, so a gallery folder chosen directly cannot tell which folder
@@ -153,7 +175,7 @@
   /* 'ready' | 'setup' (nothing chosen yet) | 'allow' (the folder needs permission again) | 'none' (no storage at all) */
   async function connect(ask) {
     if (root) return 'ready';
-    const saved = await kvGet('galleryDir');
+    const saved = await kvGet(kvKey('Dir'));
     try {
       if (saved && saved.kind === 'folder' && saved.handle) {
         let p = await saved.handle.queryPermission({ mode: 'readwrite' });
@@ -336,6 +358,32 @@
     await show(true);
   }
 
+  /* ---- Stickers --------------------------------------------------------
+     A sticker is a small board (a .wbsticker file, in the .whtbd format) holding the objects it
+     was made from, moved to start at 0, 0. Saving one opens the sticker gallery to choose its
+     folder; afterwards its name is open for typing. Choosing one puts it on the board. */
+  async function saveSticker(text, label) {
+    host.commit();
+    setMode('stickers');
+    sticker = { text, label };
+    const state = await connect(true);
+    if (state !== 'ready') { pendingSave = true; host.openSheet('#gallery'); return show(); }   // choose where stickers live first
+    saving = true; moving = null; path = [];
+    host.openSheet('#gallery');
+    show();
+  }
+  async function writeSticker(dir) {
+    const st = sticker;
+    sticker = null; saving = false;
+    try {
+      const name = await freeName(dir, clean(st.label), EXT);
+      await writeFile(dir, name, st.text);
+      renameNext = name;                        // ready to be named
+      host.toast(tr('tStickerSaved'));
+    } catch (e) { fail(e, 'saving the sticker'); }
+    show();
+  }
+
   /* ---- Drag and drop ---------------------------------------------------
      Pick up a tile by its picture and drop it on a folder, on a step of the path at the top,
      or on the back arrow. With a mouse or pen it lifts as soon as it moves; with a finger it
@@ -410,14 +458,16 @@
     if (my !== token) return;
     const browsing = state === 'ready';
     grid.hidden = !browsing; msg.hidden = browsing;
-    $('#g-crumbs').hidden = $('#g-new').hidden = $('#g-new-board').hidden = !browsing;
+    $('#g-crumbs').hidden = $('#g-new').hidden = !browsing;
+    $('#g-new-board').hidden = !browsing || mode !== 'boards';
+    $('#gallery-title').textContent = tr(cfg.title);
     const back = $('#g-back');
     back.disabled = !browsing || !path.length;
     back._dir = browsing && path.length ? (path.length > 1 ? path[path.length - 2].handle : root) : null;   // also a drop target
     renderBar(); renderFoot(browsing);
     if (!browsing) {
       msg.textContent = '';
-      msg.appendChild(el('p', '', tr(state === 'allow' ? 'gAllow' : state === 'none' ? 'gError' : 'gSetup')));
+      msg.appendChild(el('p', '', tr(state === 'allow' ? 'gAllow' : state === 'none' ? 'gError' : cfg.setup)));
       if (state === 'setup' && canDrop()) msg.appendChild(el('p', '', tr('gDrop')));
       const row = el('div', 'g-actions');
       if (state === 'allow') row.appendChild(button(tr('gAllowBtn'), 'primary', () => show(true)));
@@ -430,7 +480,7 @@
     // Breadcrumbs
     const crumbs = $('#g-crumbs');
     crumbs.textContent = '';
-    [{ label: tr('mGallery') }, ...path].forEach((p, i) => {
+    [{ label: tr(cfg.title) }, ...path].forEach((p, i) => {
       if (i) crumbs.appendChild(el('span', 'g-sep', '›'));
       const b = el('button', i === path.length ? 'g-crumb here' : 'g-crumb', p.label);
       b._dir = p.handle || root;
@@ -444,7 +494,7 @@
       // The folder is gone or unreadable. Back to the top once; if the gallery folder itself fails, ask for it again.
       fail(e);
       if (path.length) { path = []; return show(); }
-      root = null; await kvSet('galleryDir', null);
+      root = null; await kvSet(kvKey('Dir'), null);
       return show();
     }
     if (my !== token) return;
@@ -502,7 +552,8 @@
     const dir = here();
     item.handle.getFile().then((f) => f.text()).then((text) => {
       host.closeSheets();
-      host.load(text, { dir, name: item.name });
+      if (mode === 'stickers') host.placeSticker(text);
+      else host.load(text, { dir, name: item.name });
     }).catch(fail);
   }
 
@@ -567,6 +618,10 @@
       bar.appendChild(el('span', '', confirm.ask));
       bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => renderBar()));
       bar.appendChild(button(confirm.yes, 'pill-btn' + (confirm.danger ? ' danger' : ''), () => { renderBar(); confirm.run(); }));
+    } else if (saving && mode === 'stickers' && sticker) {
+      bar.appendChild(el('span', '', tr('sSaving')));
+      bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => { saving = false; sticker = null; host.closeSheets(); }));
+      bar.appendChild(button(tr('gSaveHere'), 'pill-btn', () => writeSticker(here())));
     } else if (saving) {
       bar.appendChild(el('span', '', tr('gSaving', { t: host.title() })));
       bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => { saving = false; host.closeSheets(); }));
@@ -606,7 +661,6 @@
      content differs is kept beside it under a new name.
        { "format": "WHTBD-GALLERY", "version": 1, "created": "…",
          "entries": [ { "path": "math", "dir": true }, { "path": "math/Lesson.whtbd", "text": "…" }, … ] } */
-  const BACKUP_EXT = '.wbgallery';
   async function collect(dir, prefix, out) {
     for await (const [name, h] of dir.entries()) {
       if (name === '.gallery-test') continue;
@@ -617,17 +671,17 @@
     return out;
   }
   async function backup() {
-    const name = `Whiteboard gallery backup ${new Date().toISOString().slice(0, 10)}${BACKUP_EXT}`;
+    const name = `${cfg.backupName} ${new Date().toISOString().slice(0, 10)}${cfg.backupExt}`;
     // On computers the save dialog comes first, while the click still counts as the user's own action.
     let handle = null;
     if (typeof window.showSaveFilePicker === 'function' && !fromLocalFile && !/iP(hone|ad|od)|Android/.test(navigator.userAgent)) {
-      try { handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'Whiteboard gallery backup', accept: { 'application/json': [BACKUP_EXT] } }] }); }
+      try { handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: cfg.backupName, accept: { 'application/json': [cfg.backupExt] } }] }); }
       catch (e) { if (e.name === 'AbortError') return host.toast(tr('tBackupCancel'), null, null, 7000); handle = null; }
     }
     let file;
     try {
       const entries = await collect(root, '', []);
-      const text = JSON.stringify({ format: 'WHTBD-GALLERY', version: 1, created: new Date().toISOString(), entries });
+      const text = JSON.stringify({ format: cfg.backupFormat, version: 1, created: new Date().toISOString(), entries });
       file = new File([text], name, { type: 'application/json' });
       if (handle) {
         const w = await handle.createWritable();
@@ -653,7 +707,7 @@
   async function restore(file) {
     let data;
     try { data = JSON.parse(await file.text()); } catch (e) { data = null; }
-    if (!data || data.format !== 'WHTBD-GALLERY' || !Array.isArray(data.entries)) return host.toast(tr('tRestoreBad'), null, null, 7000);
+    if (!data || data.format !== cfg.backupFormat || !Array.isArray(data.entries)) return host.toast(tr(mode === 'stickers' ? 'tRestoreBadStickers' : 'tRestoreBad'), null, null, 7000);
     if (data.version > 1) return host.toast(tr('eNewer'), null, null, 7000);
     const state = await connect(true);
     if (state !== 'ready') { await open(); return host.toast(tr('tRestoreFirst'), null, null, 7000); }
@@ -709,7 +763,7 @@
       if (dir === picked) parentName = await findParent(dir);  // picked "Whiteboard gallery" itself: its parent is known only if seen before
       else { parentName = picked.name; await rememberParent(picked); }
       step = 'remembering the folder';
-      await kvSet('galleryDir', { kind: 'folder', handle: root, parent: parentName });
+      await kvSet(kvKey('Dir'), { kind: 'folder', handle: root, parent: parentName });
     } catch (e) {
       if (e && e.name === 'AbortError') {
         // Either a real cancel, or the browser cancelled by itself (it does on some systems even
@@ -732,7 +786,7 @@
     host.commit();
     lastError = '';
     try {
-      await kvSet('galleryDir', { kind: 'folder', handle });
+      await kvSet(kvKey('Dir'), { kind: 'folder', handle });
       root = null; path = []; parentName = ''; WB.gallery.ref = null;
       let p = await handle.queryPermission({ mode: 'readwrite' });
       if (p !== 'granted') { try { p = await handle.requestPermission({ mode: 'readwrite' }); } catch (e) { /* needs a click: the Allow button asks */ } }
@@ -746,6 +800,7 @@
     if (root) afterConnect(); else show();
   }
   function afterConnect() {
+    if (pendingSave && mode === 'stickers' && sticker) { pendingSave = false; saving = true; path = []; return show(); }
     if (pendingSave) { host.closeSheets(); return save(); }
     show();
   }
@@ -780,5 +835,9 @@
     $('#g-grid').addEventListener('scroll', () => $('#g-menu').classList.remove('open'), { passive: true });
   }
 
-  WB.gallery = { init, open, save, useFolder, canDrop, ref: null, /* the open board's file in the gallery: { dir, name } */ _clean: clean, _state: () => ({ kind, root: root && root.name, path: path.map((p) => p.label) }) };
+  const inMode = (m, fn) => (...a) => { setMode(m); return fn(...a); };
+  // A folder dragged in goes to the collection on screen, or to the boards when none is.
+  const dropFolder = (h) => { if (!$('#gallery').classList.contains('open')) setMode('boards'); return useFolder(h); };
+  WB.stickers = { open: inMode('stickers', open), save: saveSticker };
+  WB.gallery = { init, open: inMode('boards', open), save: inMode('boards', save), useFolder: dropFolder, canDrop, ref: null, /* the open board's file in the gallery: { dir, name } */ _clean: clean, _state: () => ({ kind, root: root && root.name, path: path.map((p) => p.label) }) };
 })();

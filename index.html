@@ -62,6 +62,9 @@
     <div class="vslider-fill"></div>
     <svg class="vslider-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 5a7 7 0 0 1 0 14z" fill="currentColor" stroke="none"/></svg>
   </div>
+  <button class="dash-btn" id="btn-dash" data-i18n-label="lineType" data-i18n-title="lineType" aria-haspopup="menu" aria-expanded="false">
+    <svg viewBox="0 0 24 24"><path id="dash-icon" d="M3 12h18"/></svg>
+  </button>
 </aside>
 <div class="glass" id="preview" aria-hidden="true">
   <div id="preview-stage"><div id="preview-dot"></div></div>
@@ -78,6 +81,9 @@
   </button>
   <button class="ibtn tool" data-tool="text" data-i18n-label="text" data-i18n-title="text" data-keys="T" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+  </button>
+  <button class="ibtn" id="btn-sticker" data-i18n-label="addSticker" data-i18n-title="addSticker" aria-haspopup="dialog">
+    <svg viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9.5L21 14.5V5a2 2 0 0 0-2-2z"/><path d="M14.5 21v-4.5a2 2 0 0 1 2-2H21"/><path d="M8.5 9.5h.01M14.5 9.5h.01"/><path d="M8.5 13.5c1.8 1.6 4.2 1.6 6 0"/></svg>
   </button>
   <button class="ibtn tool" data-tool="select" data-i18n-label="select" data-i18n-title="select" data-keys="V" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M3 11 22 2l-9 19-2-8-8-2z"/></svg>
@@ -105,13 +111,40 @@
 <!-- Selection bar -->
 <div class="glass" id="sel-bar" role="status">
   <span id="sel-count"></span>
+  <button class="sel-btn" id="sel-duplicate" data-i18n-label="duplicate" data-i18n-title="duplicate">
+    <svg viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>
+    <span data-i18n="duplicate"></span>
+  </button>
+  <button class="sel-btn" id="sel-sticker" data-i18n-label="saveSticker" data-i18n-title="saveSticker">
+    <svg viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9.5L21 14.5V5a2 2 0 0 0-2-2z"/><path d="M14.5 21v-4.5a2 2 0 0 1 2-2H21"/></svg>
+    <span data-i18n="saveSticker"></span>
+  </button>
   <button id="sel-delete" data-i18n="delete"></button>
+</div>
+
+<!-- Style of the selected objects (floats under the selection) -->
+<div class="glass" id="sel-style" role="toolbar">
+  <div class="ss-row" id="ss-colors"></div>
+  <div class="ss-row ss-line">
+    <button class="ibtn" id="ss-thinner" data-i18n-label="thinner"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+    <output id="ss-width">4</output>
+    <button class="ibtn" id="ss-thicker" data-i18n-label="thicker"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
+    <span class="sep"></span>
+    <div id="ss-dashes" role="radiogroup"></div>
+  </div>
 </div>
 
 <!-- Other readings of the character that was just converted from handwriting -->
 <div class="glass" id="ink-alts" role="toolbar"></div>
 
 <!-- Popovers -->
+<div class="glass menu" id="dash-menu" role="menu">
+  <button class="mi dash-mi" role="menuitemradio" data-dash="solid"><svg viewBox="0 0 48 12"><path d="M5 6h38"/></svg><span data-i18n="dash_solid"></span></button>
+  <button class="mi dash-mi" role="menuitemradio" data-dash="dotted"><svg viewBox="0 0 48 12"><path d="M5 6h38" stroke-dasharray="0 5"/></svg><span data-i18n="dash_dotted"></span></button>
+  <button class="mi dash-mi" role="menuitemradio" data-dash="dashed"><svg viewBox="0 0 48 12"><path d="M5 6h38" stroke-dasharray="6 5"/></svg><span data-i18n="dash_dashed"></span></button>
+  <button class="mi dash-mi" role="menuitemradio" data-dash="long"><svg viewBox="0 0 48 12"><path d="M5 6h38" stroke-dasharray="13 6"/></svg><span data-i18n="dash_long"></span></button>
+  <button class="mi dash-mi" role="menuitemradio" data-dash="dashdot"><svg viewBox="0 0 48 12"><path d="M5 6h38" stroke-dasharray="10 5 0 5"/></svg><span data-i18n="dash_dashdot"></span></button>
+</div>
 <div class="glass menu" id="menu" role="menu">
   <button class="mi" role="menuitem" data-act="new"><span data-i18n="mNew"></span></button>
   <hr>
@@ -120,6 +153,8 @@
   <button class="mi" role="menuitem" data-act="save-gallery" id="mi-save-gallery"><span data-i18n="mSaveGallery"></span><kbd>Ctrl S</kbd></button>
   <button class="mi" role="menuitem" data-act="save-to"><span data-i18n="mSaveTo"></span><kbd>Ctrl ⇧ S</kbd></button>
   <button class="mi" role="menuitem" data-act="open"><span data-i18n="mOpenFrom"></span><kbd>Ctrl O</kbd></button>
+  <hr>
+  <button class="mi" role="menuitem" data-act="stickers"><span data-i18n="mStickersMenu"></span></button>
   <hr>
   <button class="mi" role="menuitem" data-act="export"><span data-i18n="mExport"></span><kbd>Ctrl E</kbd></button>
   <button class="mi" role="menuitem" data-act="import"><span data-i18n="mImport"></span></button>
@@ -231,7 +266,7 @@
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.12.06.</p>
+      <p id="app-version">version: 2026.11.13.01.</p>
     </footer>
   </div>
 </div>
@@ -308,7 +343,7 @@
 <div class="glass" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button id="toast-action" hidden></button></div>
 <div id="drop-blob" aria-hidden="true"><i></i></div>
 <input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json" hidden>
-<input type="file" id="restore-input" accept=".wbgallery,.json,application/json" hidden>
+<input type="file" id="restore-input" accept=".wbgallery,.wbstickers,.json,application/json" hidden>
 <input type="file" id="import-input" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml,application/pdf,.png,.jpg,.jpeg,.webp,.bmp,.svg,.pdf" hidden>
 
 <script src="js/i18n.js"></script>

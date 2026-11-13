@@ -104,10 +104,19 @@
     const c = Math.cos(s.rot || 0), n = Math.sin(s.rot || 0);
     return { x: s.x + s.w / 2 + lx * c - ly * n, y: s.y + s.h / 2 + lx * n + ly * c };
   };
+  /* An object's box as a frame { x, y, w, h, rot }: the unturned box, turned by rot about its centre.
+     A picture is already one. A text turns about its top-left corner (where typing starts), so
+     its frame's centre is that corner plus half its turned size. */
+  WB.frameOf = function (s) {
+    if (s.tool !== 'text') return s;
+    const L = WB.textLayout(s), r = s.rot || 0, c = Math.cos(r), n = Math.sin(r);
+    const cx = s.x + (L.w / 2) * c - (L.h / 2) * n, cy = s.y + (L.w / 2) * n + (L.h / 2) * c;
+    return { x: cx - L.w / 2, y: cy - L.h / 2, w: L.w, h: L.h, rot: r };
+  };
   /* The four corners on the board: top-left, top-right, bottom-right, bottom-left, as x, y pairs. */
   WB.corners = function (s) {
-    const out = [];
-    for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const p = WB.toWorld(s, a * s.w / 2, b * s.h / 2); out.push(p.x, p.y); }
+    const F = WB.frameOf(s), out = [];
+    for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const p = WB.toWorld(F, a * F.w / 2, b * F.h / 2); out.push(p.x, p.y); }
     return out;
   };
   /* Resolves once the image has loaded (true) or failed (false). Waits for the load event rather
@@ -141,7 +150,7 @@
       c.globalCompositeOperation = 'source-over';
       c.globalAlpha = s.opacity;
       c.fillStyle = s.color;
-      c.translate(s.x, s.y); c.scale(k, k);
+      c.translate(s.x, s.y); if (s.rot) c.rotate(s.rot); c.scale(k, k);
       c.font = '100px ' + family(s); c.textBaseline = 'alphabetic';
       for (let i = 0; i < L.lines.length; i++) if (L.lines[i]) c.fillText(L.lines[i], 0, (i * L.lh + L.base) / k);
       c.restore();
@@ -160,13 +169,22 @@
     c.globalAlpha = s.opacity;
     c.strokeStyle = erase ? '#000' : s.color;
     c.lineWidth = s.width;
+    c.setLineDash((!erase && WB.dashOf(s)) || NO_DASH);
     c.stroke(path || WB.pathOf(s));
+    c.setLineDash(NO_DASH);
   };
+
+  /* ---- Line types -------------------------------------------------------
+     A pen stroke may carry dash: 'dotted' | 'dashed' | 'long' | 'dashdot' (none = solid).
+     Patterns are in multiples of the line width, so they keep their look at any thickness;
+     round caps add half a width at each end, so a 0-length dash is a round dot. */
+  const NO_DASH = [];
+  WB.DASHES = { solid: null, dotted: [0, 2], dashed: [2, 2.5], long: [5, 3], dashdot: [4, 2.5, 0, 2.5] };
+  WB.dashOf = (s) => { const d = s.dash && WB.DASHES[s.dash]; return d ? d.map((k) => k * s.width) : null; };
 
   WB.boundsOf = function (s) {
     if (s._b) return s._b;
-    if (s.tool === 'text') { const L = WB.textLayout(s); return (s._b = { x0: s.x, y0: s.y, x1: s.x + L.w, y1: s.y + L.h }); }
-    if (s.tool === 'image') {
+    if (s.tool === 'text' || s.tool === 'image') {
       const q = WB.corners(s);
       return (s._b = { x0: Math.min(q[0], q[2], q[4], q[6]), y0: Math.min(q[1], q[3], q[5], q[7]), x1: Math.max(q[0], q[2], q[4], q[6]), y1: Math.max(q[1], q[3], q[5], q[7]) });
     }
@@ -199,8 +217,7 @@
     if (s.tool === 'eraser') return false;
     const b = WB.boundsOf(s);
     if (x < b.x0 - tol || x > b.x1 + tol || y < b.y0 - tol || y > b.y1 + tol) return false;
-    if (s.tool === 'text') return true;
-    if (s.tool === 'image') { const p = WB.toLocal(s, x, y); return Math.abs(p.x) <= s.w / 2 + tol && Math.abs(p.y) <= s.h / 2 + tol; }
+    if (s.tool === 'text' || s.tool === 'image') { const F = WB.frameOf(s), p = WB.toLocal(F, x, y); return Math.abs(p.x) <= F.w / 2 + tol && Math.abs(p.y) <= F.h / 2 + tol; }
     mctx.setTransform(1, 0, 0, 1, 0, 0);
     if (s.tool === 'fill') return mctx.isPointInPath(WB.pathOf(s), x, y, 'evenodd');
     mctx.lineWidth = s.width + 2 * tol; mctx.lineCap = 'round'; mctx.lineJoin = 'round';
@@ -211,8 +228,7 @@
   WB.inLasso = function (s, poly) {
     if (s.tool === 'eraser') return false;
     let pts;
-    if (s.tool === 'image') pts = [...WB.corners(s), s.x + s.w / 2, s.y + s.h / 2];
-    else if (s.tool === 'text') { const b = WB.boundsOf(s), mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2; pts = [b.x0, b.y0, b.x1, b.y0, b.x1, b.y1, b.x0, b.y1, mx, my]; }
+    if (s.tool === 'image' || s.tool === 'text') { const q = WB.corners(s); pts = [...q, (q[0] + q[4]) / 2, (q[1] + q[5]) / 2]; }
     else pts = s.rings ? s.rings[0] : s.points;
     const n = pts.length >> 1, step = Math.max(1, Math.floor(n / 64)), m = poly.length;
     let inside = 0, total = 0;
