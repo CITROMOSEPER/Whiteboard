@@ -279,6 +279,7 @@
     L.snapped = true; L.final = res;
     const pivot = res.closed ? WB.centroid(res.points) : [res.points[0], res.points[1]];
     L.xf = { px: pivot[0], py: pivot[1], cx: L.hold.x, cy: L.hold.y, ax: 0, ay: 0, ang: 0, sc: 1, active: false };
+    L.theta0 = shapeAngle(res); L.extra = new Set(); L.shift = false;
     if (reduceMotion.matches) applyFinal(L);
     else {
       const from = WB.resampleFlat(p, 96);
@@ -296,10 +297,40 @@
     L.morph = null; L.final = null;
     applyXf(L);
   }
+  /* The angle a snapped shape is measured by: from its start to its end for open shapes (line,
+     polyline, curve), its longest side for polygons, its long axis for an ellipse. A circle has none. */
+  function shapeAngle(res) {
+    const p = res.points, n = p.length >> 1;
+    if (res.type === 'circle' || n < 2) return null;
+    if (!res.closed) return Math.atan2(p[2 * n - 1] - p[1], p[2 * n - 2] - p[0]);
+    if (res.type === 'ellipse') {
+      const c = WB.centroid(p);
+      let far = 0, a = 0;
+      for (let i = 0; i < n; i++) { const d = hyp(p[2 * i] - c[0], p[2 * i + 1] - c[1]); if (d > far) { far = d; a = Math.atan2(p[2 * i + 1] - c[1], p[2 * i] - c[0]); } }
+      return a;
+    }
+    let long = 0, a = 0;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n, dx = p[2 * j] - p[2 * i], dy = p[2 * j + 1] - p[2 * i + 1], d = hyp(dx, dy);
+      if (d > long) { long = d; a = Math.atan2(dy, dx); }
+    }
+    return a;
+  }
+  /* Another finger on the screen (put down after the shape snapped) or Shift snaps the shape's
+     angle to 45° steps, like turning a selection; lifting it lets the shape turn freely again. */
+  const snap45 = (L) => L.theta0 != null && (L.shift || (L.extra && L.extra.size > 0));
+  function resnap() {
+    const L = live;
+    if (!L || !L.snapped) return;
+    if (!L.morph) applyXf(L);
+    requestFrame();
+  }
   /* points = base rotated and scaled about the pivot. */
   function applyXf(L) {
     const X = L.xf, b = L.base, p = L.points;
-    const c = Math.cos(X.ang) * X.sc, s = Math.sin(X.ang) * X.sc;
+    let ang = X.ang;
+    if (snap45(L)) { const q = Math.PI / 4, t = L.theta0 + ang; ang += Math.round(t / q) * q - t; }
+    const c = Math.cos(ang) * X.sc, s = Math.sin(ang) * X.sc;
     for (let i = 0; i < b.length; i += 2) {
       const dx = b[i] - X.px, dy = b[i + 1] - X.py;
       p[i] = X.px + dx * c - dy * s; p[i + 1] = X.py + dx * s + dy * c;
@@ -682,6 +713,7 @@
   }
   for (const type of ['keydown', 'keyup']) {
     window.addEventListener(type, (e) => {
+      if (live && live.snapped && live.shift !== e.shiftKey) { live.shift = e.shiftKey; resnap(); }
       if (!xf) return;
       if (e.key === 'Escape') { e.stopImmediatePropagation(); return endXform(true); }
       xf.keys = { alt: e.altKey, shift: e.shiftKey }; applyXform();
@@ -1210,6 +1242,8 @@
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
     const now = performance.now();
 
+    // A snapped shape still in hand: another finger snaps its angle (see shapeAngle), it never pinches.
+    if (e.pointerType === 'touch' && mode === 'draw' && live && live.snapped && e.pointerId !== live.id) { live.extra.add(e.pointerId); return resnap(); }
     // Resizing or turning a picture: another finger changes how (see "Picture handles"), it never pinches.
     if (mode === 'xform') { if (e.pointerId !== xf.id) { xf.extra.add(e.pointerId); applyXform(); } return; }
     const palm = e.pointerType === 'touch' && (penDown || now - lastPen < 400);
@@ -1309,6 +1343,7 @@
       if (!mode) canvas.style.cursor = handleCursor(handleAt(e.clientX, e.clientY, false));
     }
     if (mode === 'draw' && live && e.pointerId === live.id) {
+      if (live.snapped && live.shift !== e.shiftKey) { live.shift = e.shiftKey; resnap(); }
       const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null;   // every sample the stylus produced, not one per frame
       if (evs && evs.length) for (const ev of evs) addPoint(ev.clientX, ev.clientY);
       else addPoint(e.clientX, e.clientY);
@@ -1333,6 +1368,7 @@
   function onUp(e) {
     const cancel = e.type === 'pointercancel', now = performance.now();
     if (e.pointerType === 'pen') { penDown = false; lastPen = now; }
+    if (live && live.extra && live.extra.delete(e.pointerId)) return resnap();
     if (mode === 'xform') {
       if (e.pointerId === xf.id) endXform(cancel);
       else if (xf.extra.delete(e.pointerId)) applyXform();   // the other finger lifted: back to the normal way
