@@ -106,7 +106,7 @@
     // Pages more than a screen away from the view let theirs go (decoded again when they return).
     const mx = x1 - x0, my = y1 - y0;
     for (const p of doc.pages) {
-      if (p._img && !(p.x < x1 + mx && p.x + p.w > x0 - mx && p.y < y1 + my && p.y + p.h > y0 - my)) { p._img.onload = null; p._img.src = ''; delete p._img; }
+      if (p._img && !p._lent && !(p.x < x1 + mx && p.x + p.w > x0 - mx && p.y < y1 + my && p.y + p.h > y0 - my)) { p._img.onload = null; p._img.src = ''; delete p._img; }
     }
     shctx.beginPath();
     shctx.rect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
@@ -1482,6 +1482,7 @@
   canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button === 2) return;
     e.preventDefault();
+    if (opening) { if (!openingSaid) { openingSaid = true; toast(tr('tOpening'), null, null, 60000); } return; }   // see restoreBoard
     closePopovers(); stopMotion();
     if (edit) commitText();
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
@@ -1782,9 +1783,24 @@
       q.onsuccess = () => res(q.result); q.onerror = () => res(null);
     });
   }
+  /* Several values in one transaction (in the order of keys; missing ones are undefined). */
+  async function dbGetMany(keys) {
+    const d = await db;
+    if (!d || !keys.length) return keys.map(() => undefined);
+    return new Promise((res) => {
+      const st = d.transaction('kv').objectStore('kv'), out = new Array(keys.length);
+      let left = keys.length;
+      keys.forEach((k, i) => {
+        const q = st.get(k);
+        q.onsuccess = () => { out[i] = q.result; if (!--left) res(out); };
+        q.onerror = () => { if (!--left) res(out); };
+      });
+    });
+  }
   let saveTimer = 0;
   async function saveNow() {
     clearTimeout(saveTimer);
+    if (opening) return;                  // the saved board isn't back yet: saving now would replace it with an empty one
     const d = await db;
     if (!d) return;
     // Everything but the render caches (keys starting with "_").
@@ -1978,11 +1994,12 @@
 
   /* A board file opens as it is. A PDF this app exported opens the board inside it; any other PDF
      becomes a sheet: a board the size of the PDF's pages, with the pages beneath the ink. */
+  const pdfProgress = (i, n) => toast(tr('tPdfReading', { n: i, t: n }), null, null, 60000);
   const isPdfBytes = (buf) => buf.byteLength > 4 && String.fromCharCode(...new Uint8Array(buf, 0, 5)) === '%PDF-';
   async function openFile(file, handle) {
     const buf = await file.arrayBuffer();
     if (isPdfBytes(buf)) {
-      const text = await WB.extractBoard(buf);
+      const text = await WB.extractBoard(buf, pdfProgress);
       return text ? loadText(text) : openPdf(buf, file.name);
     }
     loadText(new TextDecoder().decode(buf), handle);
@@ -2113,7 +2130,7 @@
     if (!file) return;
     try {
       const buf = await file.arrayBuffer();
-      const text = await WB.extractBoard(buf);
+      const text = await WB.extractBoard(buf, pdfProgress);
       if (text) return loadText(text);
       if (isPdfBytes(buf)) { const pages = await readPdfPages(buf); if (pages) await placePages(pages); return; }
       const pic = await WB.pictureFromFile(file);
@@ -2678,20 +2695,32 @@
   window.addEventListener('resize', resize);
   resize();
 
-  dbGet('board').then(async (saved) => {
-    restored = true;
-    if (!saved || !Array.isArray(saved.strokes) || doc.strokes.length || live) return updateChrome();
+  /* Bringing back the last board. Until it is in, the board ignores the pen ("Opening your
+     board…"): a big PDF's pictures take a moment to read on an iPad, and a stroke drawn on the
+     still-empty board would otherwise win, so the next autosave would replace the board for good.
+     The pictures are read all at once, in one transaction. */
+  let opening = true, openingSaid = false;
+  async function restoreBoard() {
+    const rev = docRev;
+    const saved = await dbGet('board');
+    if (!saved || !Array.isArray(saved.strokes)) return;
     const pages = Array.isArray(saved.pages) ? saved.pages : [];
-    for (const p of pages) if (p.img) { p.src = await dbGet(p.img); p._key = p.img; delete p.img; if (!p.src) delete p.src; }
-    for (const s of saved.strokes) if (s.tool === 'image' && s.img) { s.src = (await dbGet(s.img)) || ''; s._key = s.img; delete s.img; }
+    const holders = pages.filter((p) => p.img).concat(saved.strokes.filter((s) => s.tool === 'image' && s.img));
+    const srcs = await dbGetMany(holders.map((h) => h.img));
+    holders.forEach((h, i) => { h._key = h.img; delete h.img; if (srcs[i]) h.src = srcs[i]; else delete h.src; });
     saved.strokes = saved.strokes.filter((s) => s.tool !== 'image' || s.src);
-    if (doc.strokes.length || live) return updateChrome();      // drawing started while the pictures were read
+    if (docRev !== rev || doc.strokes.length) return;           // a board was opened meanwhile (from a file, say): keep that
     doc.title = saved.title || 'Untitled'; doc.created = saved.created || Date.now(); doc.strokes = saved.strokes;
     doc.pages = pages;
     unsaved = saved.unsaved !== false;                           // older autosaves didn't say: assume unsaved
     if (saved.view && saved.view.zoom > 0) Object.assign(view, saved.view);
     titleEl.value = shownTitle();
-    updateChrome(); invalidate();
+    invalidate();
+  }
+  restoreBoard().catch((e) => console.error('restoring the board', e)).finally(() => {
+    opening = false; restored = true;
+    if (openingSaid) $('#toast').classList.remove('on');
+    updateChrome();
   }).then(openShared);
   window.addEventListener('hashchange', openShared);
 

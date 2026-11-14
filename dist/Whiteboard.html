@@ -910,7 +910,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.14.05.</p>
+      <p id="app-version">version: 2026.11.14.06.</p>
     </footer>
   </div>
 </div>
@@ -2191,6 +2191,25 @@ body.pipetting #canvas { cursor: crosshair; }
     hi: ['इस ऐप के लिए ब्राउज़र का स्टोरेज भर गया है, इसलिए यह बोर्ड यहाँ नहीं रखा जा सका। इसे खोने से बचाने के लिए फ़ाइल या गैलरी में सहेजें।', 'साझा बोर्ड खोलें? यह खुले हुए PDF की जगह लेगा (पूर्ववत किया जा सकता है)।'],
   };
   for (const l in STORE) if (D[l]) [D[l].tStorageFull, D[l].confirmSharedPdf] = STORE[l];
+
+  /* Shown when the board is touched while the last board is still being brought back. */
+  const OPENING = {
+    en: 'Opening your board…',
+    hu: 'A tábla megnyitása…',
+    de: 'Deine Tafel wird geöffnet…',
+    fr: 'Ouverture de votre tableau…',
+    it: 'Apertura della lavagna…',
+    es: 'Abriendo tu pizarra…',
+    pt: 'A abrir o seu quadro…',
+    ru: 'Открываем вашу доску…',
+    uk: 'Відкриваємо вашу дошку…',
+    tr: 'Tahtanız açılıyor…',
+    zh: '正在打开你的白板…',
+    ja: 'ボードを開いています…',
+    ar: 'جارٍ فتح لوحتك…',
+    hi: 'आपका बोर्ड खुल रहा है…',
+  };
+  for (const l in OPENING) if (D[l]) D[l].tOpening = OPENING[l];
   WB.I18N = D;
   let lang = 'en';
 
@@ -3055,9 +3074,15 @@ body.pipetting #canvas { cursor: crosshair; }
      unless it was already decoded for the screen. A decoded 2400 px page takes about 17 MB, so
      decoding all pages of a long PDF at once could take more memory than an iPad allows. */
   async function borrow(o) {
+    // _lent: while an export is using the picture, the screen's memory release leaves it alone
+    // (a redraw during the export, after a resize or a pan, would otherwise blank it mid-load).
+    o._lent = (o._lent || 0) + 1;
     const had = !!o._img, img = WB.imageOf(o);
     await WB.imageReady(img);
-    return { img, done: () => { if (!had && o._img === img) { img.onload = null; img.src = ''; delete o._img; } } };
+    return { img, done: () => {
+      if (--o._lent <= 0) delete o._lent;
+      if (!had && !o._lent && o._img === img) { img.onload = null; img.src = ''; delete o._img; }
+    } };
   }
   /* The pixel size of a JPEG, from its header (no decoding). */
   function jpegSize(u8) {
@@ -3469,7 +3494,7 @@ body.pipetting #canvas { cursor: crosshair; }
     return z ? `WHTBD-DATA:z:${toB64(z)}:END` : `WHTBD-DATA:j:${toB64(raw)}:END`;
   };
   /* The .whtbd text carried inside an export, or null when the file carries none. */
-  WB.extractBoard = async function (buffer) {
+  WB.extractBoard = async function (buffer, onPage) {
     const s = new TextDecoder('latin1').decode(buffer);
     const i = s.lastIndexOf('WHTBD-DATA:');
     if (i < 0) return null;
@@ -3484,21 +3509,38 @@ body.pipetting #canvas { cursor: crosshair; }
     // the board says "whiteboard-pdf-page:n", and the picture is page n's own JPEG in the PDF.
     if (!text.includes(PDF_PAGE)) return text;
     try {
-      const d = JSON.parse(text), u8 = new Uint8Array(buffer);
+      const d = JSON.parse(text), u8 = new Uint8Array(buffer), missing = [];
       for (const p of d.pages || []) {
         if (typeof p.src !== 'string' || !p.src.startsWith(PDF_PAGE)) continue;
-        const at = s.indexOf(`/WhiteboardPage ${p.src.slice(PDF_PAGE.length)} `);
+        const n = +p.src.slice(PDF_PAGE.length);
+        const at = s.indexOf(`/WhiteboardPage ${n} `);
         const lm = at < 0 ? null : /^[^>]*\/Length (\d+) >>\nstream\n/.exec(s.slice(at, at + 200));
-        if (!lm) { delete p.src; continue; }
+        if (!lm) { missing.push([p, n]); continue; }
         const start = at + lm[0].length;
         p.src = 'data:image/jpeg;base64,' + toB64(u8.subarray(start, start + +lm[1]));
+      }
+      // Another program re-saved the PDF (Acrobat's "Reduce file size", some iPad apps, a printer
+      // driver): the board survived but its page pictures were recompressed or lost their tag.
+      // Then page n is drawn from the PDF itself with pdf.js. That picture includes the ink drawn
+      // on it, so the ink shows on top of its own copy; better than annotations on blank pages.
+      if (missing.length) {
+        let drawn = [];
+        try { if (WB.readPdf) drawn = await WB.readPdf(buffer, onPage); } catch (e) { drawn = []; }
+        for (const [p, n] of missing) { if (drawn[n]) p.src = drawn[n].src; else delete p.src; }
       }
       return JSON.stringify(d);
     } catch (e) { return text; }
   };
   const PDF_PAGE = 'whiteboard-pdf-page:';
   /* The board to put inside a PDF export: page JPEGs replaced by references to the PDF's own. */
-  WB.pdfPayloadDoc = (doc) => ({ ...doc, pages: doc.pages.map((p, i) => (p.src && p.src.startsWith('data:image/jpeg;base64,') ? { ...p, src: PDF_PAGE + i } : p)) });
+  WB.pdfPayloadDoc = (doc) => ({ ...doc, pages: doc.pages.map((p, i) => (pdfReady(p) ? { ...p, src: PDF_PAGE + i } : p)) });
+  /* toPDF copies a page's JPEG as it is (and tags it) only when it can read the JPEG's size from
+     its header; otherwise the page goes in as raw pixels, untagged, and the hidden board must keep
+     its picture. The header is near the start, so only the first part is decoded to check. */
+  function pdfReady(p) {
+    if (!p.src || !p.src.startsWith('data:image/jpeg;base64,')) return false;
+    try { return !!jpegSize(fromB64(p.src.slice(23, 23 + 87380))); } catch (e) { return false; }
+  }
 
   const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
   const crc32 = (u8) => { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
@@ -5934,7 +5976,7 @@ body.pipetting #canvas { cursor: crosshair; }
     // Pages more than a screen away from the view let theirs go (decoded again when they return).
     const mx = x1 - x0, my = y1 - y0;
     for (const p of doc.pages) {
-      if (p._img && !(p.x < x1 + mx && p.x + p.w > x0 - mx && p.y < y1 + my && p.y + p.h > y0 - my)) { p._img.onload = null; p._img.src = ''; delete p._img; }
+      if (p._img && !p._lent && !(p.x < x1 + mx && p.x + p.w > x0 - mx && p.y < y1 + my && p.y + p.h > y0 - my)) { p._img.onload = null; p._img.src = ''; delete p._img; }
     }
     shctx.beginPath();
     shctx.rect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
@@ -7310,6 +7352,7 @@ body.pipetting #canvas { cursor: crosshair; }
   canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button === 2) return;
     e.preventDefault();
+    if (opening) { if (!openingSaid) { openingSaid = true; toast(tr('tOpening'), null, null, 60000); } return; }   // see restoreBoard
     closePopovers(); stopMotion();
     if (edit) commitText();
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
@@ -7610,9 +7653,24 @@ body.pipetting #canvas { cursor: crosshair; }
       q.onsuccess = () => res(q.result); q.onerror = () => res(null);
     });
   }
+  /* Several values in one transaction (in the order of keys; missing ones are undefined). */
+  async function dbGetMany(keys) {
+    const d = await db;
+    if (!d || !keys.length) return keys.map(() => undefined);
+    return new Promise((res) => {
+      const st = d.transaction('kv').objectStore('kv'), out = new Array(keys.length);
+      let left = keys.length;
+      keys.forEach((k, i) => {
+        const q = st.get(k);
+        q.onsuccess = () => { out[i] = q.result; if (!--left) res(out); };
+        q.onerror = () => { if (!--left) res(out); };
+      });
+    });
+  }
   let saveTimer = 0;
   async function saveNow() {
     clearTimeout(saveTimer);
+    if (opening) return;                  // the saved board isn't back yet: saving now would replace it with an empty one
     const d = await db;
     if (!d) return;
     // Everything but the render caches (keys starting with "_").
@@ -7806,11 +7864,12 @@ body.pipetting #canvas { cursor: crosshair; }
 
   /* A board file opens as it is. A PDF this app exported opens the board inside it; any other PDF
      becomes a sheet: a board the size of the PDF's pages, with the pages beneath the ink. */
+  const pdfProgress = (i, n) => toast(tr('tPdfReading', { n: i, t: n }), null, null, 60000);
   const isPdfBytes = (buf) => buf.byteLength > 4 && String.fromCharCode(...new Uint8Array(buf, 0, 5)) === '%PDF-';
   async function openFile(file, handle) {
     const buf = await file.arrayBuffer();
     if (isPdfBytes(buf)) {
-      const text = await WB.extractBoard(buf);
+      const text = await WB.extractBoard(buf, pdfProgress);
       return text ? loadText(text) : openPdf(buf, file.name);
     }
     loadText(new TextDecoder().decode(buf), handle);
@@ -7941,7 +8000,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (!file) return;
     try {
       const buf = await file.arrayBuffer();
-      const text = await WB.extractBoard(buf);
+      const text = await WB.extractBoard(buf, pdfProgress);
       if (text) return loadText(text);
       if (isPdfBytes(buf)) { const pages = await readPdfPages(buf); if (pages) await placePages(pages); return; }
       const pic = await WB.pictureFromFile(file);
@@ -8506,20 +8565,32 @@ body.pipetting #canvas { cursor: crosshair; }
   window.addEventListener('resize', resize);
   resize();
 
-  dbGet('board').then(async (saved) => {
-    restored = true;
-    if (!saved || !Array.isArray(saved.strokes) || doc.strokes.length || live) return updateChrome();
+  /* Bringing back the last board. Until it is in, the board ignores the pen ("Opening your
+     board…"): a big PDF's pictures take a moment to read on an iPad, and a stroke drawn on the
+     still-empty board would otherwise win, so the next autosave would replace the board for good.
+     The pictures are read all at once, in one transaction. */
+  let opening = true, openingSaid = false;
+  async function restoreBoard() {
+    const rev = docRev;
+    const saved = await dbGet('board');
+    if (!saved || !Array.isArray(saved.strokes)) return;
     const pages = Array.isArray(saved.pages) ? saved.pages : [];
-    for (const p of pages) if (p.img) { p.src = await dbGet(p.img); p._key = p.img; delete p.img; if (!p.src) delete p.src; }
-    for (const s of saved.strokes) if (s.tool === 'image' && s.img) { s.src = (await dbGet(s.img)) || ''; s._key = s.img; delete s.img; }
+    const holders = pages.filter((p) => p.img).concat(saved.strokes.filter((s) => s.tool === 'image' && s.img));
+    const srcs = await dbGetMany(holders.map((h) => h.img));
+    holders.forEach((h, i) => { h._key = h.img; delete h.img; if (srcs[i]) h.src = srcs[i]; else delete h.src; });
     saved.strokes = saved.strokes.filter((s) => s.tool !== 'image' || s.src);
-    if (doc.strokes.length || live) return updateChrome();      // drawing started while the pictures were read
+    if (docRev !== rev || doc.strokes.length) return;           // a board was opened meanwhile (from a file, say): keep that
     doc.title = saved.title || 'Untitled'; doc.created = saved.created || Date.now(); doc.strokes = saved.strokes;
     doc.pages = pages;
     unsaved = saved.unsaved !== false;                           // older autosaves didn't say: assume unsaved
     if (saved.view && saved.view.zoom > 0) Object.assign(view, saved.view);
     titleEl.value = shownTitle();
-    updateChrome(); invalidate();
+    invalidate();
+  }
+  restoreBoard().catch((e) => console.error('restoring the board', e)).finally(() => {
+    opening = false; restored = true;
+    if (openingSaid) $('#toast').classList.remove('on');
+    updateChrome();
   }).then(openShared);
   window.addEventListener('hashchange', openShared);
 

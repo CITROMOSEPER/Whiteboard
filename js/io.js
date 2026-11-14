@@ -170,9 +170,15 @@
      unless it was already decoded for the screen. A decoded 2400 px page takes about 17 MB, so
      decoding all pages of a long PDF at once could take more memory than an iPad allows. */
   async function borrow(o) {
+    // _lent: while an export is using the picture, the screen's memory release leaves it alone
+    // (a redraw during the export, after a resize or a pan, would otherwise blank it mid-load).
+    o._lent = (o._lent || 0) + 1;
     const had = !!o._img, img = WB.imageOf(o);
     await WB.imageReady(img);
-    return { img, done: () => { if (!had && o._img === img) { img.onload = null; img.src = ''; delete o._img; } } };
+    return { img, done: () => {
+      if (--o._lent <= 0) delete o._lent;
+      if (!had && !o._lent && o._img === img) { img.onload = null; img.src = ''; delete o._img; }
+    } };
   }
   /* The pixel size of a JPEG, from its header (no decoding). */
   function jpegSize(u8) {
@@ -584,7 +590,7 @@
     return z ? `WHTBD-DATA:z:${toB64(z)}:END` : `WHTBD-DATA:j:${toB64(raw)}:END`;
   };
   /* The .whtbd text carried inside an export, or null when the file carries none. */
-  WB.extractBoard = async function (buffer) {
+  WB.extractBoard = async function (buffer, onPage) {
     const s = new TextDecoder('latin1').decode(buffer);
     const i = s.lastIndexOf('WHTBD-DATA:');
     if (i < 0) return null;
@@ -599,21 +605,38 @@
     // the board says "whiteboard-pdf-page:n", and the picture is page n's own JPEG in the PDF.
     if (!text.includes(PDF_PAGE)) return text;
     try {
-      const d = JSON.parse(text), u8 = new Uint8Array(buffer);
+      const d = JSON.parse(text), u8 = new Uint8Array(buffer), missing = [];
       for (const p of d.pages || []) {
         if (typeof p.src !== 'string' || !p.src.startsWith(PDF_PAGE)) continue;
-        const at = s.indexOf(`/WhiteboardPage ${p.src.slice(PDF_PAGE.length)} `);
+        const n = +p.src.slice(PDF_PAGE.length);
+        const at = s.indexOf(`/WhiteboardPage ${n} `);
         const lm = at < 0 ? null : /^[^>]*\/Length (\d+) >>\nstream\n/.exec(s.slice(at, at + 200));
-        if (!lm) { delete p.src; continue; }
+        if (!lm) { missing.push([p, n]); continue; }
         const start = at + lm[0].length;
         p.src = 'data:image/jpeg;base64,' + toB64(u8.subarray(start, start + +lm[1]));
+      }
+      // Another program re-saved the PDF (Acrobat's "Reduce file size", some iPad apps, a printer
+      // driver): the board survived but its page pictures were recompressed or lost their tag.
+      // Then page n is drawn from the PDF itself with pdf.js. That picture includes the ink drawn
+      // on it, so the ink shows on top of its own copy; better than annotations on blank pages.
+      if (missing.length) {
+        let drawn = [];
+        try { if (WB.readPdf) drawn = await WB.readPdf(buffer, onPage); } catch (e) { drawn = []; }
+        for (const [p, n] of missing) { if (drawn[n]) p.src = drawn[n].src; else delete p.src; }
       }
       return JSON.stringify(d);
     } catch (e) { return text; }
   };
   const PDF_PAGE = 'whiteboard-pdf-page:';
   /* The board to put inside a PDF export: page JPEGs replaced by references to the PDF's own. */
-  WB.pdfPayloadDoc = (doc) => ({ ...doc, pages: doc.pages.map((p, i) => (p.src && p.src.startsWith('data:image/jpeg;base64,') ? { ...p, src: PDF_PAGE + i } : p)) });
+  WB.pdfPayloadDoc = (doc) => ({ ...doc, pages: doc.pages.map((p, i) => (pdfReady(p) ? { ...p, src: PDF_PAGE + i } : p)) });
+  /* toPDF copies a page's JPEG as it is (and tags it) only when it can read the JPEG's size from
+     its header; otherwise the page goes in as raw pixels, untagged, and the hidden board must keep
+     its picture. The header is near the start, so only the first part is decoded to check. */
+  function pdfReady(p) {
+    if (!p.src || !p.src.startsWith('data:image/jpeg;base64,')) return false;
+    try { return !!jpegSize(fromB64(p.src.slice(23, 23 + 87380))); } catch (e) { return false; }
+  }
 
   const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
   const crc32 = (u8) => { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };

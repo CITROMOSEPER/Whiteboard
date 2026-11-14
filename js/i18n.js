@@ -1120,6 +1120,25 @@
     hi: ['इस ऐप के लिए ब्राउज़र का स्टोरेज भर गया है, इसलिए यह बोर्ड यहाँ नहीं रखा जा सका। इसे खोने से बचाने के लिए फ़ाइल या गैलरी में सहेजें।', 'साझा बोर्ड खोलें? यह खुले हुए PDF की जगह लेगा (पूर्ववत किया जा सकता है)।'],
   };
   for (const l in STORE) if (D[l]) [D[l].tStorageFull, D[l].confirmSharedPdf] = STORE[l];
+
+  /* Shown when the board is touched while the last board is still being brought back. */
+  const OPENING = {
+    en: 'Opening your board…',
+    hu: 'A tábla megnyitása…',
+    de: 'Deine Tafel wird geöffnet…',
+    fr: 'Ouverture de votre tableau…',
+    it: 'Apertura della lavagna…',
+    es: 'Abriendo tu pizarra…',
+    pt: 'A abrir o seu quadro…',
+    ru: 'Открываем вашу доску…',
+    uk: 'Відкриваємо вашу дошку…',
+    tr: 'Tahtanız açılıyor…',
+    zh: '正在打开你的白板…',
+    ja: 'ボードを開いています…',
+    ar: 'جارٍ فتح لوحتك…',
+    hi: 'आपका बोर्ड खुल रहा है…',
+  };
+  for (const l in OPENING) if (D[l]) D[l].tOpening = OPENING[l];
   WB.I18N = D;
   let lang = 'en';
 
