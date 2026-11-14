@@ -29,8 +29,10 @@ The dock at the bottom holds the tools and colours; the panel on the left sets t
 
 - **Pen and eraser.** Drag the left sliders to set **thickness** and **opacity**; a preview shows the result.
 - **Line type.** The button under the opacity slider picks solid, dotted, dashed, long dashes, or dash and dot.
-- **Snap to a shape.** Hold still for a moment at the end of a stroke and it becomes a clean line, circle, ellipse, triangle, square, rectangle or polygon.
-- **Fill a shape.** Drag a colour out of the dock and drop it inside a closed shape. A dashed outline counts as closed too.
+- **Snap to a shape.** Hold still for a moment at the end of a stroke and it becomes a clean line, circle, ellipse, triangle, square, rectangle or polygon. Keep holding to turn and resize it; put **another finger** down (or hold **Shift**) to snap its angle to 45° steps.
+- **Fill a shape.** Drag a colour out of the dock and drop it inside a closed shape. A dashed outline counts as closed too. Fills work the same at any zoom.
+- **Recolour.** Drop a colour from the dock onto a line, a text or a fill to change its colour (a dashed line stays dashed).
+- **Scratch out.** Quickly scribble back and forth over something, like crossing out a mistake on paper, and it is deleted; **Undo** appears at the bottom. Turn it off in **Settings → Scratch out to delete** if you shade with quick back-and-forth strokes.
 - **Any colour.** The last swatch opens a colour mixer (also HEX, RGB and HSL), with a pipette that picks colours from the board.
 - **Stylus.** The eraser end of a stylus erases. In **Settings → Draw with finger**, turn finger drawing off to draw only with the pen; one finger then moves the board.
 

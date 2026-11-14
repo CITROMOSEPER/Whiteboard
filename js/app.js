@@ -25,7 +25,7 @@
     get(k, def) { try { return Object.assign(def, JSON.parse(localStorage.getItem(k)) || {}); } catch (e) { return def; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
   };
-  const settings = store.get('wb.settings', { theme: 'system', smoothing: 0, snap: true, fingerDraw: true, grid: 'dots', canvas: 'theme', canvasCustom: '#f4f1e8', snapDelay: 1,
+  const settings = store.get('wb.settings', { theme: 'system', smoothing: 0, snap: true, fingerDraw: true, scratch: true, grid: 'dots', canvas: 'theme', canvasCustom: '#f4f1e8', snapDelay: 1,
     ink: false, inkDelay: 1, inkScript: null,   // handwriting to text (alphabet null = follow the language)
     lang: null });                              // interface language (null = follow the system)
   const tr = WB.t;
@@ -349,6 +349,7 @@
     const s = { tool: L.tool, color: L.color, width: L.width, opacity: L.opacity, points: L.points, smooth: L.smooth, closed: L.closed };
     if (L.shape) s.shape = L.shape;
     if (L.dash) s.dash = L.dash;
+    if (s.tool === 'pen' && !s.shape && settings.scratch && scratchOut(s, performance.now() - L.t0)) return;
     s._at = performance.now();
     doc.strokes.push(s);
     if (!baseDirty) { worldTransform(bctx); WB.paint(bctx, s); }
@@ -359,6 +360,58 @@
     else inkDrop();
   }
 
+  /* ---- Scratching out ---------------------------------------------------
+     A quick, tight back-and-forth scribble over something, like crossing out a mistake on
+     paper, deletes what it covers instead of being drawn. It has to be fast (under 1.6 s),
+     reverse direction sharply at least four times, and go back and forth over a small area
+     (its length several times its size). Only objects the scribble really covers go: it has
+     to pass over them repeatedly and cover most of their extent. If nothing qualifies, the
+     scribble is kept as an ordinary line. Undo brings everything back. */
+  function scratchOut(s, ms) {
+    if (ms > 1600) return false;
+    const p = s.points, n = p.length >> 1;
+    if (n < 12) return false;
+    let len = 0, x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const x = p[2 * i], y = p[2 * i + 1];
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      if (i) len += hyp(x - p[2 * i - 2], y - p[2 * i - 1]);
+    }
+    const size = Math.max(x1 - x0, y1 - y0);
+    if (size * view.zoom < 12 || len < size * 3.2) return false;
+    // Sharp reversals, counted along the path resampled at an even spacing (so jitter doesn't count).
+    const R = WB.resampleFlat(p, Math.min(160, Math.max(24, Math.round(len * view.zoom / 6))));
+    let turns = 0, lastTurn = -9;
+    for (let i = 2; i < R.length / 2 - 2; i++) {
+      const ax = R[2 * i] - R[2 * i - 4], ay = R[2 * i + 1] - R[2 * i - 3], bx = R[2 * i + 4] - R[2 * i], by = R[2 * i + 5] - R[2 * i + 1];
+      const la = hyp(ax, ay), lb = hyp(bx, by);
+      if (!la || !lb) continue;
+      if ((ax * bx + ay * by) / (la * lb) < -0.5 && i - lastTurn > 2) { turns++; lastTurn = i; }   // turned by more than 120°
+    }
+    if (turns < 4) return false;
+    // What it covers: the scribble passes over it often, and spans most of it.
+    const tol = Math.max(s.width, 4 / view.zoom), victims = [];
+    for (let i = 0; i < doc.strokes.length; i++) {
+      const o = doc.strokes[i];
+      if (o.tool === 'eraser') continue;
+      let hits = 0;
+      for (let k = 0; k < R.length; k += 2) if (WB.hit(o, R[k], R[k + 1], tol)) hits++;
+      if (hits < 3) continue;
+      const b = WB.boundsOf(o), ow = b.x1 - b.x0, oh = b.y1 - b.y0;
+      const cw = Math.max(0, Math.min(b.x1, x1 + tol) - Math.max(b.x0, x0 - tol)), ch = Math.max(0, Math.min(b.y1, y1 + tol) - Math.max(b.y0, y0 - tol));
+      const covered = (ow < 1e-6 || cw / ow >= 0.6) && (oh < 1e-6 || ch / oh >= 0.6);
+      if (covered) victims.push({ i, s: o });
+    }
+    if (!victims.length) return false;
+    for (let k = victims.length - 1; k >= 0; k--) { doc.strokes.splice(victims[k].i, 1); selection.delete(victims[k].s); }
+    record({ type: 'remove', items: victims });
+    inkDrop();
+    invalidate(); selectionChanged();
+    toast(tr('tScratched'), tr('undo'), undo);
+    try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {}
+    return true;
+  }
+
   /* ---- Flood fill ----------------------------------------------------
      Fill the closed shape under a screen point. If nothing encloses the point
      the fill is cancelled rather than flooding the canvas. */
@@ -366,19 +419,33 @@
     if (live) return;
     inkDrop();
     const z = view.zoom, wx = (cx - view.x) / z, wy = (cy - view.y) / z;
+    // Dropped on a line, a text or an earlier fill: that object takes the colour (and a dashed
+    // line stays dashed), rather than a filled copy of its shape being laid over it.
+    const target = objectAt(wx, wy, 3 / z);
+    if (target) {
+      if (target.color !== color) { const before = { color: target.color }; retext(target, { color }); record({ type: 'edit', s: target, before, after: { color } }); invalidate(); }
+      return;
+    }
     const cb = WB.contentBounds(doc.strokes), none = () => toast(tr('tNoShape'));
     if (!cb) return none();
     const m = 6 / z, full = { x: cb.x - m, y: cb.y - m, w: cb.w + 2 * m, h: cb.h + 2 * m };
     if (wx < full.x || wy < full.y || wx > full.x + full.w || wy > full.y + full.h) return none();
-    // First look at the area around the screen at screen resolution; only if the shape
-    // runs off that area is the whole board checked (at a coarser resolution if it is huge).
-    const nx0 = Math.max(full.x, (-view.x - W * 0.25) / z), ny0 = Math.max(full.y, (-view.y - H * 0.25) / z);
-    const nx1 = Math.min(full.x + full.w, (W * 1.25 - view.x) / z), ny1 = Math.min(full.y + full.h, (H * 1.25 - view.y) / z);
-    const near = { x: nx0, y: ny0, w: nx1 - nx0, h: ny1 - ny0 };
-    const clipped = near.w < full.w - 1e-6 || near.h < full.h - 1e-6;
-    const scaleFor = (b) => Math.min(z * dpr, Math.sqrt(8e6 / (b.w * b.h)));
-    let res = WB.flood(doc.strokes, near, scaleFor(near), wx, wy);
-    if (res.status === 'open' && clipped) res = WB.flood(doc.strokes, full, scaleFor(full), wx, wy);
+    // Look around the drop point at screen resolution first. If the shape runs off that area,
+    // look again in a wider area, and so on until the whole drawing is covered. The resolution
+    // only drops when an area gets too big to check at screen resolution, so a small shape
+    // drawn while zoomed far in is filled as finely as it was drawn.
+    const scaleFor = (b) => Math.min(z * dpr, Math.sqrt(16e6 / (b.w * b.h)));
+    const clip = (hw, hh) => {
+      const x0 = Math.max(full.x, wx - hw), y0 = Math.max(full.y, wy - hh), x1 = Math.min(full.x + full.w, wx + hw), y1 = Math.min(full.y + full.h, wy + hh);
+      return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    };
+    let hw = (W * 0.75) / z, hh = (H * 0.75) / z, res;
+    for (;;) {
+      const r = clip(hw, hh), whole = r.w >= full.w - 1e-6 && r.h >= full.h - 1e-6;
+      res = WB.flood(doc.strokes, r, scaleFor(r), wx, wy);
+      if (res.status !== 'open' || whole) break;
+      hw *= 3; hh *= 3;
+    }
     if (res.status !== 'ok') return none();
     const s = { tool: 'fill', color, width: 0, opacity: 1, under: res.under, rings: res.rings };
     finishFill();
@@ -393,6 +460,14 @@
     }
     record({ type: 'add', stroke: s });
     requestFrame();
+  }
+  /* The topmost line, text or fill at a board point (pictures and erasers don't count). */
+  function objectAt(x, y, tol) {
+    for (let i = doc.strokes.length - 1; i >= 0; i--) {
+      const s = doc.strokes[i];
+      if ((s.tool === 'pen' || s.tool === 'text' || s.tool === 'fill') && WB.hit(s, x, y, tol)) return s;
+    }
+    return null;
   }
   /* The fill that is still spreading. It stays out of `base` until it has finished. */
   let fillAnim = null;

@@ -850,6 +850,24 @@
   };
   for (const l in EXTRA) if (D[l]) EXTRA_KEYS.forEach((k, i) => { D[l][k] = EXTRA[l][i]; });
 
+  /* Scratching out: [setting, its note, done]. */
+  const SCRATCH = {
+    en: ['Scratch out to delete', 'Quickly scribble back and forth over something to delete it, like crossing out on paper.', 'Scratched out'],
+    hu: ['Áthúzással törlés', 'Gyorsan firkálj át oda-vissza valamin a törléséhez, mint amikor papíron kihúzol valamit.', 'Kihúzva'],
+    de: ['Durchkritzeln zum Löschen', 'Kritzle schnell hin und her über etwas, um es zu löschen, wie beim Durchstreichen auf Papier.', 'Durchgestrichen'],
+    fr: ['Gribouiller pour supprimer', 'Gribouillez rapidement par-dessus un élément pour le supprimer, comme une rature sur papier.', 'Raturé'],
+    it: ['Scarabocchia per eliminare', 'Scarabocchia velocemente avanti e indietro su qualcosa per eliminarlo, come cancellare su carta.', 'Cancellato'],
+    es: ['Tachar para borrar', 'Garabatea rápido de un lado a otro sobre algo para borrarlo, como al tachar en papel.', 'Tachado'],
+    pt: ['Rabiscar para apagar', 'Rabisque rapidamente de um lado para o outro sobre algo para apagá-lo, como riscar no papel.', 'Riscado'],
+    ru: ['Зачеркнуть для удаления', 'Быстро почеркайте туда-сюда поверх объекта, чтобы удалить его, как зачёркивают на бумаге.', 'Зачёркнуто'],
+    uk: ['Закреслити для видалення', 'Швидко почеркайте туди-сюди поверх об’єкта, щоб видалити його, як закреслюють на папері.', 'Закреслено'],
+    tr: ['Karalayarak sil', 'Bir şeyi silmek için üzerine hızla ileri geri karalayın, kâğıtta üstünü çizer gibi.', 'Karalandı'],
+    zh: ['涂抹删除', '在对象上快速来回涂抹即可删除，就像在纸上划掉一样。', '已划掉'],
+    ja: ['塗りつぶして削除', '紙の上で線を引いて消すように、対象の上を素早く往復して描くと削除されます。', '消しました'],
+    ar: ['الشطب للحذف', 'اخربش بسرعة ذهابًا وإيابًا فوق شيء لحذفه، كما تشطب على الورق.', 'تم الشطب'],
+    hi: ['काटकर हटाएँ', 'किसी चीज़ पर तेज़ी से आगे-पीछे घसीटें ताकि वह हट जाए, जैसे कागज़ पर काटते हैं।', 'काट दिया गया'],
+  };
+  for (const l in SCRATCH) if (D[l]) [D[l].scratch, D[l].scratchNote, D[l].tScratched] = SCRATCH[l];
   WB.I18N = D;
   let lang = 'en';
 
