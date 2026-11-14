@@ -20,6 +20,7 @@ It works on computers, tablets and phones, in 14 languages, and keeps working of
 - [Device notes: iPhone, iPad and Mac](#device-notes-iphone-ipad-and-mac)
 - [Troubleshooting](#troubleshooting)
 - [Keyboard shortcuts](#keyboard-shortcuts)
+- [Showing a board to Claude](#showing-a-board-to-claude)
 
 ---
 
@@ -177,6 +178,19 @@ On some Windows setups, Chrome's file dialogs cancel themselves on screens with 
 | Actual size / Fit to content | `Ctrl 0` / `Ctrl 1` |
 
 On a Mac, use `Cmd` in place of `Ctrl`.
+
+---
+
+## Showing a board to Claude
+
+Board files are mostly lists of coordinates, so an AI assistant can't tell what's drawn just by reading one. The [`whtbd-view`](whtbd-view/) folder is a skill for [Claude](https://claude.ai) that turns a board into pictures it can look at. It also adds zoomed-in close-ups of anything written very small.
+
+It works with `.whtbd` boards, stickers, gallery backups, and files exported from the app.
+
+- **claude.ai:** download [`whtbd-view.zip`](whtbd-view.zip) and add it under **Settings → Capabilities → Skills**.
+- **Claude Code:** copy the `whtbd-view` folder into `~/.claude/skills/`.
+
+Then share a board and ask Claude what's on it. The skill needs Python with Playwright, and Chrome or Edge, wherever Claude runs it.
 
 ---
 
