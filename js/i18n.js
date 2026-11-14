@@ -1101,6 +1101,25 @@
     hi: ['शेयर लिंक खोलें…', 'शेयर लिंक खोलें', 'किसी का भेजा लिंक चिपकाएँ। बोर्ड एक कॉपी के रूप में खुलेगा।', 'खोलें', 'साझा बोर्ड खोलें? यह मौजूदा बोर्ड की जगह लेगा, जिसमें बिना सहेजे बदलाव हैं (पूर्ववत किया जा सकता है)।', 'बोर्ड खोलें', 'यह Whiteboard शेयर लिंक नहीं है'],
   };
   for (const l in LINK) if (D[l]) LINK_KEYS.forEach((k, i) => { D[l][k] = LINK[l][i]; });
+
+  /* Autosave refused (storage full); a share link over an opened PDF. */
+  const STORE = {
+    en: ['The browser’s storage for this app is full, so this board couldn’t be kept here. Save it to a file or the gallery so it isn’t lost.', 'Open the shared board? It replaces the PDF you have open (you can undo it).'],
+    hu: ['A böngésző tárhelye megtelt ennél az alkalmazásnál, ezért ez a tábla nem tárolható itt. Mentsd fájlba vagy a galériába, hogy ne vesszen el.', 'Megnyitod a megosztott táblát? A megnyitott PDF helyére kerül (visszavonható).'],
+    de: ['Der Browser-Speicher dieser App ist voll, daher konnte die Tafel hier nicht gespeichert werden. Sichere sie in einer Datei oder der Galerie, damit sie nicht verloren geht.', 'Die geteilte Tafel öffnen? Sie ersetzt das geöffnete PDF (rückgängig machbar).'],
+    fr: ['Le stockage du navigateur pour cette app est plein : ce tableau n’a pas pu être conservé ici. Enregistrez-le dans un fichier ou la galerie pour ne pas le perdre.', 'Ouvrir le tableau partagé ? Il remplace le PDF ouvert (annulable).'],
+    it: ['Lo spazio del browser per questa app è pieno, quindi la lavagna non è stata conservata qui. Salvala in un file o nella galleria per non perderla.', 'Aprire la lavagna condivisa? Sostituisce il PDF aperto (puoi annullare).'],
+    es: ['El almacenamiento del navegador para esta app está lleno, así que la pizarra no se pudo guardar aquí. Guárdala en un archivo o en la galería para no perderla.', '¿Abrir la pizarra compartida? Sustituye el PDF abierto (se puede deshacer).'],
+    pt: ['O armazenamento do navegador para esta app está cheio, por isso o quadro não pôde ser guardado aqui. Guarde-o num ficheiro ou na galeria para não o perder.', 'Abrir o quadro partilhado? Substitui o PDF aberto (pode desfazer).'],
+    ru: ['Хранилище браузера для этого приложения заполнено, поэтому доску не удалось сохранить здесь. Сохраните её в файл или галерею, чтобы не потерять.', 'Открыть присланную доску? Она заменит открытый PDF (можно отменить).'],
+    uk: ['Сховище браузера для цього застосунку заповнене, тож дошку не вдалося зберегти тут. Збережіть її у файл або галерею, щоб не втратити.', 'Відкрити надіслану дошку? Вона замінить відкритий PDF (можна скасувати).'],
+    tr: ['Tarayıcının bu uygulama için depolama alanı dolu, bu yüzden tahta burada saklanamadı. Kaybolmaması için bir dosyaya veya galeriye kaydedin.', 'Paylaşılan tahta açılsın mı? Açık olan PDF’nin yerini alır (geri alınabilir).'],
+    zh: ['浏览器为此应用提供的存储空间已满，因此无法在此保存这个白板。请将它保存到文件或图库，以免丢失。', '打开分享的白板？它会替换当前打开的 PDF（可以撤销）。'],
+    ja: ['このアプリ用のブラウザのストレージがいっぱいのため、このボードをここに保存できませんでした。失わないよう、ファイルかギャラリーに保存してください。', '共有されたボードを開きますか？開いている PDF と置き換わります（取り消せます）。'],
+    ar: ['امتلأت مساحة تخزين المتصفح لهذا التطبيق، لذا تعذّر حفظ هذه اللوحة هنا. احفظها في ملف أو في المعرض حتى لا تضيع.', 'فتح اللوحة المشتركة؟ ستحل محل ملف PDF المفتوح (يمكنك التراجع).'],
+    hi: ['इस ऐप के लिए ब्राउज़र का स्टोरेज भर गया है, इसलिए यह बोर्ड यहाँ नहीं रखा जा सका। इसे खोने से बचाने के लिए फ़ाइल या गैलरी में सहेजें।', 'साझा बोर्ड खोलें? यह खुले हुए PDF की जगह लेगा (पूर्ववत किया जा सकता है)।'],
+  };
+  for (const l in STORE) if (D[l]) [D[l].tStorageFull, D[l].confirmSharedPdf] = STORE[l];
   WB.I18N = D;
   let lang = 'en';
 

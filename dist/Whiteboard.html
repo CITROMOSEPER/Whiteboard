@@ -910,7 +910,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.14.04.</p>
+      <p id="app-version">version: 2026.11.14.05.</p>
     </footer>
   </div>
 </div>
@@ -2172,6 +2172,25 @@ body.pipetting #canvas { cursor: crosshair; }
     hi: ['शेयर लिंक खोलें…', 'शेयर लिंक खोलें', 'किसी का भेजा लिंक चिपकाएँ। बोर्ड एक कॉपी के रूप में खुलेगा।', 'खोलें', 'साझा बोर्ड खोलें? यह मौजूदा बोर्ड की जगह लेगा, जिसमें बिना सहेजे बदलाव हैं (पूर्ववत किया जा सकता है)।', 'बोर्ड खोलें', 'यह Whiteboard शेयर लिंक नहीं है'],
   };
   for (const l in LINK) if (D[l]) LINK_KEYS.forEach((k, i) => { D[l][k] = LINK[l][i]; });
+
+  /* Autosave refused (storage full); a share link over an opened PDF. */
+  const STORE = {
+    en: ['The browser’s storage for this app is full, so this board couldn’t be kept here. Save it to a file or the gallery so it isn’t lost.', 'Open the shared board? It replaces the PDF you have open (you can undo it).'],
+    hu: ['A böngésző tárhelye megtelt ennél az alkalmazásnál, ezért ez a tábla nem tárolható itt. Mentsd fájlba vagy a galériába, hogy ne vesszen el.', 'Megnyitod a megosztott táblát? A megnyitott PDF helyére kerül (visszavonható).'],
+    de: ['Der Browser-Speicher dieser App ist voll, daher konnte die Tafel hier nicht gespeichert werden. Sichere sie in einer Datei oder der Galerie, damit sie nicht verloren geht.', 'Die geteilte Tafel öffnen? Sie ersetzt das geöffnete PDF (rückgängig machbar).'],
+    fr: ['Le stockage du navigateur pour cette app est plein : ce tableau n’a pas pu être conservé ici. Enregistrez-le dans un fichier ou la galerie pour ne pas le perdre.', 'Ouvrir le tableau partagé ? Il remplace le PDF ouvert (annulable).'],
+    it: ['Lo spazio del browser per questa app è pieno, quindi la lavagna non è stata conservata qui. Salvala in un file o nella galleria per non perderla.', 'Aprire la lavagna condivisa? Sostituisce il PDF aperto (puoi annullare).'],
+    es: ['El almacenamiento del navegador para esta app está lleno, así que la pizarra no se pudo guardar aquí. Guárdala en un archivo o en la galería para no perderla.', '¿Abrir la pizarra compartida? Sustituye el PDF abierto (se puede deshacer).'],
+    pt: ['O armazenamento do navegador para esta app está cheio, por isso o quadro não pôde ser guardado aqui. Guarde-o num ficheiro ou na galeria para não o perder.', 'Abrir o quadro partilhado? Substitui o PDF aberto (pode desfazer).'],
+    ru: ['Хранилище браузера для этого приложения заполнено, поэтому доску не удалось сохранить здесь. Сохраните её в файл или галерею, чтобы не потерять.', 'Открыть присланную доску? Она заменит открытый PDF (можно отменить).'],
+    uk: ['Сховище браузера для цього застосунку заповнене, тож дошку не вдалося зберегти тут. Збережіть її у файл або галерею, щоб не втратити.', 'Відкрити надіслану дошку? Вона замінить відкритий PDF (можна скасувати).'],
+    tr: ['Tarayıcının bu uygulama için depolama alanı dolu, bu yüzden tahta burada saklanamadı. Kaybolmaması için bir dosyaya veya galeriye kaydedin.', 'Paylaşılan tahta açılsın mı? Açık olan PDF’nin yerini alır (geri alınabilir).'],
+    zh: ['浏览器为此应用提供的存储空间已满，因此无法在此保存这个白板。请将它保存到文件或图库，以免丢失。', '打开分享的白板？它会替换当前打开的 PDF（可以撤销）。'],
+    ja: ['このアプリ用のブラウザのストレージがいっぱいのため、このボードをここに保存できませんでした。失わないよう、ファイルかギャラリーに保存してください。', '共有されたボードを開きますか？開いている PDF と置き換わります（取り消せます）。'],
+    ar: ['امتلأت مساحة تخزين المتصفح لهذا التطبيق، لذا تعذّر حفظ هذه اللوحة هنا. احفظها في ملف أو في المعرض حتى لا تضيع.', 'فتح اللوحة المشتركة؟ ستحل محل ملف PDF المفتوح (يمكنك التراجع).'],
+    hi: ['इस ऐप के लिए ब्राउज़र का स्टोरेज भर गया है, इसलिए यह बोर्ड यहाँ नहीं रखा जा सका। इसे खोने से बचाने के लिए फ़ाइल या गैलरी में सहेजें।', 'साझा बोर्ड खोलें? यह खुले हुए PDF की जगह लेगा (पूर्ववत किया जा सकता है)।'],
+  };
+  for (const l in STORE) if (D[l]) [D[l].tStorageFull, D[l].confirmSharedPdf] = STORE[l];
   WB.I18N = D;
   let lang = 'en';
 
@@ -3032,6 +3051,63 @@ body.pipetting #canvas { cursor: crosshair; }
     c.restore();
   };
 
+  /* A picture (or a PDF page) decoded only while it is drawn into an export, then let go again,
+     unless it was already decoded for the screen. A decoded 2400 px page takes about 17 MB, so
+     decoding all pages of a long PDF at once could take more memory than an iPad allows. */
+  async function borrow(o) {
+    const had = !!o._img, img = WB.imageOf(o);
+    await WB.imageReady(img);
+    return { img, done: () => { if (!had && o._img === img) { img.onload = null; img.src = ''; delete o._img; } } };
+  }
+  /* The pixel size of a JPEG, from its header (no decoding). */
+  function jpegSize(u8) {
+    let i = 2;
+    while (i + 9 < u8.length) {
+      if (u8[i] !== 0xff) { i++; continue; }
+      const m = u8[i + 1];
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { h: (u8[i + 5] << 8) | u8[i + 6], w: (u8[i + 7] << 8) | u8[i + 8] };
+      i += 2 + ((u8[i + 2] << 8) | u8[i + 3]);
+    }
+    return null;
+  }
+  WB.jpegSize = jpegSize;
+
+  /* renderToCanvas for exports: the same picture, with every picture and page decoded one at a time. */
+  WB.renderToCanvasAsync = async function (strokes, b, scale, bg, pages, pattern) {
+    scale = Math.min(scale, MAX_SIDE / b.w, MAX_SIDE / b.h, Math.sqrt(MAX_AREA / (b.w * b.h)));
+    const w = Math.max(1, Math.round(b.w * scale)), h = Math.max(1, Math.round(b.h * scale));
+    const pg = pages && pages.length ? pages : null;
+    const world = (g) => g.setTransform(scale, 0, 0, scale, -b.x * scale, -b.y * scale);
+    const ink = document.createElement('canvas'); ink.width = w; ink.height = h;
+    const c = ink.getContext('2d');
+    world(c);
+    if (pg) { c.beginPath(); for (const p of pg) c.rect(p.x, p.y, p.w, p.h); c.clip(); }
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    for (const s of strokes) {
+      if (s.tool !== 'image') { WB.paint(c, s); continue; }
+      const { done } = await borrow(s);
+      WB.paint(c, s); done();
+    }
+    if (!bg && !pattern && !(pg && pg.some((p) => p.src))) return { canvas: ink, scale };
+    const out = document.createElement('canvas'); out.width = w; out.height = h;
+    const o = out.getContext('2d');
+    world(o);
+    if (pg) { o.save(); o.beginPath(); for (const p of pg) o.rect(p.x, p.y, p.w, p.h); o.clip(); }
+    if (bg) { o.fillStyle = bg; o.fillRect(b.x, b.y, b.w, b.h); }
+    if (pattern) WB.paintPattern(o, pattern, b);
+    if (pg) {
+      for (const p of pg) {
+        if (!p.src) continue;
+        const { done } = await borrow(p);
+        WB.paintPages(o, [p], null); done();
+      }
+      o.restore();
+    }
+    o.setTransform(1, 0, 0, 1, 0, 0);
+    o.drawImage(ink, 0, 0);
+    return { canvas: out, scale };
+  };
+
   /* b = {x,y,w,h} in world units. Returns { canvas, scale } (scale may be reduced to fit limits).
      With pages (a sheet board), only what lies on the pages is drawn: the background fills the
      pages, a PDF's page pictures go beneath the ink, and the gaps between pages stay empty. */
@@ -3226,19 +3302,25 @@ body.pipetting #canvas { cursor: crosshair; }
       return add(out);
     }
     /* A PDF page's picture: a JPEG goes in as it is; anything else as raw pixels. */
-    async function pageImage(p) {
-      const img = WB.imageOf(p);
-      if (!img.complete || !img.naturalWidth) return 0;
-      const dims = `/Width ${img.naturalWidth} /Height ${img.naturalHeight} /BitsPerComponent 8 /ColorSpace /DeviceRGB`;
+    /* A PDF page's picture: a JPEG goes in as it is, its size read from its header, so nothing is
+       decoded; it is tagged /WhiteboardPage n so Import can take it back out (see extractBoard).
+       Anything else is decoded, for this page only, and goes in as raw pixels. */
+    async function pageImage(p, index) {
       if (p.src.startsWith('data:image/jpeg;base64,')) {
-        const data = fromB64(p.src.slice(23));
-        const head = enc.encode(`<< /Type /XObject /Subtype /Image ${dims} /Filter /DCTDecode /Length ${data.length} >>\nstream\n`), tail = enc.encode('\nendstream');
-        const out = new Uint8Array(head.length + data.length + tail.length);
-        out.set(head); out.set(data, head.length); out.set(tail, head.length + data.length);
-        return add(out);
+        const data = fromB64(p.src.slice(23)), size = jpegSize(data);
+        if (size) {
+          const dims = `/Width ${size.w} /Height ${size.h} /BitsPerComponent 8 /ColorSpace /DeviceRGB`;
+          const head = enc.encode(`<< /Type /XObject /Subtype /Image ${dims} /Filter /DCTDecode /WhiteboardPage ${index} /Length ${data.length} >>\nstream\n`), tail = enc.encode('\nendstream');
+          const out = new Uint8Array(head.length + data.length + tail.length);
+          out.set(head); out.set(data, head.length); out.set(tail, head.length + data.length);
+          return add(out);
+        }
       }
+      const { img, done } = await borrow(p);
+      if (!img.naturalWidth) { done(); return 0; }
+      const dims = `/Width ${img.naturalWidth} /Height ${img.naturalHeight} /BitsPerComponent 8 /ColorSpace /DeviceRGB`;
       const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
-      const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0);
+      const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0); done();
       const px = g.getImageData(0, 0, cv.width, cv.height).data, n = cv.width * cv.height, rgbBytes = new Uint8Array(n * 3);
       for (let i = 0; i < n; i++) { rgbBytes[3 * i] = px[4 * i]; rgbBytes[3 * i + 1] = px[4 * i + 1]; rgbBytes[3 * i + 2] = px[4 * i + 2]; }
       return streamObj(`/Type /XObject /Subtype /Image ${dims}`, rgbBytes);
@@ -3252,13 +3334,14 @@ body.pipetting #canvas { cursor: crosshair; }
         for (const s of run.items) {
           if (s.tool === 'image') {
             // The picture's pixels, at most 4000 px on the long side, with its transparency as a soft mask.
-            const img = WB.imageOf(s);
-            if (!img.complete || !img.naturalWidth) continue;
+            const { img, done } = await borrow(s);
+            if (!img.naturalWidth) { done(); continue; }
             const q = Math.min(1, 4000 / Math.max(img.naturalWidth, img.naturalHeight));
             const cv = document.createElement('canvas');
             cv.width = Math.max(1, Math.round(img.naturalWidth * q)); cv.height = Math.max(1, Math.round(img.naturalHeight * q));
             const g = cv.getContext('2d');
             g.drawImage(img, 0, 0, cv.width, cv.height);
+            done();
             const px = g.getImageData(0, 0, cv.width, cv.height).data, n = cv.width * cv.height;
             const rgbBytes = new Uint8Array(n * 3), a = new Uint8Array(n);
             let clear = false;
@@ -3327,7 +3410,7 @@ body.pipetting #canvas { cursor: crosshair; }
       inkOps = '/Ink Do\n';
     }
     const kids = [];
-    for (const p of pageList) {
+    for (const [pi, p] of pageList.entries()) {
       const st = newStream();
       for (const [n2, id] of inkRes.gs) st.gs.set(n2, id);
       for (const [n2, id] of inkRes.xo) st.xo.set(n2, id);
@@ -3345,7 +3428,7 @@ body.pipetting #canvas { cursor: crosshair; }
         if (path) ops += `q /${alpha(st, pattern.alpha)} gs ${rgb(pattern.color)} RG ${pattern.kind === 'dots' ? '2.4 w 1 J' : '1 w 0 J'} ${path}S Q\n`;
       }
       if (p.src) {
-        const id = await pageImage(p);
+        const id = await pageImage(p, pi);
         if (id) { st.xo.set('P', id); ops += `q ${f(p.w)} 0 0 ${f(-p.h)} ${f(p.x)} ${f(p.y + p.h)} cm /P Do Q\n`; }
       }
       const contentId = await streamObj('', ops + inkOps + 'Q\n');
@@ -3392,11 +3475,30 @@ body.pipetting #canvas { cursor: crosshair; }
     if (i < 0) return null;
     const m = /^WHTBD-DATA:([zj]):([A-Za-z0-9+/=]+):END/.exec(s.slice(i));
     if (!m) return null;
+    let text;
     try {
       const bytes = fromB64(m[2]);
-      return new TextDecoder().decode(m[1] === 'z' ? await inflate(bytes) : bytes);
+      text = new TextDecoder().decode(m[1] === 'z' ? await inflate(bytes) : bytes);
     } catch (e) { return null; }
+    // A PDF export doesn't repeat its page pictures inside the board (that would double its size):
+    // the board says "whiteboard-pdf-page:n", and the picture is page n's own JPEG in the PDF.
+    if (!text.includes(PDF_PAGE)) return text;
+    try {
+      const d = JSON.parse(text), u8 = new Uint8Array(buffer);
+      for (const p of d.pages || []) {
+        if (typeof p.src !== 'string' || !p.src.startsWith(PDF_PAGE)) continue;
+        const at = s.indexOf(`/WhiteboardPage ${p.src.slice(PDF_PAGE.length)} `);
+        const lm = at < 0 ? null : /^[^>]*\/Length (\d+) >>\nstream\n/.exec(s.slice(at, at + 200));
+        if (!lm) { delete p.src; continue; }
+        const start = at + lm[0].length;
+        p.src = 'data:image/jpeg;base64,' + toB64(u8.subarray(start, start + +lm[1]));
+      }
+      return JSON.stringify(d);
+    } catch (e) { return text; }
   };
+  const PDF_PAGE = 'whiteboard-pdf-page:';
+  /* The board to put inside a PDF export: page JPEGs replaced by references to the PDF's own. */
+  WB.pdfPayloadDoc = (doc) => ({ ...doc, pages: doc.pages.map((p, i) => (p.src && p.src.startsWith('data:image/jpeg;base64,') ? { ...p, src: PDF_PAGE + i } : p)) });
 
   const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
   const crc32 = (u8) => { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
@@ -7520,31 +7622,49 @@ body.pipetting #canvas { cursor: crosshair; }
       if (s.tool === 'image') { delete o.src; o.img = imgKey(s); }         // pictures too are stored once (below)
       return o;
     });
-    // A PDF's page pictures are large and never change, so each is stored once under its own key
-    // ("img:" + a fingerprint of the picture) and the board only names it. Writing an 80-page PDF
-    // board after every stroke is then a small write, not tens of MB. Pictures nothing uses any
-    // more are removed.
-    if (!storedImgs) storedImgs = new Set((await dbKeys()).filter((k) => String(k).startsWith('img:')));
+    // A PDF's page pictures (and other pictures) are large and never change, so each is stored
+    // once under its own key ("img:" + a fingerprint) and the board only names it: saving an
+    // 80-page PDF board after a stroke is a small write, not tens of MB.
+    // All in one transaction, which either completes entirely or not at all:
+    //  - which pictures exist is read from the store each time (key names only, cheap), and the
+    //    missing ones are written, so a picture is never assumed stored before it really is;
+    //  - "imgIndex" records when each picture was last used by any tab. Another tab may be showing
+    //    a board whose pictures this one doesn't use, so a picture is only removed once no tab has
+    //    used it for a week (an open tab rewrites anything missing on its next save).
     const pages = doc.pages.map((p) => ({ x: p.x, y: p.y, w: p.w, h: p.h, img: p.src ? imgKey(p) : undefined }));
+    const used = new Map();
+    for (const p of doc.pages.concat(doc.strokes.filter((s) => s.tool === 'image'))) if (p.src) used.set(imgKey(p), p.src);
+    const record = { title: doc.title, created: doc.created, view: { ...view }, strokes, pages, unsaved };
     try {
-      const st = d.transaction('kv', 'readwrite').objectStore('kv'), used = new Set();
-      for (const p of doc.pages.concat(doc.strokes.filter((s) => s.tool === 'image'))) {
-        if (!p.src) continue;
-        const k = imgKey(p); used.add(k);
-        if (!storedImgs.has(k)) { st.put(p.src, k); storedImgs.add(k); }
-      }
-      for (const k of [...storedImgs]) if (!used.has(k)) { st.delete(k); storedImgs.delete(k); }
-      st.put({ title: doc.title, created: doc.created, view: { ...view }, strokes, pages, unsaved }, 'board');
-    } catch (e) {}
+      const tx = d.transaction('kv', 'readwrite'), st = tx.objectStore('kv'), now = Date.now();
+      tx.onabort = () => storageFailed(tx.error);
+      const keysReq = st.getAllKeys(), idxReq = st.get('imgIndex');
+      idxReq.onsuccess = () => {
+        const present = new Set((keysReq.result || []).filter((k) => String(k).startsWith('img:')));
+        const idx = idxReq.result || {};
+        for (const [k, src] of used) { if (!present.has(k)) st.put(src, k); idx[k] = now; }
+        for (const k of present) {
+          if (used.has(k)) continue;
+          if (!(k in idx)) idx[k] = now;                                  // unknown (an older version stored it): start its week
+          else if (now - idx[k] > 7 * 864e5) { st.delete(k); delete idx[k]; }
+        }
+        for (const k in idx) if (!present.has(k) && !used.has(k)) delete idx[k];
+        st.put(idx, 'imgIndex');
+        st.put(record, 'board');
+      };
+    } catch (e) { storageFailed(e); }
   }
-  let storedImgs = null;
+  /* The browser refused to store the board (usually: its storage for this site is full, which a
+     big PDF can do on iPhone and iPad). Nothing was half-written, but say so, at most every few minutes. */
+  let storageWarned = 0;
+  function storageFailed(e) {
+    console.error('autosave', e);
+    if (Date.now() - storageWarned < 3 * 60e3) return;
+    storageWarned = Date.now();
+    toast(tr('tStorageFull'), null, null, 12000);
+  }
   const imgKey = (p) => p._key || (p._key = 'img:' + fingerprint(p.src));
   function fingerprint(t) { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + t.length.toString(36); }
-  async function dbKeys() {
-    const d = await db;
-    if (!d) return [];
-    return new Promise((res) => { const q = d.transaction('kv').objectStore('kv').getAllKeys(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
-  }
   function autosave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500); }
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
   window.addEventListener('pagehide', saveNow);
@@ -7787,13 +7907,15 @@ body.pipetting #canvas { cursor: crosshair; }
       // The board's dots, lines or grid, when asked for, in a colour that shows on the background.
       const pattern = exp.pattern ? WB.patternStyle(settings.grid, bg || canvasColor()) : null;
       let blob, shrunk = false;
-      await WB.loadImages(doc.strokes, doc.pages);              // pictures must be decoded before they can be drawn
-      // The board rides along inside the file, so Import can give it back editable.
-      const payload = await WB.boardPayload(WB.serialize(doc, view));
+      // Pictures and PDF pages are decoded one at a time while each is drawn (not all up front: a
+      // long PDF decoded at once can exceed an iPad's memory). SVG and PDF use them as they are.
+      // The board rides along inside the file, so Import can give it back editable; a PDF export
+      // doesn't repeat its page pictures in it (see WB.pdfPayloadDoc).
+      const payload = await WB.boardPayload(WB.serialize(exp.format === 'pdf' ? WB.pdfPayloadDoc(doc) : doc, view));
       if (exp.format === 'svg') blob = new Blob([WB.toSVG(doc.strokes, b, bg, payload, sheetPages, pattern)], { type: F.mime });
       else if (exp.format === 'pdf') blob = await WB.toPDF(doc.strokes, b, bg, payload, sheetPages, pattern);
       else {
-        const r = WB.renderToCanvas(doc.strokes, b, +exp.scale, bg, sheetPages, pattern);
+        const r = await WB.renderToCanvasAsync(doc.strokes, b, +exp.scale, bg, sheetPages, pattern);
         shrunk = r.scale < +exp.scale;
         blob = exp.format === 'bmp' ? WB.canvasToBMP(r.canvas) : await WB.canvasToBlob(r.canvas, F.mime, 0.92);
         blob = await WB.embedPayload(blob, payload, r.canvas.width, r.canvas.height);
@@ -8030,7 +8152,9 @@ body.pipetting #canvas { cursor: crosshair; }
   async function openShareCode(code) {
     let d;
     try { d = await WB.share.decode(code); } catch (e) { console.error('share link', e); return toast(tr('tShareBad'), null, null, 6000); }
-    if (doc.strokes.length && unsaved && !(await ask(tr('confirmShared'), tr('openSharedBtn')))) return;
+    // Also over an opened PDF: the file is still on the device, but its place in the work isn't.
+    const overUnsaved = doc.strokes.length && unsaved, overPdf = doc.pages.some((p) => p.src);
+    if ((overUnsaved || overPdf) && !(await ask(tr(overUnsaved ? 'confirmShared' : 'confirmSharedPdf'), tr('openSharedBtn')))) return;
     replaceBoard({ title: d.title, created: Date.now(), strokes: d.strokes, pages: d.pages, handle: null, gref: null }, '');
     saveTarget = 'gallery'; markSaved();
     toast(tr('tSharedOpened'), tr('undo'), undo, 6000);

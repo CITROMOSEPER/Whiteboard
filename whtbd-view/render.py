@@ -46,7 +46,24 @@ def board_text(path, entry=None):
     if not m:
         sys.exit(f'{path}: not a Whiteboard board, and no board is embedded in it.')
     data = base64.b64decode(m.group(2))
-    return (zlib.decompress(data) if m.group(1) == 'z' else data).decode('utf-8')
+    text = (zlib.decompress(data) if m.group(1) == 'z' else data).decode('utf-8')
+    # A PDF export doesn't repeat its page pictures inside the board: a page's src is then
+    # "whiteboard-pdf-page:n", and its picture is the PDF's own JPEG tagged /WhiteboardPage n.
+    if 'whiteboard-pdf-page:' not in text:
+        return text
+    d = json.loads(text)
+    for p in d.get('pages') or []:
+        src = p.get('src')
+        if not (isinstance(src, str) and src.startswith('whiteboard-pdf-page:')):
+            continue
+        at = s.find('/WhiteboardPage %s ' % src.split(':', 1)[1])
+        lm = re.match(r'[^>]*/Length (\d+) >>\nstream\n', s[at:at + 200]) if at >= 0 else None
+        if not lm:
+            p.pop('src', None)
+            continue
+        start = at + lm.end()
+        p['src'] = 'data:image/jpeg;base64,' + base64.b64encode(raw[start:start + int(lm.group(1))]).decode()
+    return json.dumps(d)
 
 
 GITHUB = 'https://github.com/CITROMOSEPER/Whiteboard'

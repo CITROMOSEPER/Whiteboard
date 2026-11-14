@@ -1794,31 +1794,49 @@
       if (s.tool === 'image') { delete o.src; o.img = imgKey(s); }         // pictures too are stored once (below)
       return o;
     });
-    // A PDF's page pictures are large and never change, so each is stored once under its own key
-    // ("img:" + a fingerprint of the picture) and the board only names it. Writing an 80-page PDF
-    // board after every stroke is then a small write, not tens of MB. Pictures nothing uses any
-    // more are removed.
-    if (!storedImgs) storedImgs = new Set((await dbKeys()).filter((k) => String(k).startsWith('img:')));
+    // A PDF's page pictures (and other pictures) are large and never change, so each is stored
+    // once under its own key ("img:" + a fingerprint) and the board only names it: saving an
+    // 80-page PDF board after a stroke is a small write, not tens of MB.
+    // All in one transaction, which either completes entirely or not at all:
+    //  - which pictures exist is read from the store each time (key names only, cheap), and the
+    //    missing ones are written, so a picture is never assumed stored before it really is;
+    //  - "imgIndex" records when each picture was last used by any tab. Another tab may be showing
+    //    a board whose pictures this one doesn't use, so a picture is only removed once no tab has
+    //    used it for a week (an open tab rewrites anything missing on its next save).
     const pages = doc.pages.map((p) => ({ x: p.x, y: p.y, w: p.w, h: p.h, img: p.src ? imgKey(p) : undefined }));
+    const used = new Map();
+    for (const p of doc.pages.concat(doc.strokes.filter((s) => s.tool === 'image'))) if (p.src) used.set(imgKey(p), p.src);
+    const record = { title: doc.title, created: doc.created, view: { ...view }, strokes, pages, unsaved };
     try {
-      const st = d.transaction('kv', 'readwrite').objectStore('kv'), used = new Set();
-      for (const p of doc.pages.concat(doc.strokes.filter((s) => s.tool === 'image'))) {
-        if (!p.src) continue;
-        const k = imgKey(p); used.add(k);
-        if (!storedImgs.has(k)) { st.put(p.src, k); storedImgs.add(k); }
-      }
-      for (const k of [...storedImgs]) if (!used.has(k)) { st.delete(k); storedImgs.delete(k); }
-      st.put({ title: doc.title, created: doc.created, view: { ...view }, strokes, pages, unsaved }, 'board');
-    } catch (e) {}
+      const tx = d.transaction('kv', 'readwrite'), st = tx.objectStore('kv'), now = Date.now();
+      tx.onabort = () => storageFailed(tx.error);
+      const keysReq = st.getAllKeys(), idxReq = st.get('imgIndex');
+      idxReq.onsuccess = () => {
+        const present = new Set((keysReq.result || []).filter((k) => String(k).startsWith('img:')));
+        const idx = idxReq.result || {};
+        for (const [k, src] of used) { if (!present.has(k)) st.put(src, k); idx[k] = now; }
+        for (const k of present) {
+          if (used.has(k)) continue;
+          if (!(k in idx)) idx[k] = now;                                  // unknown (an older version stored it): start its week
+          else if (now - idx[k] > 7 * 864e5) { st.delete(k); delete idx[k]; }
+        }
+        for (const k in idx) if (!present.has(k) && !used.has(k)) delete idx[k];
+        st.put(idx, 'imgIndex');
+        st.put(record, 'board');
+      };
+    } catch (e) { storageFailed(e); }
   }
-  let storedImgs = null;
+  /* The browser refused to store the board (usually: its storage for this site is full, which a
+     big PDF can do on iPhone and iPad). Nothing was half-written, but say so, at most every few minutes. */
+  let storageWarned = 0;
+  function storageFailed(e) {
+    console.error('autosave', e);
+    if (Date.now() - storageWarned < 3 * 60e3) return;
+    storageWarned = Date.now();
+    toast(tr('tStorageFull'), null, null, 12000);
+  }
   const imgKey = (p) => p._key || (p._key = 'img:' + fingerprint(p.src));
   function fingerprint(t) { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + t.length.toString(36); }
-  async function dbKeys() {
-    const d = await db;
-    if (!d) return [];
-    return new Promise((res) => { const q = d.transaction('kv').objectStore('kv').getAllKeys(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
-  }
   function autosave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500); }
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
   window.addEventListener('pagehide', saveNow);
@@ -2061,13 +2079,15 @@
       // The board's dots, lines or grid, when asked for, in a colour that shows on the background.
       const pattern = exp.pattern ? WB.patternStyle(settings.grid, bg || canvasColor()) : null;
       let blob, shrunk = false;
-      await WB.loadImages(doc.strokes, doc.pages);              // pictures must be decoded before they can be drawn
-      // The board rides along inside the file, so Import can give it back editable.
-      const payload = await WB.boardPayload(WB.serialize(doc, view));
+      // Pictures and PDF pages are decoded one at a time while each is drawn (not all up front: a
+      // long PDF decoded at once can exceed an iPad's memory). SVG and PDF use them as they are.
+      // The board rides along inside the file, so Import can give it back editable; a PDF export
+      // doesn't repeat its page pictures in it (see WB.pdfPayloadDoc).
+      const payload = await WB.boardPayload(WB.serialize(exp.format === 'pdf' ? WB.pdfPayloadDoc(doc) : doc, view));
       if (exp.format === 'svg') blob = new Blob([WB.toSVG(doc.strokes, b, bg, payload, sheetPages, pattern)], { type: F.mime });
       else if (exp.format === 'pdf') blob = await WB.toPDF(doc.strokes, b, bg, payload, sheetPages, pattern);
       else {
-        const r = WB.renderToCanvas(doc.strokes, b, +exp.scale, bg, sheetPages, pattern);
+        const r = await WB.renderToCanvasAsync(doc.strokes, b, +exp.scale, bg, sheetPages, pattern);
         shrunk = r.scale < +exp.scale;
         blob = exp.format === 'bmp' ? WB.canvasToBMP(r.canvas) : await WB.canvasToBlob(r.canvas, F.mime, 0.92);
         blob = await WB.embedPayload(blob, payload, r.canvas.width, r.canvas.height);
@@ -2304,7 +2324,9 @@
   async function openShareCode(code) {
     let d;
     try { d = await WB.share.decode(code); } catch (e) { console.error('share link', e); return toast(tr('tShareBad'), null, null, 6000); }
-    if (doc.strokes.length && unsaved && !(await ask(tr('confirmShared'), tr('openSharedBtn')))) return;
+    // Also over an opened PDF: the file is still on the device, but its place in the work isn't.
+    const overUnsaved = doc.strokes.length && unsaved, overPdf = doc.pages.some((p) => p.src);
+    if ((overUnsaved || overPdf) && !(await ask(tr(overUnsaved ? 'confirmShared' : 'confirmSharedPdf'), tr('openSharedBtn')))) return;
     replaceBoard({ title: d.title, created: Date.now(), strokes: d.strokes, pages: d.pages, handle: null, gref: null }, '');
     saveTarget = 'gallery'; markSaved();
     toast(tr('tSharedOpened'), tr('undo'), undo, 6000);

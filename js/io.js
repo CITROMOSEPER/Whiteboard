@@ -166,6 +166,63 @@
     c.restore();
   };
 
+  /* A picture (or a PDF page) decoded only while it is drawn into an export, then let go again,
+     unless it was already decoded for the screen. A decoded 2400 px page takes about 17 MB, so
+     decoding all pages of a long PDF at once could take more memory than an iPad allows. */
+  async function borrow(o) {
+    const had = !!o._img, img = WB.imageOf(o);
+    await WB.imageReady(img);
+    return { img, done: () => { if (!had && o._img === img) { img.onload = null; img.src = ''; delete o._img; } } };
+  }
+  /* The pixel size of a JPEG, from its header (no decoding). */
+  function jpegSize(u8) {
+    let i = 2;
+    while (i + 9 < u8.length) {
+      if (u8[i] !== 0xff) { i++; continue; }
+      const m = u8[i + 1];
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { h: (u8[i + 5] << 8) | u8[i + 6], w: (u8[i + 7] << 8) | u8[i + 8] };
+      i += 2 + ((u8[i + 2] << 8) | u8[i + 3]);
+    }
+    return null;
+  }
+  WB.jpegSize = jpegSize;
+
+  /* renderToCanvas for exports: the same picture, with every picture and page decoded one at a time. */
+  WB.renderToCanvasAsync = async function (strokes, b, scale, bg, pages, pattern) {
+    scale = Math.min(scale, MAX_SIDE / b.w, MAX_SIDE / b.h, Math.sqrt(MAX_AREA / (b.w * b.h)));
+    const w = Math.max(1, Math.round(b.w * scale)), h = Math.max(1, Math.round(b.h * scale));
+    const pg = pages && pages.length ? pages : null;
+    const world = (g) => g.setTransform(scale, 0, 0, scale, -b.x * scale, -b.y * scale);
+    const ink = document.createElement('canvas'); ink.width = w; ink.height = h;
+    const c = ink.getContext('2d');
+    world(c);
+    if (pg) { c.beginPath(); for (const p of pg) c.rect(p.x, p.y, p.w, p.h); c.clip(); }
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    for (const s of strokes) {
+      if (s.tool !== 'image') { WB.paint(c, s); continue; }
+      const { done } = await borrow(s);
+      WB.paint(c, s); done();
+    }
+    if (!bg && !pattern && !(pg && pg.some((p) => p.src))) return { canvas: ink, scale };
+    const out = document.createElement('canvas'); out.width = w; out.height = h;
+    const o = out.getContext('2d');
+    world(o);
+    if (pg) { o.save(); o.beginPath(); for (const p of pg) o.rect(p.x, p.y, p.w, p.h); o.clip(); }
+    if (bg) { o.fillStyle = bg; o.fillRect(b.x, b.y, b.w, b.h); }
+    if (pattern) WB.paintPattern(o, pattern, b);
+    if (pg) {
+      for (const p of pg) {
+        if (!p.src) continue;
+        const { done } = await borrow(p);
+        WB.paintPages(o, [p], null); done();
+      }
+      o.restore();
+    }
+    o.setTransform(1, 0, 0, 1, 0, 0);
+    o.drawImage(ink, 0, 0);
+    return { canvas: out, scale };
+  };
+
   /* b = {x,y,w,h} in world units. Returns { canvas, scale } (scale may be reduced to fit limits).
      With pages (a sheet board), only what lies on the pages is drawn: the background fills the
      pages, a PDF's page pictures go beneath the ink, and the gaps between pages stay empty. */
@@ -360,19 +417,25 @@
       return add(out);
     }
     /* A PDF page's picture: a JPEG goes in as it is; anything else as raw pixels. */
-    async function pageImage(p) {
-      const img = WB.imageOf(p);
-      if (!img.complete || !img.naturalWidth) return 0;
-      const dims = `/Width ${img.naturalWidth} /Height ${img.naturalHeight} /BitsPerComponent 8 /ColorSpace /DeviceRGB`;
+    /* A PDF page's picture: a JPEG goes in as it is, its size read from its header, so nothing is
+       decoded; it is tagged /WhiteboardPage n so Import can take it back out (see extractBoard).
+       Anything else is decoded, for this page only, and goes in as raw pixels. */
+    async function pageImage(p, index) {
       if (p.src.startsWith('data:image/jpeg;base64,')) {
-        const data = fromB64(p.src.slice(23));
-        const head = enc.encode(`<< /Type /XObject /Subtype /Image ${dims} /Filter /DCTDecode /Length ${data.length} >>\nstream\n`), tail = enc.encode('\nendstream');
-        const out = new Uint8Array(head.length + data.length + tail.length);
-        out.set(head); out.set(data, head.length); out.set(tail, head.length + data.length);
-        return add(out);
+        const data = fromB64(p.src.slice(23)), size = jpegSize(data);
+        if (size) {
+          const dims = `/Width ${size.w} /Height ${size.h} /BitsPerComponent 8 /ColorSpace /DeviceRGB`;
+          const head = enc.encode(`<< /Type /XObject /Subtype /Image ${dims} /Filter /DCTDecode /WhiteboardPage ${index} /Length ${data.length} >>\nstream\n`), tail = enc.encode('\nendstream');
+          const out = new Uint8Array(head.length + data.length + tail.length);
+          out.set(head); out.set(data, head.length); out.set(tail, head.length + data.length);
+          return add(out);
+        }
       }
+      const { img, done } = await borrow(p);
+      if (!img.naturalWidth) { done(); return 0; }
+      const dims = `/Width ${img.naturalWidth} /Height ${img.naturalHeight} /BitsPerComponent 8 /ColorSpace /DeviceRGB`;
       const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
-      const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0);
+      const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0); done();
       const px = g.getImageData(0, 0, cv.width, cv.height).data, n = cv.width * cv.height, rgbBytes = new Uint8Array(n * 3);
       for (let i = 0; i < n; i++) { rgbBytes[3 * i] = px[4 * i]; rgbBytes[3 * i + 1] = px[4 * i + 1]; rgbBytes[3 * i + 2] = px[4 * i + 2]; }
       return streamObj(`/Type /XObject /Subtype /Image ${dims}`, rgbBytes);
@@ -386,13 +449,14 @@
         for (const s of run.items) {
           if (s.tool === 'image') {
             // The picture's pixels, at most 4000 px on the long side, with its transparency as a soft mask.
-            const img = WB.imageOf(s);
-            if (!img.complete || !img.naturalWidth) continue;
+            const { img, done } = await borrow(s);
+            if (!img.naturalWidth) { done(); continue; }
             const q = Math.min(1, 4000 / Math.max(img.naturalWidth, img.naturalHeight));
             const cv = document.createElement('canvas');
             cv.width = Math.max(1, Math.round(img.naturalWidth * q)); cv.height = Math.max(1, Math.round(img.naturalHeight * q));
             const g = cv.getContext('2d');
             g.drawImage(img, 0, 0, cv.width, cv.height);
+            done();
             const px = g.getImageData(0, 0, cv.width, cv.height).data, n = cv.width * cv.height;
             const rgbBytes = new Uint8Array(n * 3), a = new Uint8Array(n);
             let clear = false;
@@ -461,7 +525,7 @@
       inkOps = '/Ink Do\n';
     }
     const kids = [];
-    for (const p of pageList) {
+    for (const [pi, p] of pageList.entries()) {
       const st = newStream();
       for (const [n2, id] of inkRes.gs) st.gs.set(n2, id);
       for (const [n2, id] of inkRes.xo) st.xo.set(n2, id);
@@ -479,7 +543,7 @@
         if (path) ops += `q /${alpha(st, pattern.alpha)} gs ${rgb(pattern.color)} RG ${pattern.kind === 'dots' ? '2.4 w 1 J' : '1 w 0 J'} ${path}S Q\n`;
       }
       if (p.src) {
-        const id = await pageImage(p);
+        const id = await pageImage(p, pi);
         if (id) { st.xo.set('P', id); ops += `q ${f(p.w)} 0 0 ${f(-p.h)} ${f(p.x)} ${f(p.y + p.h)} cm /P Do Q\n`; }
       }
       const contentId = await streamObj('', ops + inkOps + 'Q\n');
@@ -526,11 +590,30 @@
     if (i < 0) return null;
     const m = /^WHTBD-DATA:([zj]):([A-Za-z0-9+/=]+):END/.exec(s.slice(i));
     if (!m) return null;
+    let text;
     try {
       const bytes = fromB64(m[2]);
-      return new TextDecoder().decode(m[1] === 'z' ? await inflate(bytes) : bytes);
+      text = new TextDecoder().decode(m[1] === 'z' ? await inflate(bytes) : bytes);
     } catch (e) { return null; }
+    // A PDF export doesn't repeat its page pictures inside the board (that would double its size):
+    // the board says "whiteboard-pdf-page:n", and the picture is page n's own JPEG in the PDF.
+    if (!text.includes(PDF_PAGE)) return text;
+    try {
+      const d = JSON.parse(text), u8 = new Uint8Array(buffer);
+      for (const p of d.pages || []) {
+        if (typeof p.src !== 'string' || !p.src.startsWith(PDF_PAGE)) continue;
+        const at = s.indexOf(`/WhiteboardPage ${p.src.slice(PDF_PAGE.length)} `);
+        const lm = at < 0 ? null : /^[^>]*\/Length (\d+) >>\nstream\n/.exec(s.slice(at, at + 200));
+        if (!lm) { delete p.src; continue; }
+        const start = at + lm[0].length;
+        p.src = 'data:image/jpeg;base64,' + toB64(u8.subarray(start, start + +lm[1]));
+      }
+      return JSON.stringify(d);
+    } catch (e) { return text; }
   };
+  const PDF_PAGE = 'whiteboard-pdf-page:';
+  /* The board to put inside a PDF export: page JPEGs replaced by references to the PDF's own. */
+  WB.pdfPayloadDoc = (doc) => ({ ...doc, pages: doc.pages.map((p, i) => (p.src && p.src.startsWith('data:image/jpeg;base64,') ? { ...p, src: PDF_PAGE + i } : p)) });
 
   const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
   const crc32 = (u8) => { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
