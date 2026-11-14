@@ -105,6 +105,16 @@ def summary(d):
     dashes = Counter(s['dash'] for s in st if s.get('dash'))
     if dashes:
         out.append('Line types: ' + ', '.join(f'{n} {k}' for k, n in dashes.most_common()))
+    hl = sum(1 for s in st if s.get('highlight'))
+    press = sum(1 for s in st if s.get('pressure'))
+    if hl or press:
+        out.append(f'Highlighter strokes: {hl}   Strokes drawn with pressure: {press}')
+    pages = d.get('pages') or []
+    if pages:
+        pdf = sum(1 for p in pages if p.get('src'))
+        out.append(f"Sheet with {len(pages)} page(s)" + (f", {pdf} of them pages of an opened PDF" if pdf else '') + ': '
+                   + '; '.join(f"{p['w']:.0f}x{p['h']:.0f} at ({p['x']:.0f},{p['y']:.0f})" for p in pages[:12])
+                   + (' ...' if len(pages) > 12 else ''))
     for s in st:
         if s.get('tool') == 'text':
             out.append(f"Text at ({s['x']},{s['y']}) size {s.get('size')} {s.get('font')} {s.get('color')}"
@@ -117,15 +127,39 @@ def summary(d):
 
 JS = r'''async ([text, opt]) => {
   const doc = WB.parse(text);
-  await WB.loadImages(doc.strokes);
-  const c = WB.contentBounds(doc.strokes);
+  const pages = doc.pages || [];
+  await WB.loadImages(doc.strokes, pages);
+  // Everything there is: the drawing and, on a sheet, its pages (drawing outside a page is shown too).
+  let c = WB.contentBounds(doc.strokes);
+  if (pages.length) {
+    const p = WB.pagesBounds(pages);
+    c = c ? (() => { const x = Math.min(c.x, p.x), y = Math.min(c.y, p.y); return { x, y, w: Math.max(c.x + c.w, p.x + p.w) - x, h: Math.max(c.y + c.h, p.y + p.h) - y }; })() : p;
+  }
+  // The board as the app shows it: background, a sheet's pages (with an opened PDF's pages) and
+  // their edges, then the ink. Unlike an export, nothing is cut off at a page edge.
+  const draw = (box, k) => {
+    const ink = WB.renderToCanvas(doc.strokes, box, k, null), w = ink.canvas.width, h = ink.canvas.height;
+    k = ink.scale;
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const g = cv.getContext('2d');
+    if (opt.bg) { g.fillStyle = opt.bg; g.fillRect(0, 0, w, h); }
+    if (pages.length) {
+      g.setTransform(k, 0, 0, k, -box.x * k, -box.y * k);
+      WB.paintPages(g, pages, null);
+      g.lineWidth = 1.5 / k; g.strokeStyle = 'rgba(128, 128, 128, 0.9)';
+      for (const p of pages) g.strokeRect(p.x, p.y, p.w, p.h);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    g.drawImage(ink.canvas, 0, 0);
+    return { canvas: cv, scale: k };
+  };
   let b;
   if (opt.region) b = opt.region;
   else if (opt.savedView) { const v = doc.view, w = 1440 / v.zoom, h = 900 / v.zoom; b = { x: v.x, y: v.y, w, h }; }
   else if (c) { const pad = Math.max(16, Math.max(c.w, c.h) * 0.04); b = { x: c.x - pad, y: c.y - pad, w: c.w + 2 * pad, h: c.h + 2 * pad }; }
   else b = { x: 0, y: 0, w: 400, h: 300 };
   const scale = opt.px / Math.max(b.w, b.h);
-  const r = WB.renderToCanvas(doc.strokes, b, scale, opt.bg);
+  const r = draw(b, scale);
   const out = { png: r.canvas.toDataURL('image/png'), bounds: c, region: b, scale: r.scale, size: [r.canvas.width, r.canvas.height], groups: [], details: [] };
 
   // Groups: pen strokes and texts whose boxes nearly touch (a word, a drawing), so tiny ones can be found and shown close up.
@@ -157,7 +191,7 @@ JS = r'''async ([text, opt]) => {
   for (const q of out.groups.filter((g) => g.small).slice(0, opt.maxDetails)) {
     const side = Math.max(q.w, q.h, 1e-3), pad = side * 0.3;
     const d = { x: q.x - pad, y: q.y - pad, w: q.w + 2 * pad, h: q.h + 2 * pad };
-    const k = opt.detailPx / Math.max(d.w, d.h), rr = WB.renderToCanvas(doc.strokes, d, k, opt.bg);
+    const k = opt.detailPx / Math.max(d.w, d.h), rr = draw(d, k);
     out.details.push({ group: q, region: d, png: rr.canvas.toDataURL('image/png') });
   }
   return out;

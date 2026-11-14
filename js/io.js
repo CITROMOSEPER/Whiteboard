@@ -16,6 +16,10 @@
       `  "created": "${new Date(doc.created).toISOString()}",\n` +
       `  "modified": "${new Date().toISOString()}",\n` +
       `  "view": { "x": ${f(view.x)}, "y": ${f(view.y)}, "zoom": ${+view.zoom.toFixed(4)} },\n`;
+    // A sheet board: the pages exports are limited to (with the picture of each page of an opened PDF).
+    if (doc.pages && doc.pages.length) {
+      out += '  "pages": [\n' + doc.pages.map((p) => `    { "x": ${f(p.x)}, "y": ${f(p.y)}, "w": ${f(p.w)}, "h": ${f(p.h)}${p.src ? `, "src": ${JSON.stringify(p.src)}` : ''} }`).join(',\n') + '\n  ],\n';
+    }
     const lines = doc.strokes.map((s) => {
       if (s.tool === 'text') {
         return `    { "tool": "text", "x": ${f(s.x)}, "y": ${f(s.y)}, ${s.rot ? `"rot": ${f((s.rot * 180) / Math.PI)}, ` : ''}"font": "${s.font}", "size": ${+s.size.toFixed(3)}, "color": "${s.color}", "opacity": ${+s.opacity.toFixed(3)}, "text": ${JSON.stringify(s.text)} }`;
@@ -34,9 +38,12 @@
       let o = `{ "tool": "${s.tool}", `;
       if (s.tool === 'pen') o += `"color": "${s.color}", `;
       if (s.tool === 'pen' && s.dash && WB.DASHES[s.dash]) o += `"dash": "${s.dash}", `;
+      if (s.tool === 'pen' && s.hl) o += '"highlight": true, ';
       o += `"width": ${+s.width.toFixed(3)}, "opacity": ${+s.opacity.toFixed(3)}, "smooth": ${!!s.smooth}, "closed": ${!!s.closed}, `;
       if (s.shape) o += `"shape": "${s.shape}", `;
-      return `    ${o}"points": [${pts.join(',')}] }`;
+      // Pressure: one whole number 0-100 per point.
+      const press = s.tool === 'pen' && s.press && s.press.length === p.length >> 1 ? `, "pressure": [${s.press.map((v) => Math.round(v * 100)).join(',')}]` : '';
+      return `    ${o}"points": [${pts.join(',')}]${press} }`;
     });
     out += '  "strokes": [\n' + lines.join(',\n') + (lines.length ? '\n' : '') + '  ]\n}\n';
     return out;
@@ -92,12 +99,26 @@
         closed: !!s.closed,
       };
       if (st.tool === 'pen' && typeof s.dash === 'string' && WB.DASHES[s.dash]) st.dash = s.dash;
+      if (st.tool === 'pen' && s.highlight === true) { st.hl = true; delete st.dash; }
+      if (st.tool === 'pen' && Array.isArray(s.pressure) && s.pressure.length === points.length >> 1) {
+        st.press = s.pressure.map((v) => Math.min(1, Math.max(0, num(v, 50) / 100)));
+      }
       if (typeof s.shape === 'string') st.shape = s.shape.replace(/[^a-z]/gi, '').slice(0, 24);
       strokes.push(st);
     }
     const v = d.view || {};
     const created = Date.parse(d.created);
+    const pages = [];
+    if (Array.isArray(d.pages)) {
+      for (const p of d.pages) {
+        if (!p || !(num(p.w, 0) > 0 && num(p.h, 0) > 0) || !isFinite(p.x) || !isFinite(p.y)) continue;
+        const pg = { x: +p.x, y: +p.y, w: +p.w, h: +p.h };
+        if (typeof p.src === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(p.src)) pg.src = p.src;
+        pages.push(pg);
+      }
+    }
     return {
+      pages,
       title: typeof d.title === 'string' && d.title.trim() ? d.title.slice(0, 80) : 'Untitled',
       created: isFinite(created) ? created : Date.now(),
       strokes,
@@ -108,20 +129,60 @@
   /* ---- Bitmap -------------------------------------------------------- */
   const MAX_SIDE = 12000, MAX_AREA = 120e6;
 
-  /* b = {x,y,w,h} in world units. Returns { canvas, scale } (scale may be reduced to fit limits). */
-  WB.renderToCanvas = function (strokes, b, scale, bg) {
+  /* ---- The canvas pattern ------------------------------------------------
+     The board's background pattern, for exports that ask for it: dots, lines (ruled) or a grid,
+     one step every GRID board units, lined up with 0, 0 exactly as on screen (where at 100 % the
+     steps are 32 px apart, and halve or double as you zoom). Sheets are placed on these steps. */
+  WB.GRID = 32;
+  /* { kind, color (#000 or #fff, whichever shows on the background), alpha }, or null for none. */
+  WB.patternStyle = function (kind, background) {
+    if (!kind || kind === 'none') return null;
+    const n = parseInt((background || '#ffffff').slice(1), 16);
+    const dark = (0.2126 * (n >> 16) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255 < 0.45;
+    return { kind, color: dark ? '#ffffff' : '#000000', alpha: kind === 'lines' ? 0.08 : 0.16 };
+  };
+  const gridSteps = (a, len) => { const out = []; for (let v = Math.ceil(a / WB.GRID) * WB.GRID; v <= a + len; v += WB.GRID) out.push(v); return out; };
+  WB.paintPattern = function (c, pat, r) {
+    const xs = gridSteps(r.x, r.w), ys = gridSteps(r.y, r.h);
+    c.save();
+    c.globalAlpha = pat.alpha; c.globalCompositeOperation = 'source-over';
+    c.fillStyle = c.strokeStyle = pat.color;
+    c.beginPath();
+    if (pat.kind === 'dots') { for (const y of ys) for (const x of xs) { c.moveTo(x + 1.2, y); c.arc(x, y, 1.2, 0, 2 * Math.PI); } c.fill(); }
+    else {
+      for (const y of ys) { c.moveTo(r.x, y); c.lineTo(r.x + r.w, y); }
+      if (pat.kind === 'lines') for (const x of xs) { c.moveTo(x, r.y); c.lineTo(x, r.y + r.h); }
+      c.lineWidth = 1; c.lineCap = 'butt'; c.stroke();
+    }
+    c.restore();
+  };
+
+  /* b = {x,y,w,h} in world units. Returns { canvas, scale } (scale may be reduced to fit limits).
+     With pages (a sheet board), only what lies on the pages is drawn: the background fills the
+     pages, a PDF's page pictures go beneath the ink, and the gaps between pages stay empty. */
+  WB.renderToCanvas = function (strokes, b, scale, bg, pages, pattern) {
     scale = Math.min(scale, MAX_SIDE / b.w, MAX_SIDE / b.h, Math.sqrt(MAX_AREA / (b.w * b.h)));
     const w = Math.max(1, Math.round(b.w * scale)), h = Math.max(1, Math.round(b.h * scale));
+    const pg = pages && pages.length ? pages : null;
+    const world = (g) => g.setTransform(scale, 0, 0, scale, -b.x * scale, -b.y * scale);
     const ink = document.createElement('canvas'); ink.width = w; ink.height = h;
     const c = ink.getContext('2d');
-    c.setTransform(scale, 0, 0, scale, -b.x * scale, -b.y * scale);
+    world(c);
+    if (pg) { c.beginPath(); for (const p of pg) c.rect(p.x, p.y, p.w, p.h); c.clip(); }
     c.lineCap = 'round'; c.lineJoin = 'round';
     for (const s of strokes) WB.paint(c, s);
-    if (!bg) return { canvas: ink, scale };
-    // Erasers cut holes in the ink layer, so the background goes on a separate layer underneath.
+    if (!bg && !pattern && !(pg && pg.some((p) => p.src))) return { canvas: ink, scale };
+    // Erasers cut holes in the ink layer, so the background, the pattern and a PDF's page
+    // pictures go on a separate layer underneath (on a sheet, only within its pages).
     const out = document.createElement('canvas'); out.width = w; out.height = h;
     const o = out.getContext('2d');
-    o.fillStyle = bg; o.fillRect(0, 0, w, h); o.drawImage(ink, 0, 0);
+    world(o);
+    if (pg) { o.save(); o.beginPath(); for (const p of pg) o.rect(p.x, p.y, p.w, p.h); o.clip(); }
+    if (bg) { o.fillStyle = bg; o.fillRect(b.x, b.y, b.w, b.h); }
+    if (pattern) WB.paintPattern(o, pattern, b);
+    if (pg) { WB.paintPages(o, pg, null); o.restore(); }
+    o.setTransform(1, 0, 0, 1, 0, 0);
+    o.drawImage(ink, 0, 0);
     return { canvas: out, scale };
   };
 
@@ -159,9 +220,9 @@
 
   /* ---- SVG ----------------------------------------------------------- */
   const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  function svgPath(s) {
+  function svgPath(s, outline) {
     let d = '';
-    WB.trace(s, {
+    (outline ? WB.traceVar : WB.trace)(s, {
       moveTo(x, y) { d += `M${f(x)} ${f(y)}`; },
       lineTo(x, y) { d += `L${f(x)} ${f(y)}`; },
       quadraticCurveTo(a, b, x, y) { d += `Q${f(a)} ${f(b)} ${f(x)} ${f(y)}`; },
@@ -170,8 +231,10 @@
     return d;
   }
 
-  WB.toSVG = function (strokes, b, bg, payload) {
+  WB.toSVG = function (strokes, b, bg, payload, pages, pattern) {
     const box = `x="${f(b.x)}" y="${f(b.y)}" width="${f(b.w)}" height="${f(b.h)}"`;
+    const pg = pages && pages.length ? pages : null;
+    const rectOf = (p) => `x="${f(p.x)}" y="${f(p.y)}" width="${f(p.w)}" height="${f(p.h)}"`;
     let defs = '', body = '', n = 0;
     for (const run of runs(strokes)) {
       if (run.kind === 'ink') {
@@ -187,6 +250,11 @@
             // An "under" fill sits beneath everything drawn before it, so it goes first in the document.
             const el = `<path d="${svgPath(s)}" fill="${s.color}" fill-rule="evenodd"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
             body = s.under ? el + body : body + el;
+          } else if (WB.hasPress(s)) {
+            body += `<path d="${svgPath(s, true)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
+          } else if (s.hl) {
+            // A highlighter sits beneath what was drawn before it, like an "under" fill.
+            body = `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}" stroke-linecap="square"${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n` + body;
           } else {
             const dash = WB.dashOf(s);
             body += `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}"${dash ? ` stroke-dasharray="${dash.map(f).join(' ')}"` : ''}${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n`;
@@ -200,19 +268,35 @@
         body = `<g mask="url(#${id})">\n${body}</g>\n`;
       }
     }
+    let under = bg && !pg ? `<rect ${box} fill="${bg}" stroke="none"/>\n` : '';
+    if (pg) {
+      // A sheet: the paper and any PDF page pictures beneath, and everything clipped to the pages.
+      defs += `<clipPath id="pages">${pg.map((p) => `<rect ${rectOf(p)}/>`).join('')}</clipPath>\n`;
+      if (bg) for (const p of pg) under += `<rect ${rectOf(p)} fill="${bg}" stroke="none"/>\n`;
+    }
+    if (pattern) {
+      // One tile per grid step, shifted by half a step so its marks fall on the multiples of GRID.
+      const G = WB.GRID, H = G / 2, mark = pattern.kind === 'dots' ? `<circle cx="${H}" cy="${H}" r="1.2" fill="${pattern.color}"/>`
+        : `<path d="M0 ${H}H${G}${pattern.kind === 'lines' ? `M${H} 0V${G}` : ''}" stroke="${pattern.color}" stroke-width="1" stroke-linecap="butt"/>`;
+      defs += `<pattern id="canvas-pattern" x="${-H}" y="${-H}" width="${G}" height="${G}" patternUnits="userSpaceOnUse">${mark}</pattern>\n`;
+      under += `<rect ${box} fill="url(#canvas-pattern)" fill-opacity="${pattern.alpha}" stroke="none"${pg ? ' clip-path="url(#pages)"' : ''}/>\n`;
+    }
+    if (pg) {
+      for (const p of pg) if (p.src) under += `<image ${rectOf(p)} preserveAspectRatio="none" xlink:href="${p.src}"/>\n`;
+      body = `<g clip-path="url(#pages)">\n${body}</g>\n`;
+    }
     return `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${f(b.x)} ${f(b.y)} ${f(b.w)} ${f(b.h)}" width="${f(b.w)}" height="${f(b.h)}" fill="none" stroke-linecap="round" stroke-linejoin="round">\n` +
       (defs ? `<defs>\n${defs}</defs>\n` : '') +
-      (bg ? `<rect ${box} fill="${bg}" stroke="none"/>\n` : '') +
-      body + (payload ? `<metadata id="whiteboard-board">${payload}</metadata>\n` : '') + '</svg>\n';
+      under + body + (payload ? `<metadata id="whiteboard-board">${payload}</metadata>\n` : '') + '</svg>\n';
   };
 
   /* ---- PDF -----------------------------------------------------------
      Vector output. Eraser runs become luminosity soft masks applied to a
      transparency group holding everything drawn before them. */
-  function pdfPath(s) {
+  function pdfPath(s, outline) {
     let d = '', cx = 0, cy = 0;
-    WB.trace(s, {
+    (outline ? WB.traceVar : WB.trace)(s, {
       moveTo(x, y) { d += `${f(x)} ${f(y)} m `; cx = x; cy = y; },
       lineTo(x, y) { d += `${f(x)} ${f(y)} l `; cx = x; cy = y; },
       quadraticCurveTo(a, b, x, y) {
@@ -234,13 +318,17 @@
     } catch (e) { return null; }
   }
 
-  WB.toPDF = async function (strokes, b, bg, payload) {
-    const k = Math.min(1, 14400 / b.w, 14400 / b.h); // PDF pages max out at 14400 units
-    const PW = f(b.w * k), PH = f(b.h * k);
+  /* pages: a sheet board's pages, each exported as its own PDF page at its true paper size
+     (board units are CSS pixels, 96 per inch; PDF units are points, 72 per inch). Without pages
+     the whole drawing (b) becomes one page, one unit per point as before. */
+  WB.toPDF = async function (strokes, b, bg, payload, pages, pattern) {
+    const sheet = pages && pages.length ? pages : null;
+    const pageList = sheet || [b];
+    const k = sheet ? 0.75 : Math.min(1, 14400 / b.w, 14400 / b.h); // PDF pages max out at 14400 units
     const bbox = `[${f(b.x)} ${f(b.y)} ${f(b.x + b.w)} ${f(b.y + b.h)}]`;
     const rect = `${f(b.x)} ${f(b.y)} ${f(b.w)} ${f(b.h)} re`;
 
-    const objs = [null, null, null]; // 1 catalog, 2 pages, 3 page (filled in at the end)
+    const objs = [null, null]; // 1 catalog, 2 page tree (filled in at the end)
     const add = (body) => (objs.push(body), objs.length);
     const alphaObj = new Map();
     const newStream = () => ({ ops: '1 J 1 j\n', gs: new Map(), xo: new Map() });
@@ -261,6 +349,24 @@
       const out = new Uint8Array(head.length + data.length + tail.length);
       out.set(head); out.set(data, head.length); out.set(tail, head.length + data.length);
       return add(out);
+    }
+    /* A PDF page's picture: a JPEG goes in as it is; anything else as raw pixels. */
+    async function pageImage(p) {
+      const img = WB.imageOf(p);
+      if (!img.complete || !img.naturalWidth) return 0;
+      const dims = `/Width ${img.naturalWidth} /Height ${img.naturalHeight} /BitsPerComponent 8 /ColorSpace /DeviceRGB`;
+      if (p.src.startsWith('data:image/jpeg;base64,')) {
+        const data = fromB64(p.src.slice(23));
+        const head = enc.encode(`<< /Type /XObject /Subtype /Image ${dims} /Filter /DCTDecode /Length ${data.length} >>\nstream\n`), tail = enc.encode('\nendstream');
+        const out = new Uint8Array(head.length + data.length + tail.length);
+        out.set(head); out.set(data, head.length); out.set(tail, head.length + data.length);
+        return add(out);
+      }
+      const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+      const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0);
+      const px = g.getImageData(0, 0, cv.width, cv.height).data, n = cv.width * cv.height, rgbBytes = new Uint8Array(n * 3);
+      for (let i = 0; i < n; i++) { rgbBytes[3 * i] = px[4 * i]; rgbBytes[3 * i + 1] = px[4 * i + 1]; rgbBytes[3 * i + 2] = px[4 * i + 2]; }
+      return streamObj(`/Type /XObject /Subtype /Image ${dims}`, rgbBytes);
     }
     const formObj = (st, cs) => streamObj(
       `/Type /XObject /Subtype /Form /BBox ${bbox} /Group << /S /Transparency /CS /${cs} /I true >> /Resources ${resources(st)}`, st.ops);
@@ -319,7 +425,9 @@
           } else if (s.tool === 'fill') {
             const op = `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} rg ${pdfPath(s)}f*\n`;
             cur.ops = s.under ? op + cur.ops : cur.ops + op;
-          } else cur.ops += `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} RG ${f(s.width)} w [${(WB.dashOf(s) || []).map(f).join(' ')}] 0 d ${pdfPath(s)}S\n`;
+          } else if (WB.hasPress(s)) cur.ops += `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} rg ${pdfPath(s, true)}f\n`;
+          else if (s.hl) cur.ops = `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} RG ${f(s.width)} w 2 J [] 0 d ${pdfPath(s)}S 1 J\n` + cur.ops;   // beneath, like an "under" fill
+          else cur.ops += `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} RG ${f(s.width)} w [${(WB.dashOf(s) || []).map(f).join(' ')}] 0 d ${pdfPath(s)}S\n`;
         }
         has = true;
       } else if (has) {
@@ -336,15 +444,43 @@
       }
     }
 
-    const page = `q ${f(k)} 0 0 ${f(-k)} ${f(-b.x * k)} ${f((b.y + b.h) * k)} cm\n` +
-      (bg ? `${rgb(bg)} rg ${rect} f\n` : '') + cur.ops + 'Q\n';
-    const contentId = await streamObj('', page);
+    // Several pages share the drawing as one form, so it is stored once.
+    let inkOps = cur.ops, inkRes = cur;
+    if (pageList.length > 1) {
+      const formId = await formObj(cur, 'DeviceRGB');
+      inkRes = newStream(); inkRes.xo.set('Ink', formId);
+      inkOps = '/Ink Do\n';
+    }
+    const kids = [];
+    for (const p of pageList) {
+      const st = newStream();
+      for (const [n2, id] of inkRes.gs) st.gs.set(n2, id);
+      for (const [n2, id] of inkRes.xo) st.xo.set(n2, id);
+      const pr = `${f(p.x)} ${f(p.y)} ${f(p.w)} ${f(p.h)} re`;
+      let ops = `q ${f(k)} 0 0 ${f(-k)} ${f(-p.x * k)} ${f((p.y + p.h) * k)} cm\n` + (sheet ? `${pr} W n\n` : '') + (bg ? `${rgb(bg)} rg ${pr} f\n` : '');
+      if (pattern) {
+        // Dots are zero-length strokes with round caps; lines and the grid are hairlines of 1 unit.
+        const xs = gridSteps(p.x, p.w), ys = gridSteps(p.y, p.h);
+        let path = '';
+        if (pattern.kind === 'dots') for (const y of ys) for (const x of xs) path += `${f(x)} ${f(y)} m ${f(x)} ${f(y)} l `;
+        else {
+          for (const y of ys) path += `${f(p.x)} ${f(y)} m ${f(p.x + p.w)} ${f(y)} l `;
+          if (pattern.kind === 'lines') for (const x of xs) path += `${f(x)} ${f(p.y)} m ${f(x)} ${f(p.y + p.h)} l `;
+        }
+        if (path) ops += `q /${alpha(st, pattern.alpha)} gs ${rgb(pattern.color)} RG ${pattern.kind === 'dots' ? '2.4 w 1 J' : '1 w 0 J'} ${path}S Q\n`;
+      }
+      if (p.src) {
+        const id = await pageImage(p);
+        if (id) { st.xo.set('P', id); ops += `q ${f(p.w)} 0 0 ${f(-p.h)} ${f(p.x)} ${f(p.y + p.h)} cm /P Do Q\n`; }
+      }
+      const contentId = await streamObj('', ops + inkOps + 'Q\n');
+      kids.push(add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${f(p.w * k)} ${f(p.h * k)}] /Contents ${contentId} 0 R ` +
+        `/Group << /S /Transparency /CS /DeviceRGB >> /Resources ${resources(st)} >>`));
+    }
     // The board itself, for Import: an uncompressed stream nothing refers to, so viewers ignore it.
     if (payload) add(`<< /Type /WhiteboardBoard /Length ${payload.length} >>\nstream\n${payload}\nendstream`);
     objs[0] = '<< /Type /Catalog /Pages 2 0 R >>';
-    objs[1] = '<< /Type /Pages /Kids [3 0 R] /Count 1 >>';
-    objs[2] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Contents ${contentId} 0 R ` +
-      `/Group << /S /Transparency /CS /DeviceRGB >> /Resources ${resources(cur)} >>`;
+    objs[1] = `<< /Type /Pages /Kids [${kids.map((id) => id + ' 0 R').join(' ')}] /Count ${kids.length} >>`;
 
     const parts = [], offsets = [];
     let pos = 0;

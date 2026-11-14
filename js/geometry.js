@@ -48,6 +48,84 @@
     return s._path;
   };
 
+  /* ---- Pressure --------------------------------------------------------
+     A pen stroke drawn with pressure on carries press: [0..1 per point]. Its width at each point is
+     width × PRESS(p), so `width` stays the widest it can get (bounds and hit-testing need nothing new).
+     Such a stroke is painted as a filled outline: the union of a disc at each point and the band
+     joining neighbouring discs, all wound the same way so a nonzero fill merges them without seams
+     and with no darker overlaps at partial opacity. Dashed strokes and highlighters ignore pressure. */
+  WB.PRESS = (p) => 0.18 + 0.82 * Math.pow(p < 0 ? 0 : p > 1 ? 1 : p, 0.85);
+  WB.hasPress = (s) => !!(s.press && s.points && s.tool === 'pen' && !s.hl && !WB.dashOf(s) && s.press.length === s.points.length >> 1 && s.press.length > 1);
+
+  /* The stroke's centre line as points with a radius each, following the same curve as trace(). */
+  function centerline(s) {
+    const p = s.points, q = s.press, n = p.length >> 1, r = (i) => (s.width / 2) * WB.PRESS(q[(i + n) % n]);
+    const P = [], R = [];
+    const put = (x, y, rad) => { P.push(x, y); R.push(rad); };
+    const quad = (ax, ay, ar, cx, cy, cr, bx, by, br) => {
+      const len = hyp(cx - ax, cy - ay) + hyp(bx - cx, by - cy);
+      const m = Math.max(2, Math.min(8, Math.ceil(len / Math.max(1e-6, Math.min(ar, br)))));
+      for (let j = 1; j <= m; j++) {
+        const t = j / m, u = 1 - t, a = u * u, b = 2 * u * t, c = t * t;
+        put(a * ax + b * cx + c * bx, a * ay + b * cy + c * by, a * ar + b * cr + c * br);
+      }
+    };
+    if (!s.smooth || n < 3) {
+      for (let i = 0; i < n; i++) put(p[2 * i], p[2 * i + 1], r(i));
+      if (s.closed && n > 2) put(p[0], p[1], r(0));
+      return { P, R };
+    }
+    const mid = (i, j) => [(p[2 * i] + p[2 * j]) / 2, (p[2 * i + 1] + p[2 * j + 1]) / 2, (r(i) + r(j)) / 2];
+    if (s.closed) {
+      let a = mid(n - 1, 0);
+      put(a[0], a[1], a[2]);
+      for (let i = 0; i < n; i++) { const b = mid(i, (i + 1) % n); quad(a[0], a[1], a[2], p[2 * i], p[2 * i + 1], r(i), b[0], b[1], b[2]); a = b; }
+      return { P, R };
+    }
+    let a = [p[0], p[1], r(0)];
+    put(a[0], a[1], a[2]);
+    for (let i = 1; i < n - 1; i++) { const b = mid(i, i + 1); quad(a[0], a[1], a[2], p[2 * i], p[2 * i + 1], r(i), b[0], b[1], b[2]); a = b; }
+    put(p[2 * n - 2], p[2 * n - 1], r(n - 1));
+    return { P, R };
+  }
+  const K8 = 1 / Math.cos(Math.PI / 8);
+  function disc(k, x, y, r) {                 // eight quadratic arcs, clockwise on screen
+    k.moveTo(x + r, y);
+    for (let j = 1; j <= 8; j++) {
+      const a = (j * Math.PI) / 4, m = a - Math.PI / 8;
+      k.quadraticCurveTo(x + r * K8 * Math.cos(m), y + r * K8 * Math.sin(m), x + r * Math.cos(a), y + r * Math.sin(a));
+    }
+    k.closePath();
+  }
+  /* A four-cornered patch (flat x, y list), wound the same way as the discs and bands. */
+  function patch(k, q) {
+    let area = 0;
+    for (let j = 0; j < 8; j += 2) { const n2 = (j + 2) % 8; area += q[j] * q[n2 + 1] - q[n2] * q[j + 1]; }
+    if (area > 0) k.moveTo(q[0], q[1]), k.lineTo(q[2], q[3]), k.lineTo(q[4], q[5]), k.lineTo(q[6], q[7]);
+    else k.moveTo(q[6], q[7]), k.lineTo(q[4], q[5]), k.lineTo(q[2], q[3]), k.lineTo(q[0], q[1]);
+    k.closePath();
+  }
+  WB.traceVar = function (s, k) {
+    const { P, R } = centerline(s), m = R.length;
+    disc(k, P[0], P[1], R[0]);
+    for (let i = 1; i < m; i++) {
+      const x1 = P[2 * i - 2], y1 = P[2 * i - 1], x2 = P[2 * i], y2 = P[2 * i + 1], r1 = R[i - 1], r2 = R[i];
+      const d = hyp(x2 - x1, y2 - y1);
+      if (d <= Math.abs(r1 - r2) + 1e-9) { if (r2 > r1 || i === m - 1) disc(k, x2, y2, r2); continue; }   // one disc holds the other
+      const th = Math.atan2(y2 - y1, x2 - x1), al = Math.acos((r1 - r2) / d);
+      patch(k, [x1 + r1 * Math.cos(th + al), y1 + r1 * Math.sin(th + al), x2 + r2 * Math.cos(th + al), y2 + r2 * Math.sin(th + al),
+        x2 + r2 * Math.cos(th - al), y2 + r2 * Math.sin(th - al), x1 + r1 * Math.cos(th - al), y1 + r1 * Math.sin(th - al)]);
+      // Neighbouring bands end and start on different chords of the disc at their joint (when the
+      // line turns or its width changes), so every joint gets its whole disc. Patching only the
+      // sliver between the chords can fold over itself and cancel the band: dark tears.
+      disc(k, x2, y2, r2);
+    }
+  };
+  WB.outlineOf = function (s) {
+    if (!s._opath) { s._opath = new Path2D(); WB.traceVar(s, s._opath); }
+    return s._opath;
+  };
+
   /* Paint one stroke. The context transform must already map world -> pixels. */
   /* ---- Text ----------------------------------------------------------
      A text object is { tool:'text', x, y, text, font, size, color }. (x, y) is the
@@ -126,11 +204,13 @@
     img.addEventListener('load', () => res(true), { once: true });
     img.addEventListener('error', () => res(false), { once: true });
   });
-  WB.loadImages = function (strokes) {
-    return Promise.all(strokes.filter((s) => s.tool === 'image').map((s) => WB.imageReady(WB.imageOf(s))));
+  WB.loadImages = function (strokes, pages) {
+    const all = strokes.filter((s) => s.tool === 'image').concat((pages || []).filter((p) => p.src));
+    return Promise.all(all.map((s) => WB.imageReady(WB.imageOf(s))));
   };
 
-  WB.paint = function (c, s, path) {
+  /* over: paint a highlighter normally instead of beneath (the live stroke is drawn under the ink layer instead). */
+  WB.paint = function (c, s, path, over) {
     if (s.tool === 'image') {
       const img = WB.imageOf(s);
       if (!img.complete || !img.naturalWidth) return;
@@ -165,13 +245,46 @@
       return;
     }
     const erase = s.tool === 'eraser';
-    c.globalCompositeOperation = erase ? 'destination-out' : 'source-over';
+    if (!erase && WB.hasPress(s)) {
+      c.globalCompositeOperation = 'source-over';
+      c.globalAlpha = s.opacity;
+      c.fillStyle = s.color;
+      c.fill(path || WB.outlineOf(s), 'nonzero');
+      return;
+    }
+    // A highlighter has a flat, square tip and slides beneath the ink already there, so the writing
+    // it marks stays crisp on top, like with a real one (on light and dark boards alike).
+    c.globalCompositeOperation = erase ? 'destination-out' : s.hl && !over ? 'destination-over' : 'source-over';
     c.globalAlpha = s.opacity;
     c.strokeStyle = erase ? '#000' : s.color;
     c.lineWidth = s.width;
+    if (s.hl) c.lineCap = 'square';
     c.setLineDash((!erase && WB.dashOf(s)) || NO_DASH);
     c.stroke(path || WB.pathOf(s));
     c.setLineDash(NO_DASH);
+    if (s.hl) c.lineCap = 'round';
+  };
+
+  /* ---- Sheets ------------------------------------------------------------
+     A board may have pages: [{ x, y, w, h, src? }], fixed areas that exports are limited to (a paper
+     size, or the pages of an opened PDF, whose picture is src). Drawing outside them still works;
+     it just isn't exported. paintPages draws the paper (and the PDF pictures) beneath the ink. */
+  WB.paintPages = function (c, pages, paper) {
+    for (const p of pages) {
+      c.save();
+      c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+      if (paper) { c.fillStyle = paper; c.fillRect(p.x, p.y, p.w, p.h); }
+      if (p.src) {
+        const img = WB.imageOf(p);
+        if (img.complete && img.naturalWidth) { c.imageSmoothingQuality = 'high'; c.drawImage(img, p.x, p.y, p.w, p.h); }
+      }
+      c.restore();
+    }
+  };
+  WB.pagesBounds = function (pages) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of pages) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x + p.w); y1 = Math.max(y1, p.y + p.h); }
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   };
 
   /* ---- Line types -------------------------------------------------------

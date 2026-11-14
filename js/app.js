@@ -12,20 +12,24 @@
   const ctx = canvas.getContext('2d', { desynchronized: true });
   const base = document.createElement('canvas'), bctx = base.getContext('2d');
   const scratch = document.createElement('canvas'), sctx = scratch.getContext('2d');   // compositing space for the fill animation
+  const sheet = document.createElement('canvas'), shctx = sheet.getContext('2d');     // a sheet's pages, edges and the tint around them, under the ink
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  // iPhone and iPad (an iPad's Safari says it is a Mac, but has touch).
+  const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const darkMq = matchMedia('(prefers-color-scheme: dark)');
 
   const holdMs = () => clamp(+settings.snapDelay || 1, 0.2, 10) * 1000;   // hold still this long to snap a stroke into a shape
   const ZOOM_MIN = 0.02, ZOOM_MAX = 64;
   const PALETTE = ['#111111', '#ffffff', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#af52de'];
-  const SIZE = { pen: [1, 60], eraser: [4, 200] };
+  const HL_PALETTE = ['#ffee00', '#b8ff1f', '#2bff88', '#1fe0ff', '#4d9dff', '#c56bff', '#ff4fd8', '#ff8c1a'];   // neon, like highlighter pens
+  const SIZE = { pen: [1, 60], eraser: [4, 200], highlighter: [4, 160] };
 
   /* ---- State --------------------------------------------------------- */
   const store = {
     get(k, def) { try { return Object.assign(def, JSON.parse(localStorage.getItem(k)) || {}); } catch (e) { return def; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
   };
-  const settings = store.get('wb.settings', { theme: 'system', smoothing: 0, snap: true, fingerDraw: true, scratch: true, grid: 'dots', canvas: 'theme', canvasCustom: '#f4f1e8', snapDelay: 1,
+  const settings = store.get('wb.settings', { theme: 'system', smoothing: 0, snap: true, fingerDraw: true, scratch: true, pressure: false, filesCopy: false, grid: 'dots', canvas: 'theme', canvasCustom: '#f4f1e8', snapDelay: 1,
     ink: false, inkDelay: 1, inkScript: null,   // handwriting to text (alphabet null = follow the language)
     lang: null });                              // interface language (null = follow the system)
   const tr = WB.t;
@@ -36,11 +40,12 @@
     tool: 'pen',
     pen: { color: ink0, width: 4, opacity: 1 },
     eraser: { width: 28, opacity: 1 },
+    highlighter: { color: '#ffee00', width: 24, opacity: 0.5 },
     text: { font: 'sans', size: 24, color: ink0 },
     custom: '#ff2d55',              // last colour mixed in the picker
   });
 
-  const doc = { title: 'Untitled', created: Date.now(), strokes: [] };
+  const doc = { title: 'Untitled', created: Date.now(), strokes: [], pages: [] };   // pages: a sheet's fixed areas (see WB.paintPages)
   const view = { x: 0, y: 0, zoom: 1 };   // screen = world * zoom + (x, y), in CSS pixels
   let fileHandle = null, restored = false;
   const undoStack = [], redoStack = [];
@@ -66,8 +71,8 @@
     const w = board.clientWidth, h = board.clientHeight, d = Math.min(window.devicePixelRatio || 1, 3);
     if (w === W && h === H && d === dpr) return;
     W = w; H = h; dpr = d;
-    canvas.width = base.width = scratch.width = Math.max(1, Math.round(W * dpr));
-    canvas.height = base.height = scratch.height = Math.max(1, Math.round(H * dpr));
+    canvas.width = base.width = scratch.width = sheet.width = Math.max(1, Math.round(W * dpr));
+    canvas.height = base.height = scratch.height = sheet.height = Math.max(1, Math.round(H * dpr));
     baseDirty = true;
     frame(performance.now()); // paint synchronously so a resize never flashes empty
   }
@@ -84,9 +89,28 @@
       if (b.x1 < x0 || b.x0 > x1 || b.y1 < y0 || b.y0 > y1 || (fillAnim && fillAnim.s === s) || (edit && edit.s === s)) continue;
       WB.paint(bctx, s);
     }
+    renderSheet(x0, y0, x1, y1);
     baseView.x = view.x; baseView.y = view.y; baseView.zoom = view.zoom;
     baseDirty = false;
     renderCost = performance.now() - t0;
+  }
+  /* A sheet: what lies outside the pages is tinted (it is never exported), each page has a clear
+     edge, and an opened PDF's page pictures lie beneath the ink. */
+  function renderSheet(x0, y0, x1, y1) {
+    shctx.setTransform(1, 0, 0, 1, 0, 0);
+    shctx.clearRect(0, 0, sheet.width, sheet.height);
+    if (!doc.pages.length) return;
+    worldTransform(shctx);
+    const seen = doc.pages.filter((p) => p.x < x1 && p.x + p.w > x0 && p.y < y1 && p.y + p.h > y0);
+    shctx.beginPath();
+    shctx.rect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
+    for (const p of doc.pages) shctx.rect(p.x, p.y, p.w, p.h);
+    shctx.fillStyle = isDark(canvasColor()) ? 'rgba(0, 0, 0, 0.32)' : 'rgba(96, 96, 104, 0.13)';
+    shctx.fill('evenodd');
+    WB.paintPages(shctx, seen, null);
+    shctx.lineWidth = 1 / view.zoom;
+    shctx.strokeStyle = isDark(canvasColor()) ? 'rgba(255, 255, 255, 0.28)' : 'rgba(0, 0, 0, 0.22)';
+    for (const p of seen) shctx.strokeRect(p.x, p.y, p.w, p.h);
   }
 
   function frame(now) {
@@ -102,20 +126,140 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!baseDirty) ctx.drawImage(base, 0, 0);
-    else {
+    if (baseDirty) {
       const k = view.zoom / baseView.zoom;
       ctx.setTransform(k, 0, 0, k, (view.x - baseView.x * k) * dpr, (view.y - baseView.y * k) * dpr);
-      ctx.drawImage(base, 0, 0);
     }
+    if (doc.pages.length) ctx.drawImage(sheet, 0, 0);
+    if (live && live.hl) {                    // a highlighter in progress lies between the paper and the ink
+      const t = ctx.getTransform();
+      paintLive(); ctx.setTransform(t);
+    }
+    ctx.drawImage(base, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (fillAnim) drawFillAnim(now);
     if (selection.size || (selDrag && selDrag.lasso)) drawSelection();
-    if (live) {
-      worldTransform(ctx);
-      const p = new Path2D(); WB.trace(live, p);
-      WB.paint(ctx, live, p);
-    }
+    if (live && !live.hl) paintLive();
+    if (laser.trail.length) drawLaser(now);
     syncView();
+    placePageButtons();
+  }
+
+  /* ---- Adding pages to a sheet --------------------------------------------
+     A "+" button sits just above the top page and just below the bottom one. They move and scale
+     with the board, like part of the sheet, and add a page of the same size there (undoable). */
+  /* Next to it, while the end page is empty (nothing drawn on it, not a PDF page) and isn't the
+     only one, a delete button; the two then sit side by side, centred together. */
+  const pageBtns = { top: $('#page-add-top'), bottom: $('#page-add-bottom') };
+  const delBtns = { top: $('#page-del-top'), bottom: $('#page-del-bottom') };
+  let pageKey = '', emptyKey = '', empty = { top: false, bottom: false }, docRev = 0;
+  const ends = () => ({
+    top: doc.pages.reduce((a, p) => (p.y < a.y ? p : a)),
+    bottom: doc.pages.reduce((a, p) => (p.y + p.h > a.y + a.h ? p : a)),
+  });
+  function pageEmpty(p) {
+    if (p.src || doc.pages.length < 2) return false;
+    return !doc.strokes.some((s) => {
+      if (s.tool === 'eraser') return false;
+      const b = WB.boundsOf(s);
+      return b.x1 > p.x && b.x0 < p.x + p.w && b.y1 > p.y && b.y0 < p.y + p.h;
+    });
+  }
+  function placePageButtons() {
+    if (!doc.pages.length) {
+      if (pageKey) { for (const b of [pageBtns.top, pageBtns.bottom, delBtns.top, delBtns.bottom]) b.classList.remove('on'); pageKey = ''; }
+      return;
+    }
+    const E = ends();
+    const ek = docRev + ':' + doc.pages.length + ':' + doc.strokes.length;
+    if (ek !== emptyKey) { emptyKey = ek; empty = { top: pageEmpty(E.top), bottom: E.bottom !== E.top && pageEmpty(E.bottom) }; }
+    const z = view.zoom, k = clamp(z, 0.45, 1.6), gap = 32 * k, half = 26 * k;
+    const at = { top: [view.x + (E.top.x + E.top.w / 2) * z, view.y + E.top.y * z - gap], bottom: [view.x + (E.bottom.x + E.bottom.w / 2) * z, view.y + (E.bottom.y + E.bottom.h) * z + gap] };
+    const key = [at.top, at.bottom, k, empty.top, empty.bottom].join();
+    if (key === pageKey) return;
+    pageKey = key;
+    for (const w of ['top', 'bottom']) {
+      const [x, y] = at[w], d = empty[w] ? half : 0;
+      pageBtns[w].style.transform = `translate(${x - d}px, ${y}px) translate(-50%, -50%) scale(${k})`;
+      delBtns[w].style.transform = `translate(${x + d}px, ${y}px) translate(-50%, -50%) scale(${k})`;
+      pageBtns[w].classList.add('on');
+      delBtns[w].classList.toggle('on', empty[w]);
+    }
+  }
+  function deletePage(where) {
+    commitPending();
+    const p = ends()[where];
+    if (!pageEmpty(p)) return;
+    const before = snapshot();
+    doc.pages = doc.pages.filter((q) => q !== p);
+    record({ type: 'replace', before, after: snapshot() });
+    invalidate();
+    toast(tr('tPageDeleted'), tr('undo'), undo);
+  }
+  delBtns.top.addEventListener('click', () => deletePage('top'));
+  delBtns.bottom.addEventListener('click', () => deletePage('bottom'));
+  function addPage(where) {
+    commitPending();
+    const pages = doc.pages.slice().sort((a, b) => a.y - b.y);
+    const ref = where === 'top' ? pages[0] : pages[pages.length - 1], gap = 40;
+    const p = { x: onGrid(ref.x, 0), y: where === 'top' ? onGrid(ref.y - gap - ref.h, -1) : onGrid(ref.y + ref.h + gap, 1), w: ref.w, h: ref.h };
+    const before = snapshot();
+    doc.pages = where === 'top' ? [p, ...pages] : [...pages, p];
+    record({ type: 'replace', before, after: snapshot() });
+    invalidate();
+    animateView(p.x + p.w / 2, p.y + p.h / 2, view.zoom);       // glide to the new page
+    toast(tr('tPageAdded'), tr('undo'), undo);
+  }
+  pageBtns.top.addEventListener('click', () => addPage('top'));
+  pageBtns.bottom.addEventListener('click', () => addPage('bottom'));
+
+  function paintLive() {
+    worldTransform(ctx);
+    const p = new Path2D(); (WB.hasPress(live) ? WB.traceVar : WB.trace)(live, p);
+    WB.paint(ctx, live, p, true);
+  }
+
+  /* ---- Laser pointer -----------------------------------------------------
+     A red dot with a glow follows the pen, finger or mouse (the #laser element), trailing a short
+     fading streak. Dragging moves the board, as with the hand tool. Nothing is drawn on the board. */
+  const laser = { el: $('#laser'), trail: [] };
+  function laserAt(x, y) {
+    laser.el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    laser.el.classList.add('on');
+    // Dragging the board: the dot is held still over the board, so it leaves no streak.
+    if (mode === 'pan') { laser.trail.length = 0; requestFrame(); return; }
+    const t = performance.now(), l = laser.trail[laser.trail.length - 1];
+    if (!l || l.x !== x || l.y !== y) laser.trail.push({ x, y, t });
+    requestFrame();
+  }
+  function laserOff() { laser.el.classList.remove('on'); }
+  /* The streak is one tapered ribbon, filled once: narrow and old at the tail, widest at the dot.
+     (Drawn as separate overlapping pieces it showed brighter dots wherever the pieces met.) */
+  function drawLaser(now) {
+    const T = 175, tr0 = laser.trail;
+    while (tr0.length && now - tr0[0].t > T) tr0.shift();
+    const P = [];
+    for (const p of tr0) { const l = P[P.length - 1]; if (!l || Math.hypot(p.x - l.x, p.y - l.y) > 0.75) P.push(p); }
+    if (P.length < 2) { if (tr0.length) requestFrame(); return; }
+    const n = P.length, L = [], Rt = [];
+    for (let i = 0; i < n; i++) {
+      const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)], len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const nx = -(b.y - a.y) / len, ny = (b.x - a.x) / len;
+      const k = Math.max(0, 1 - (now - P[i].t) / T), hw = 0.2 + 1.8 * k * (0.35 + 0.65 * i / (n - 1));
+      L.push(P[i].x + nx * hw, P[i].y + ny * hw); Rt.push(P[i].x - nx * hw, P[i].y - ny * hw);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.7;
+    ctx.shadowColor = 'rgba(255, 30, 30, 0.75)'; ctx.shadowBlur = 6;
+    ctx.fillStyle = '#ff2a2a';
+    ctx.beginPath();
+    ctx.moveTo(L[0], L[1]);
+    for (let i = 2; i < L.length; i += 2) ctx.lineTo(L[i], L[i + 1]);
+    for (let i = Rt.length - 2; i >= 0; i -= 2) ctx.lineTo(Rt[i], Rt[i + 1]);
+    ctx.closePath();
+    ctx.fill('nonzero');
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+    requestFrame();
   }
 
   const synced = { x: NaN, y: NaN, zoom: NaN };
@@ -177,7 +321,7 @@
     animateView((W / 2 - view.x) / view.zoom, (H / 2 - view.y) / view.zoom, target * factor);
   }
   function fitView(instant) {
-    const b = WB.contentBounds(doc.strokes);
+    const b = doc.pages.length ? WB.pagesBounds(doc.pages) : WB.contentBounds(doc.strokes);   // a sheet fits its pages
     if (!b) return animateView(W / 2, H / 2, 1, instant);
     const z = Math.min((W - 150) / b.w, (H - 210) / b.h, 2);
     animateView(b.x + b.w / 2, b.y + b.h / 2, Math.max(z, ZOOM_MIN), instant);
@@ -193,11 +337,17 @@
     mode = 'draw';
     const t = tools[tool], z = view.zoom, now = performance.now();
     const x = (e.clientX - view.x) / z, y = (e.clientY - view.y) / z;
-    const sm = settings.smoothing / 100;
+    const hl = tool === 'highlighter';
+    // A highlighter is wide with a square tip: raw pointer jitter (a diagonal mouse drag comes in
+    // as a staircase) would make its edges wobble and its tip flip, so it is always smoothed a little.
+    const sm = hl ? Math.max(settings.smoothing / 100, 0.3) : settings.smoothing / 100;
+    // Pressure, when it is on: only from a stylus, and only for the pen (not the highlighter or eraser).
+    const pr = settings.pressure && e.pointerType === 'pen' && tool === 'pen' && !WB.DASHES[tools.pen.dash] ? (e.pressure > 0 ? e.pressure : 0.5) : null;
     live = {
       id: e.pointerId, ptype: e.pointerType, t0: now,
-      tool, color: tools.pen.color, width: t.width / z, opacity: t.opacity,
+      tool: hl ? 'pen' : tool, hl: hl || undefined, color: hl ? tools.highlighter.color : tools.pen.color, width: t.width / z, opacity: t.opacity,
       dash: tool === 'pen' && WB.DASHES[tools.pen.dash] ? tools.pen.dash : undefined,
+      press: pr === null ? undefined : [pr], tp: pr,
       points: [x, y], smooth: sm > 0, closed: false,
       tau: sm * 140, sx: x, sy: y, tx: x, ty: y,
       hold: { x: e.clientX, y: e.clientY, t: now, tol: e.pointerType === 'mouse' ? 3 : 7 },
@@ -208,8 +358,9 @@
     requestFrame();
   }
 
-  function addPoint(cx, cy) {
+  function addPoint(cx, cy, pressure) {
     const L = live, h = L.hold;
+    if (L.press && pressure > 0) L.tp += (pressure - L.tp) * 0.6;   // a little smoothing: raw pressure jitters
     const x = (cx - view.x) / view.zoom, y = (cy - view.y) / view.zoom;
     if (L.snapped) {
       // The shape stays in hand until the pen lifts: the pen swings it around its pivot
@@ -231,7 +382,7 @@
     L.tx = x; L.ty = y;
     if (L.tau > 0) return;                    // smoothing on: the frame loop pulls the stroke toward the pointer
     const p = L.points, n = p.length;
-    if (p[n - 2] !== x || p[n - 1] !== y) p.push(x, y);
+    if (p[n - 2] !== x || p[n - 1] !== y) { p.push(x, y); if (L.press) L.press.push(L.tp); }
   }
 
   function stepLive(now, dt) {
@@ -251,6 +402,7 @@
         const a = 1 - Math.exp(-dt / L.tau);
         L.sx += dx * a; L.sy += dy * a;
         L.points.push(L.sx, L.sy);
+        if (L.press) L.press.push(L.tp);
         requestFrame();
       }
     }
@@ -274,9 +426,10 @@
     let len = 0;
     for (let i = 2; i < p.length; i += 2) len += hyp(p[i] - p[i - 2], p[i + 1] - p[i - 1]);
     if (len * view.zoom < 24) return false;
+    if (L.tau > 0 && L.press) L.press.push(L.tp);
     const res = WB.recognize(p);
-    if (!res) return false;
-    L.snapped = true; L.final = res;
+    if (!res) { if (L.tau > 0) { p.length -= 2; if (L.press) L.press.length--; } return false; }
+    L.snapped = true; L.final = res; L.press = undefined;      // a clean shape has an even line
     const pivot = res.closed ? WB.centroid(res.points) : [res.points[0], res.points[1]];
     L.xf = { px: pivot[0], py: pivot[1], cx: L.hold.x, cy: L.hold.y, ax: 0, ay: 0, ang: 0, sc: 1, active: false };
     L.theta0 = shapeAngle(res); L.extra = new Set(); L.shift = false;
@@ -344,18 +497,29 @@
     requestFrame();
     if (cancel || !L) return updateChrome();
     if (L.final) applyFinal(L);
-    else if (L.tau > 0 && !L.snapped) L.points.push(L.tx, L.ty);   // smoothing lags the pen: finish at the pen (never on a snapped shape)
+    else if (L.tau > 0 && !L.snapped) { L.points.push(L.tx, L.ty); if (L.press) L.press.push(L.tp); }   // smoothing lags the pen: finish at the pen (never on a snapped shape)
     if (L.tool === 'eraser' && !doc.strokes.length) return updateChrome();
     const s = { tool: L.tool, color: L.color, width: L.width, opacity: L.opacity, points: L.points, smooth: L.smooth, closed: L.closed };
     if (L.shape) s.shape = L.shape;
     if (L.dash) s.dash = L.dash;
-    if (s.tool === 'pen' && !s.shape && settings.scratch && scratchOut(s, performance.now() - L.t0)) return;
+    if (L.hl) {
+      s.hl = true;
+      // Settle the finished line: drop the small wiggles and draw it as a smooth curve.
+      if (!s.shape && s.points.length > 4) {
+        const pairs = [];
+        for (let i = 0; i < s.points.length; i += 2) pairs.push([s.points[i], s.points[i + 1]]);
+        const kept = WB.rdp(pairs, s.width * 0.06);
+        s.points = kept.flat(); s.smooth = true;
+      }
+    }
+    if (L.press && L.press.length === s.points.length >> 1) s.press = L.press.map((v) => Math.round(v * 100) / 100);
+    if (s.tool === 'pen' && !s.hl && !s.shape && settings.scratch && scratchOut(s, performance.now() - L.t0)) return;
     s._at = performance.now();
     doc.strokes.push(s);
     if (!baseDirty) { worldTransform(bctx); WB.paint(bctx, s); }
     record({ type: 'add', stroke: s });
     // Handwriting: plain pen strokes wait to be read; a snapped shape ends the word; erasing abandons it.
-    if (settings.ink && s.tool === 'pen' && !s.shape) inkAdd(s);
+    if (settings.ink && s.tool === 'pen' && !s.shape && !s.hl) inkAdd(s);
     else if (s.tool === 'pen') inkConvert();
     else inkDrop();
   }
@@ -574,7 +738,7 @@
     for (const s of items) {
       if (s.tool === 'text' || s.tool === 'image') { s.x += dx; s.y += dy; }
       else for (const p of s.rings || [s.points]) for (let i = 0; i < p.length; i += 2) { p[i] += dx; p[i + 1] += dy; }
-      delete s._path; delete s._b;
+      delete s._path; delete s._opath; delete s._b;
     }
     invalidate();
   }
@@ -733,7 +897,7 @@
         s.x = a.x; s.y = a.y; s.size = g.size * Math.sqrt(lu * lv);
       }
     }
-    delete s._path; delete s._b; delete s._t;
+    delete s._path; delete s._opath; delete s._b; delete s._t;
   }
   function beginXform(e, k) {
     const F = selFrame(), z = view.zoom;
@@ -1023,7 +1187,7 @@
     }
     invalidate(); updateChrome(); selectionChanged();
   }
-  function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; delete s._path; }
+  function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; delete s._path; delete s._opath; }
 
   /* Change the font, size or colour of the text being typed (and remember it for the next one). */
   function styleText(props) {
@@ -1232,6 +1396,7 @@
     $$('#lang-menu .mi').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.lang === cur[0])));
     titleEl.value = shownTitle();
     smSync(); scriptSync(); syncExport(); updateChrome(); selectionChanged();
+    buildSheets();
     $('#btn-export').textContent = tr('export');
     if (edit) layoutEdit();
   }
@@ -1338,7 +1503,7 @@
       if (n === 1) {
         tap = { t: now, max: 1, moved: false };
         if (doubleOnText(e, now)) return;
-        if (settings.fingerDraw && tools.tool !== 'hand') beginTool(e, tools.tool);
+        if (tools.tool === 'laser' || (settings.fingerDraw && tools.tool !== 'hand')) beginTool(e, tools.tool);
         else beginPan(e.pointerId, e.clientX, e.clientY);
         return;
       }
@@ -1389,6 +1554,7 @@
 
   /* What a press on the board starts, for the active tool. */
   function beginTool(e, tool) {
+    if (tool === 'laser') { beginPan(e.pointerId, e.clientX, e.clientY); return laserAt(e.clientX, e.clientY); }
     if (tool === 'select') {
       const add = e.ctrlKey || e.metaKey;
       mode = 'select';
@@ -1409,6 +1575,7 @@
       const t = touches.get(e.pointerId);
       if (!t) return;
       t.x = e.clientX; t.y = e.clientY;
+      if (tools.tool === 'laser' && touches.size === 1) laserAt(e.clientX, e.clientY);
       if (tap && hyp(t.x - t.sx, t.y - t.sy) > 10) tap.moved = true;
     } else {
       if (e.pointerType === 'pen') lastPen = performance.now();
@@ -1420,8 +1587,8 @@
     if (mode === 'draw' && live && e.pointerId === live.id) {
       if (live.snapped && live.shift !== e.shiftKey) { live.shift = e.shiftKey; resnap(); }
       const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null;   // every sample the stylus produced, not one per frame
-      if (evs && evs.length) for (const ev of evs) addPoint(ev.clientX, ev.clientY);
-      else addPoint(e.clientX, e.clientY);
+      if (evs && evs.length) for (const ev of evs) addPoint(ev.clientX, ev.clientY, ev.pressure);
+      else addPoint(e.clientX, e.clientY, e.pressure);
       requestFrame();
     } else if (mode === 'pan' && e.pointerId === panId) movePan(e.clientX, e.clientY);
     else if (mode === 'pinch' && e.pointerType === 'touch') movePinch();
@@ -1451,6 +1618,7 @@
     }
     const isTouch = e.pointerType === 'touch';
     if (isTouch && !touches.delete(e.pointerId)) return;
+    if (isTouch && touches.size === 0) laserOff();
 
     if (mode === 'draw' && live && e.pointerId === live.id) endStroke(cancel);
     else if (mode === 'pan' && e.pointerId === panId) endPan();
@@ -1494,18 +1662,33 @@
   window.addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
 
   function updateCursor() {
-    const tool = tools.tool, show = cursorPos && (tool === 'pen' || tool === 'eraser') && !spaceHeld && mode !== 'pan';
+    const tool = tools.tool, show = cursorPos && isBrush() && !spaceHeld && mode !== 'pan';
+    if (tool === 'laser' && cursorPos) laserAt(cursorPos.x, cursorPos.y); else if (!(tool === 'laser' && touches.size)) laserOff();
     cursorEl.classList.toggle('on', !!show);
+    cursorEl.classList.toggle('hl', tool === 'highlighter');
     if (!show) return;
     const d = Math.max(5, tools[tool].width);
     cursorEl.style.width = cursorEl.style.height = d + 'px';
-    cursorEl.style.transform = `translate3d(${cursorPos.x - d / 2}px, ${cursorPos.y - d / 2}px, 0)`;
+    // The highlighter's square tip turns to follow the direction it moves in.
+    // Only a quick, deliberate move turns it (faster than 0.35 px/ms over at least 8 px), so the
+    // small jitter of a slow or steady hand doesn't make it twitch.
+    const c = cursorDir, t = performance.now();
+    if (tool === 'highlighter') {
+      if (c.x === null) { c.x = cursorPos.x; c.y = cursorPos.y; c.t = t; }
+      const dx = cursorPos.x - c.x, dy = cursorPos.y - c.y, dist = Math.hypot(dx, dy);
+      if (dist > 8) {
+        if (dist / Math.max(1, t - c.t) > 0.35) c.a = Math.atan2(dy, dx);
+        c.x = cursorPos.x; c.y = cursorPos.y; c.t = t;
+      } else if (t - c.t > 120) { c.x = cursorPos.x; c.y = cursorPos.y; c.t = t; }   // a pause starts a new measurement
+    }
+    cursorEl.style.transform = `translate3d(${cursorPos.x - d / 2}px, ${cursorPos.y - d / 2}px, 0)` + (tool === 'highlighter' ? ` rotate(${c.a}rad)` : '');
   }
+  const cursorDir = { x: null, y: null, t: 0, a: 0 };
 
   /* ---- History ------------------------------------------------------- */
-  const snapshot = () => ({ title: doc.title, created: doc.created, strokes: doc.strokes, handle: fileHandle, gref: WB.gallery.ref });
+  const snapshot = () => ({ title: doc.title, created: doc.created, strokes: doc.strokes, pages: doc.pages, handle: fileHandle, gref: WB.gallery.ref });
   function applySnapshot(s) {
-    doc.title = s.title; doc.created = s.created; doc.strokes = s.strokes; fileHandle = s.handle;
+    doc.title = s.title; doc.created = s.created; doc.strokes = s.strokes; doc.pages = s.pages || []; fileHandle = s.handle;
     WB.gallery.ref = s.gref || null;            // which gallery file this board is, if any
     $('#doc-title').value = shownTitle();
   }
@@ -1564,11 +1747,11 @@
     invalidate();
     toast(message, tr('undo'), undo);
   }
-  function changed() { updateChrome(); autosave(); }
+  function changed() { docRev++; updateChrome(); autosave(); }
   function updateChrome() {
     $('#btn-undo').disabled = !undoStack.length;
     $('#btn-redo').disabled = !redoStack.length;
-    hint.classList.toggle('gone', !restored || doc.strokes.length > 0 || !!live);
+    hint.classList.toggle('gone', !restored || doc.strokes.length > 0 || !!live || doc.pages.some((p) => p.src));
     document.title = shownTitle() + ' – Whiteboard';
   }
 
@@ -1596,7 +1779,8 @@
     if (!d) return;
     // Everything but the render caches (keys starting with "_").
     const strokes = doc.strokes.map((s) => { const o = {}; for (const k in s) if (k[0] !== '_') o[k] = s[k]; return o; });
-    try { d.transaction('kv', 'readwrite').objectStore('kv').put({ title: doc.title, created: doc.created, view: { ...view }, strokes }, 'board'); } catch (e) {}
+    const pages = doc.pages.map((p) => ({ x: p.x, y: p.y, w: p.w, h: p.h, src: p.src }));
+    try { d.transaction('kv', 'readwrite').objectStore('kv').put({ title: doc.title, created: doc.created, view: { ...view }, strokes, pages }, 'board'); } catch (e) {}
   }
   function autosave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500); }
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
@@ -1618,6 +1802,14 @@
     catch (e) { return e.name === 'AbortError' ? false : null; }
   }
   async function writeOut(handle, blob, name) {
+    if (!handle && IOS) {
+      // iPhone and iPad: the share sheet, with "Save Image" (to Photos) and "Save to Files".
+      const file = new File([blob], name, { type: blob.type });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        const go = () => navigator.share({ files: [file] }).catch((e) => { if (e.name === 'NotAllowedError') toast(tr('tExportReady'), tr('gShare'), go, 15000); });
+        return go();
+      }
+    }
     if (!handle) return download(blob, name);
     const w = await handle.createWritable();
     await w.write(blob); await w.close();
@@ -1627,6 +1819,7 @@
      or the gallery ('gallery'). Whichever was used last wins. */
   let saveTarget = 'gallery';
   const BOARD_TYPES = [{ description: 'Whiteboard', accept: { 'application/x-whtbd': ['.whtbd'] } }];
+  const OPEN_TYPES = [{ description: 'Whiteboard, PDF', accept: { 'application/x-whtbd': ['.whtbd'], 'application/pdf': ['.pdf'] } }];
   const canUseFiles = () => typeof window.showSaveFilePicker === 'function' && location.protocol !== 'file:';
   const commitPending = () => { if (edit) commitText(); inkConvert(); };
 
@@ -1698,7 +1891,7 @@
   function loadText(text, handle, gref) {
     let d;
     try { d = WB.parse(text); } catch (e) { return toast(tr(e.message)); }
-    replaceBoard({ title: d.title, created: d.created, strokes: d.strokes, handle: handle || null, gref: gref || null }, '');
+    replaceBoard({ title: d.title, created: d.created, strokes: d.strokes, pages: d.pages, handle: handle || null, gref: gref || null }, '');
     saveTarget = handle ? 'file' : 'gallery';
     toast(tr('tOpened', { t: shownTitle() }), tr('undo'), undo);
     fitView(true);
@@ -1710,7 +1903,7 @@
   async function openBoard() {
     if (!canUseFiles() || !window.showOpenFilePicker) return $('#file-input').click();
     let h;
-    try { [h] = await window.showOpenFilePicker({ id: 'whiteboard-file', types: BOARD_TYPES, excludeAcceptAllOption: false }); }
+    try { [h] = await window.showOpenFilePicker({ id: 'whiteboard-file', types: OPEN_TYPES, excludeAcceptAllOption: false }); }
     catch (e) {
       // A cancel looks exactly like the browser cancelling by itself, which some systems do even
       // after a file was chosen (and then refuse every later dialog at once). The simple file
@@ -1719,14 +1912,70 @@
       toast(tr('tOpenFallback'), tr('mOpenFrom'), () => $('#file-input').click(), 10000);
       return;
     }
-    try { loadText(await (await h.getFile()).text(), h); } catch (err) { toast(tr('eInvalid')); }
+    try { await openFile(await h.getFile(), h); } catch (err) { toast(tr('eInvalid')); }
   }
   $('#file-input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    try { loadText(await file.text()); } catch (err) { toast(tr('eInvalid')); }
+    try { await openFile(file); } catch (err) { toast(tr('eInvalid')); }
   });
+
+  /* A board file opens as it is. A PDF this app exported opens the board inside it; any other PDF
+     becomes a sheet: a board the size of the PDF's pages, with the pages beneath the ink. */
+  const isPdfBytes = (buf) => buf.byteLength > 4 && String.fromCharCode(...new Uint8Array(buf, 0, 5)) === '%PDF-';
+  async function openFile(file, handle) {
+    const buf = await file.arrayBuffer();
+    if (isPdfBytes(buf)) {
+      const text = await WB.extractBoard(buf);
+      return text ? loadText(text) : openPdf(buf, file.name);
+    }
+    loadText(new TextDecoder().decode(buf), handle);
+  }
+  async function readPdfPages(buf) {
+    try {
+      const pages = await WB.readPdf(buf, (i, n) => toast(tr('tPdfReading', { n: i, t: n }), null, null, 60000));
+      $('#toast').classList.remove('on');
+      return pages.length ? pages : null;
+    } catch (e) { report(tr('tPdfFail'), 'reading the PDF', e); return null; }
+  }
+  async function openPdf(buf, name) {
+    commitPending();
+    if ((doc.strokes.length || doc.pages.length) && !(await ask(tr('confirmPdf'), tr('openPdf')))) return;
+    const read = await readPdfPages(buf);
+    if (!read) return;
+    // Pages one under the other, centred, each starting on a step of the canvas pattern (see onGrid).
+    const maxW = Math.max(...read.map((p) => p.w));
+    let y = 0;
+    const pages = read.map((p) => { const o = { x: onGrid((maxW - p.w) / 2, 0), y, w: p.w, h: p.h, src: p.src }; y = onGrid(y + p.h + 40, 1); return o; });
+    await WB.loadImages([], pages);
+    replaceBoard({ title: name.replace(/\.pdf$/i, '').trim() || 'Untitled', created: Date.now(), strokes: [], pages, handle: null, gref: null }, '');
+    saveTarget = 'gallery';
+    toast(tr('tOpened', { t: shownTitle() }), tr('undo'), undo);
+    fitPage(pages[0], true);
+  }
+  /* Pages start on a step of the canvas pattern, so the lines, grid and dots fall the same way on
+     every page: a horizontal line along its top edge, a vertical one along its left. Zoomed out,
+     the pattern on screen skips to every 2nd or 4th step, so pages go on every 4th step (128
+     units), which keeps them lined up down to about 15 % zoom. dir rounds down (-1), up (1) or
+     to the nearest (0). */
+  const PAGE_STEP = 4 * WB.GRID;
+  const onGrid = (v, dir) => (dir < 0 ? Math.floor : dir > 0 ? Math.ceil : Math.round)(v / PAGE_STEP) * PAGE_STEP;
+  /* The view on one page: the whole page, as large as fits. */
+  function fitPage(p, instant) {
+    const z = Math.min((W - 150) / p.w, (H - 210) / p.h, 2);
+    animateView(p.x + p.w / 2, p.y + p.h / 2, Math.max(z, ZOOM_MIN), instant);
+  }
+
+  /* ---- Confirmation ------------------------------------------------------ */
+  let asking = null;
+  function ask(text, ok) {
+    $('#confirm-text').textContent = text;
+    $('#confirm-ok').textContent = ok;
+    openSheet('#confirm');
+    return new Promise((res) => { asking = res; });
+  }
+  $('#confirm-ok').addEventListener('click', () => { const r = asking; asking = null; closeSheets(); if (r) r(true); });
   window.addEventListener('dragover', (e) => e.preventDefault());
   /* Dropped from the file manager: a folder becomes the gallery; a board opens, and where the
      browser hands over the file itself, Save writes back into it like after "Open from…". */
@@ -1741,8 +1990,8 @@
     let handle = null;
     try { handle = pending ? await pending : null; } catch (err) { handle = null; }
     if (handle && handle.kind === 'directory') return WB.gallery.useFolder(handle);
-    if (handle) { try { return loadText(await (await handle.getFile()).text(), handle); } catch (err) { /* read it as a plain file */ } }
-    if (file) { try { loadText(await file.text()); } catch (err) { toast(tr('eInvalid')); } }
+    if (handle) { try { return await openFile(await handle.getFile(), handle); } catch (err) { /* read it as a plain file */ } }
+    if (file) { try { await openFile(file); } catch (err) { toast(tr('eInvalid')); } }
   });
 
   /* ---- Export -------------------------------------------------------- */
@@ -1754,12 +2003,13 @@
     svg: { mime: 'image/svg+xml', name: 'SVG image', note: 'nSvg', vector: true },
     pdf: { mime: 'application/pdf', name: 'PDF document', note: 'nPdf', vector: true },
   };
-  const exp = { format: 'png', scale: '2', bg: 'theme' };
+  const exp = { format: 'png', scale: '2', bg: 'theme', pattern: false };
   const canvasColor = () => getComputedStyle(root).getPropertyValue('--canvas').trim() || '#ffffff';
 
   async function doExport() {
     commitPending();
-    const b0 = WB.contentBounds(doc.strokes);
+    const sheetPages = doc.pages.length ? doc.pages : null;      // a sheet exports exactly its pages
+    const b0 = sheetPages ? WB.pagesBounds(sheetPages) : WB.contentBounds(doc.strokes);
     if (!b0) return toast(tr('tNothing'));
     const F = FORMATS[exp.format], ext = F.ext || exp.format, name = safeName() + '.' + ext;
     const handle = await pickSave(name, F.name, F.mime, ext);   // ask where first, while the tap is still fresh
@@ -1767,18 +2017,20 @@
     const btn = $('#btn-export');
     btn.disabled = true; btn.textContent = tr('exporting');
     try {
-      const pad = Math.max(16, Math.max(b0.w, b0.h) * 0.04);
+      const pad = sheetPages ? 0 : Math.max(16, Math.max(b0.w, b0.h) * 0.04);
       const b = { x: b0.x - pad, y: b0.y - pad, w: b0.w + 2 * pad, h: b0.h + 2 * pad };
       let bg = exp.bg === 'none' ? null : exp.bg === 'white' ? '#ffffff' : canvasColor();
       if (!bg && F.opaque) bg = canvasColor();
+      // The board's dots, lines or grid, when asked for, in a colour that shows on the background.
+      const pattern = exp.pattern ? WB.patternStyle(settings.grid, bg || canvasColor()) : null;
       let blob, shrunk = false;
-      await WB.loadImages(doc.strokes);                         // pictures must be decoded before they can be drawn
+      await WB.loadImages(doc.strokes, doc.pages);              // pictures must be decoded before they can be drawn
       // The board rides along inside the file, so Import can give it back editable.
       const payload = await WB.boardPayload(WB.serialize(doc, view));
-      if (exp.format === 'svg') blob = new Blob([WB.toSVG(doc.strokes, b, bg, payload)], { type: F.mime });
-      else if (exp.format === 'pdf') blob = await WB.toPDF(doc.strokes, b, bg, payload);
+      if (exp.format === 'svg') blob = new Blob([WB.toSVG(doc.strokes, b, bg, payload, sheetPages, pattern)], { type: F.mime });
+      else if (exp.format === 'pdf') blob = await WB.toPDF(doc.strokes, b, bg, payload, sheetPages, pattern);
       else {
-        const r = WB.renderToCanvas(doc.strokes, b, +exp.scale, bg);
+        const r = WB.renderToCanvas(doc.strokes, b, +exp.scale, bg, sheetPages, pattern);
         shrunk = r.scale < +exp.scale;
         blob = exp.format === 'bmp' ? WB.canvasToBMP(r.canvas) : await WB.canvasToBlob(r.canvas, F.mime, 0.92);
         blob = await WB.embedPayload(blob, payload, r.canvas.width, r.canvas.height);
@@ -1803,13 +2055,33 @@
     e.target.value = '';
     if (!file) return;
     try {
-      const text = await WB.extractBoard(await file.arrayBuffer());
+      const buf = await file.arrayBuffer();
+      const text = await WB.extractBoard(buf);
       if (text) return loadText(text);
+      if (isPdfBytes(buf)) { const pages = await readPdfPages(buf); if (pages) await placePages(pages); return; }
       const pic = await WB.pictureFromFile(file);
-      if (!pic) return toast(tr(file.type === 'application/pdf' || /\.pdf$/i.test(file.name) ? 'tImportPdf' : 'tImportFail'), null, null, 9000);
+      if (!pic) return toast(tr('tImportFail'), null, null, 9000);
       await placePicture(pic);
     } catch (err) { report(tr('tImportFail'), 'importing "' + file.name + '"', err); }
   });
+  /* A PDF's pages, one picture each, top to bottom in the middle of the view, all selected. */
+  async function placePages(pages) {
+    const z = view.zoom, f0 = pages[0], k = Math.min(1, (0.8 * W) / f0.w, (0.8 * H) / f0.h) / z;
+    const cx = (W / 2 - view.x) / z;
+    let y = (H / 2 - view.y) / z - (f0.h * k) / 2;
+    const items = pages.map((p) => {
+      const w = p.w * k, h = p.h * k, s = { tool: 'image', x: cx - w / 2, y, w, h, opacity: 1, src: p.src, width: 0 };
+      y += h + 24 / z;
+      return s;
+    });
+    await WB.loadImages(items);
+    doc.strokes.push(...items);
+    record({ type: 'batch', list: items.map((s) => ({ type: 'add', stroke: s })) });
+    invalidate();
+    setTool('select');
+    selection.clear(); for (const s of items) selection.add(s); selectionChanged();
+    toast(tr('tImportedPdf', { n: items.length }), tr('undo'), undo);
+  }
   async function placePicture(pic) {
     // Its natural size on screen, shrunk to fit within most of the visible board.
     const z = view.zoom, k = Math.min(1, (0.8 * W) / pic.w, (0.8 * H) / pic.h);
@@ -1871,19 +2143,24 @@
   }, true);
 
   function openSheet(id) { closePopovers(); closeSheets(); $(id).classList.add('open'); const f = $('[data-close]', $(id)); if (f) f.focus({ preventScroll: true }); }
-  function closeSheets() { $$('.scrim.open').forEach((s) => s.classList.remove('open')); }
+  function closeSheets() {
+    $$('.scrim.open').forEach((s) => s.classList.remove('open'));
+    if (asking) { const r = asking; asking = null; r(false); }
+  }
   const sheetOpen = () => !!$('.scrim.open');
   $$('.scrim').forEach((s) => s.addEventListener('click', (e) => { if (e.target === s || e.target.closest('[data-close]')) closeSheets(); }));
 
   const ACTIONS = {
-    new: () => replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], handle: null }, tr('mNew')) || animateView(W / 2, H / 2, 1),
+    new: () => replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], pages: [], handle: null }, tr('mNew')) || animateView(W / 2, H / 2, 1),
+    sheet: () => openSheet('#sheets'),
+    share: openShare,
     open: openBoard,
     gallery: () => WB.gallery.open(),
     stickers: () => WB.stickers.open(),
     'save-gallery': () => WB.gallery.save(),
     'save-file': saveBoardFile,
     'save-to': saveBoardTo,
-    export: () => openSheet('#export'),
+    export: () => { syncExport(); openSheet('#export'); },
     import: importFile,
     clear: () => { if (doc.strokes.length) replaceBoard({ ...snapshot(), strokes: [] }, tr('tCleared')); },
     settings: () => openSheet('#settings'),
@@ -1911,13 +2188,95 @@
   titleEl.addEventListener('blur', () => { titleEl.value = shownTitle(); });
   titleEl.addEventListener('focus', () => titleEl.select());
 
+  /* ---- New sheet -------------------------------------------------------
+     A board of a fixed paper size. Sizes in mm, inches or pixels, given portrait (short side first);
+     the orientation switch turns them. Board units are CSS pixels: 96 per inch. */
+  const SHEET_SIZES = [
+    ['catA', 'mm', [['A0', 841, 1189], ['A1', 594, 841], ['A2', 420, 594], ['A3', 297, 420], ['A4', 210, 297], ['A5', 148, 210], ['A6', 105, 148]]],
+    ['catB', 'mm', [['B0', 1000, 1414], ['B1', 707, 1000], ['B2', 500, 707], ['B3', 353, 500], ['B4', 250, 353], ['B5', 176, 250], ['B6', 125, 176]]],
+    ['catUS', 'in', [['szLetter', 8.5, 11], ['szLegal', 8.5, 14], ['szTabloid', 11, 17], ['szExecutive', 7.25, 10.5], ['szHalfLetter', 5.5, 8.5], ['szIndex', 3, 5]]],
+    ['catScreen', 'px', [['szSlide169', 1080, 1920], ['szSlide43', 768, 1024], ['szSquare', 1080, 1080]]],
+  ];
+  const UNIT = { mm: 96 / 25.4, in: 96, px: 1 };
+  function buildSheets() {
+    const list = $('#sz-list'), land = settings.sheetOrient === 'landscape';
+    list.textContent = '';
+    for (const [cat, unit, sizes] of SHEET_SIZES) {
+      const h3 = document.createElement('h3'); h3.textContent = tr(cat); list.appendChild(h3);
+      const grid = document.createElement('div'); grid.className = 'sz-grid'; list.appendChild(grid);
+      for (const [key, a, b] of sizes) {
+        const w = land ? b : a, h = land ? a : b, name = /^[AB]\d$/.test(key) ? key : tr(key);
+        const btn = document.createElement('button'); btn.className = 'sz-tile';
+        const shape = document.createElement('i'), k = 40 / Math.max(w, h);
+        shape.style.width = Math.round(w * k) + 'px'; shape.style.height = Math.round(h * k) + 'px';
+        shape.style.margin = `${Math.round((44 - h * k) / 2)}px 0 ${Math.round((44 - h * k) / 2) + 4}px`;   // centred in a 44 px box
+        const label = document.createElement('b'); label.textContent = name;
+        const dims = document.createElement('small'); dims.textContent = `${w} × ${h} ${unit}`;
+        btn.append(shape, label, dims);
+        btn.addEventListener('click', () => {
+          closeSheets();
+          const page = { x: 0, y: 0, w: Math.round(w * UNIT[unit] * 100) / 100, h: Math.round(h * UNIT[unit] * 100) / 100 };
+          replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], pages: [page], handle: null, gref: null }, tr('tNewSheet', { t: name }));
+          fitPage(page);
+        });
+        grid.appendChild(btn);
+      }
+    }
+  }
+
+  /* ---- Share links ---------------------------------------------------------
+     The board travels in the link's fragment (after #), which browsers never send to a server:
+     GitHub Pages never sees it. See js/share.js for the encoding. */
+  let shareLink = '';
+  async function openShare() {
+    commitPending();
+    let r;
+    try { r = await WB.share.encode(doc); } catch (e) { return report(tr('tShareFail'), 'making the link', e); }
+    const site = location.protocol.startsWith('http') ? location.origin + location.pathname : 'https://citromoseper.github.io/Whiteboard/';
+    shareLink = site + '#b=' + r.text;
+    $('#share-link').value = shareLink;
+    $('#share-stats').textContent = tr('shareChars', { n: shareLink.length.toLocaleString(WB.lang()) });
+    const warn = [];
+    if (shareLink.length > 8000) warn.push(tr('shareLong'));
+    if (r.images) warn.push(tr('shareNoPics', { n: r.images }));
+    if (r.pdf) warn.push(tr('shareNoPdf'));
+    const ul = $('#share-warn'); ul.textContent = '';
+    for (const w of warn) { const li = document.createElement('li'); li.textContent = w; ul.appendChild(li); }
+    ul.hidden = !warn.length;
+    $('#share-send').hidden = !navigator.share;
+    openSheet('#share');
+  }
+  $('#share-copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(shareLink); }
+    catch (e) { const i = $('#share-link'); i.focus(); i.select(); try { document.execCommand('copy'); } catch (e2) { return; } }
+    toast(tr('tCopied'));
+  });
+  $('#share-send').addEventListener('click', () => { navigator.share({ title: shownTitle(), url: shareLink }).catch(() => {}); });
+  $('#share-link').addEventListener('focus', (e) => e.target.select());
+  /* Opening a share link: the board replaces the current one (undoable), and the fragment is
+     dropped from the address so a reload doesn't open it again. */
+  function openShared() {
+    const h = location.hash;
+    if (!h.startsWith('#b=')) return;
+    history.replaceState(null, '', location.pathname + location.search);
+    WB.share.decode(h.slice(3)).then((d) => {
+      replaceBoard({ title: d.title, created: Date.now(), strokes: d.strokes, pages: d.pages, handle: null, gref: null }, '');
+      saveTarget = 'gallery';
+      toast(tr('tSharedOpened'), tr('undo'), undo, 6000);
+      fitView(true);
+    }).catch((e) => { console.error('share link', e); toast(tr('tShareBad'), null, null, 6000); });
+  }
+
   /* ---- UI: tools, colours, sliders ----------------------------------- */
   const side = $('#side'), preview = $('#preview');
-  const sizeT = () => { const [a, b] = SIZE[tools.tool] || SIZE.pen; return Math.sqrt((brush().width - a) / (b - a)); };
-  const brush = () => tools[tools.tool === 'eraser' ? 'eraser' : 'pen'];
-  const brushKind = () => (tools.tool === 'eraser' ? 'eraser' : 'pen');
-
-  const isBrush = () => tools.tool === 'pen' || tools.tool === 'eraser';
+  const BRUSHES = ['pen', 'eraser', 'highlighter'];
+  const brushKind = () => (BRUSHES.includes(tools.tool) ? tools.tool : 'pen');
+  const brush = () => tools[brushKind()];
+  const sizeT = () => { const [a, b] = SIZE[brushKind()]; return Math.sqrt((brush().width - a) / (b - a)); };
+  const isBrush = () => BRUSHES.includes(tools.tool);
+  /* The dock's colours: the highlighter has its own neon set and its own colour. */
+  const palette = () => (tools.tool === 'highlighter' ? HL_PALETTE : PALETTE);
+  const curColor = () => (tools.tool === 'highlighter' ? tools.highlighter.color : tools.pen.color);
   function setTool(t) {
     if (edit) commitText();
     if (t !== tools.tool) inkConvert();          // finish reading what was written before switching tools
@@ -1926,21 +2285,28 @@
   }
   function setColor(c) {
     if (edit) commitText();
-    tools.pen.color = c;
-    if (tools.tool !== 'pen') { clearSelection(); tools.tool = 'pen'; }
+    if (tools.tool === 'highlighter') tools.highlighter.color = c;
+    else {
+      tools.pen.color = c;
+      if (tools.tool !== 'pen') { clearSelection(); tools.tool = 'pen'; }
+    }
     store.set('wb.tools', tools); refreshTools();
   }
 
   function refreshTools() {
     $$('.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tools.tool)));
-    const c = tools.pen.color, inPalette = PALETTE.includes(c);
-    $$('#swatches .swatch').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.color === c)));
+    const c = curColor(), pal = palette(), inPalette = pal.includes(c);
+    $$('#swatches .swatch').forEach((b, i) => {
+      if (b.dataset.color !== pal[i]) { b.dataset.color = pal[i]; b.style.setProperty('--c', pal[i]); b.setAttribute('aria-label', pal[i]); }
+      b.setAttribute('aria-checked', String(pal[i] === c));
+    });
     const custom = $('.swatch.custom');
     custom.setAttribute('aria-checked', String(!inPalette));
     custom.style.setProperty('--c', c);
     $('#dock').classList.toggle('erasing', tools.tool === 'eraser');
     side.classList.toggle('hidden', !isBrush());
     side.classList.toggle('erasing', tools.tool === 'eraser');
+    side.classList.toggle('no-dash', tools.tool !== 'pen');
     const dash = WB.DASHES[tools.pen.dash] ? tools.pen.dash : 'solid';
     $('#dash-icon').setAttribute('stroke-dasharray', DASH_ICON[dash]);
     $$('#dash-menu [data-dash]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.dash === dash)));
@@ -1948,6 +2314,7 @@
     canvas.classList.toggle('hand', tools.tool === 'hand' || spaceHeld);
     canvas.classList.toggle('t-text', tools.tool === 'text' && !spaceHeld);
     canvas.classList.toggle('t-select', tools.tool === 'select' && !spaceHeld);
+    canvas.classList.toggle('t-laser', tools.tool === 'laser' && !spaceHeld);
     const b = brush(), st = clamp(sizeT(), 0, 1), ot = (b.opacity - 0.05) / 0.95;
     const s1 = $('#sl-size'), s2 = $('#sl-opacity');
     s1.style.setProperty('--t', st); s1.setAttribute('aria-valuenow', Math.round(st * 100)); s1.setAttribute('aria-valuetext', b.width + ' pixels');
@@ -1973,7 +2340,7 @@
     const b = brush(), dot = $('#preview-dot'), d = clamp(b.width, 2, 86);
     dot.style.width = dot.style.height = d + 'px';
     dot.className = brushKind();
-    dot.style.background = brushKind() === 'pen' ? tools.pen.color : '';
+    dot.style.background = brushKind() === 'eraser' ? '' : brush().color;
     dot.style.opacity = b.opacity;
     $('#preview-label').textContent = kind === 'size' ? b.width + ' px' : Math.round(b.opacity * 100) + '%';
   }
@@ -2058,6 +2425,9 @@
     const none = $('[data-seg="bg"] [data-value="none"]');
     none.disabled = !!F.opaque;
     if (F.opaque && exp.bg === 'none') { exp.bg = 'theme'; syncBg(); }
+    // The pattern switch only means something when the canvas has one.
+    $('#exp-pattern-block').hidden = settings.grid === 'none';
+    $('#exp-pattern').setAttribute('aria-checked', String(exp.pattern));
   }
 
   function initUI() {
@@ -2066,15 +2436,15 @@
       const b = document.createElement('button');
       b.className = 'swatch'; b.dataset.color = c; b.style.setProperty('--c', c);
       b.setAttribute('role', 'radio'); b.setAttribute('aria-label', c);
-      dragToFill(b, () => c);
-      b.addEventListener('click', () => setColor(c));
+      dragToFill(b, () => b.dataset.color);
+      b.addEventListener('click', () => setColor(b.dataset.color));
       sw.appendChild(b);
     }
     // The rainbow swatch opens the colour picker; like the others it can also be dragged out to fill.
     const customBtn = $('#btn-custom');
-    dragToFill(customBtn, () => (PALETTE.includes(tools.pen.color) ? tools.custom : tools.pen.color));
+    dragToFill(customBtn, () => (palette().includes(curColor()) ? tools.custom : curColor()));
     customBtn.addEventListener('click', () => {
-      WB.picker.toggle({ anchor: customBtn, color: PALETTE.includes(tools.pen.color) ? tools.custom : tools.pen.color,
+      WB.picker.toggle({ anchor: customBtn, color: palette().includes(curColor()) ? tools.custom : curColor(),
         onChange: (c) => { tools.custom = c; setColor(c); } });
     });
     $$('.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
@@ -2111,9 +2481,12 @@
       settings.snapDelay = v; sd.value = v; saveSettings();
     });
     seg('grid', () => settings.grid, (v) => { settings.grid = v; saveSettings(); board.dataset.grid = v; });
+    seg('orient', () => settings.sheetOrient || 'portrait', (v) => { settings.sheetOrient = v; saveSettings(); buildSheets(); });
+    buildSheets();
     seg('format', () => exp.format, (v) => { exp.format = v; syncExport(); });
     seg('scale', () => exp.scale, (v) => { exp.scale = v; });
     syncBg = seg('bg', () => exp.bg, (v) => { exp.bg = v; });
+    $('#exp-pattern').addEventListener('click', () => { exp.pattern = !exp.pattern; syncExport(); });
     syncExport();
 
     const sm = $('#smoothing'), smOut = $('#smoothing-out');
@@ -2180,6 +2553,8 @@
     else if (k === 't') { e.preventDefault(); setTool('text'); }
     else if (k === 'v') setTool('select');
     else if (k === 'h') setTool('hand');
+    else if (k === 'm') setTool('highlighter');
+    else if (k === 'l') setTool('laser');
     else if (k === '[' && isBrush()) nudgeSize(-1);
     else if (k === ']' && isBrush()) nudgeSize(1);
   });
@@ -2195,6 +2570,7 @@
     commit: commitPending,
     placeSticker: (text) => placeSticker(text),
     saved: () => { saveTarget = 'gallery'; },
+    filesCopy: () => IOS && settings.filesCopy,
     canvasColor: () => canvasColor(),
     toast, report, openSheet, closeSheets,
   });
@@ -2203,7 +2579,20 @@
   WB.onImageReady = invalidate;                             // a picture finished decoding: draw it
   // iPhone and iPad only offer files whose type the system knows, and .whtbd is not one of them,
   // so there the chooser takes any file and the app checks it after choosing.
-  if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) $('#file-input').removeAttribute('accept');
+  if (IOS) $('#file-input').removeAttribute('accept');
+  $('#files-copy-row').hidden = !IOS;          // "Save a copy to Files" is for iPhone and iPad only
+
+  /* iPhone and iPad in the browser (not opened from the Home Screen): once, a tip. iOS keeps the
+     storage of a Home Screen app far more reliably, and that is where the gallery lives there. */
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  if (IOS && !standalone && location.protocol.startsWith('http')) {
+    let seen = false;
+    try { seen = localStorage.getItem('wb.homeTip') === '1'; } catch (e) {}
+    if (!seen) setTimeout(() => {
+      toast(tr('tHomeTip'), tr('gotIt'), null, 20000);
+      try { localStorage.setItem('wb.homeTip', '1'); } catch (e) {}
+    }, 4000);
+  }
   new ResizeObserver(resize).observe(board);
   window.addEventListener('resize', resize);
   resize();
@@ -2212,10 +2601,12 @@
     restored = true;
     if (!saved || !Array.isArray(saved.strokes) || doc.strokes.length || live) return updateChrome();
     doc.title = saved.title || 'Untitled'; doc.created = saved.created || Date.now(); doc.strokes = saved.strokes;
+    doc.pages = Array.isArray(saved.pages) ? saved.pages : [];
     if (saved.view && saved.view.zoom > 0) Object.assign(view, saved.view);
     titleEl.value = shownTitle();
     updateChrome(); invalidate();
-  });
+  }).then(openShared);
+  window.addEventListener('hashchange', openShared);
 
   /* Installed-app extras (only when served from a web address; skipped for a file opened from disk). */
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
@@ -2223,7 +2614,7 @@
   }
   if ('launchQueue' in window) {                                      // opening a .whtbd file with the installed app
     window.launchQueue.setConsumer(async (p) => {
-      if (p.files && p.files.length) loadText(await (await p.files[0].getFile()).text(), p.files[0]);
+      if (p.files && p.files.length) await openFile(await p.files[0].getFile(), p.files[0]);
     });
   }
 

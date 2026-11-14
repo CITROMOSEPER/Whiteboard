@@ -343,7 +343,76 @@
       if (host.saved) host.saved();
       host.toast(tr('tSavedGallery'));
       if ($('#gallery').classList.contains('open')) show();
+      if (mode === 'boards' && host.filesCopy && host.filesCopy()) shareCopy(name, text);
+      else setTimeout(nudge, 2500);
     } catch (e) { host.report(tr('tSaveFail'), 'saving to the gallery', e); }
+  }
+
+  /* ---- A copy in Files (iPhone and iPad) ------------------------------------
+     There a website can't write into a folder in Files, but it can hand a file to the share sheet,
+     where "Save to Files" (or a Shortcut that saves into a fixed folder, see the README) takes it.
+     So with this switched on, every save to the gallery also offers the board's file there. */
+  function shareCopy(name, text) {
+    const file = new File([text], name, { type: 'application/octet-stream' });
+    if (!(navigator.canShare && navigator.canShare({ files: [file] }))) return;
+    const go = () => navigator.share({ files: [file] }).catch((e) => {
+      if (e.name === 'NotAllowedError') host.toast(tr('tCopyReady'), tr('gShare'), go, 15000);   // the tap went stale while saving
+    });
+    go();
+  }
+
+  /* ---- Changes since the last backup ------------------------------------------
+     Each backup remembers a fingerprint of every board it held. Boards that are new or different
+     since then are "changes": a changes-only backup holds just those (with all folders and their
+     names and colours), and restores like any backup, so several of them can be restored in a row. */
+  const fingerprint = (t) => { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + ':' + t.length; };
+  const isBoard = (e) => !e.dir && e.path.toLowerCase().endsWith(EXT);
+  async function changes() {
+    const last = await kvGet(kvKey('Backed'));                 // { at, prints: { path: fingerprint } }
+    const entries = await collect(root, '', []);
+    return { entries, last, changed: entries.filter((e) => isBoard(e) && (!last || last.prints[e.path] !== fingerprint(e.text))) };
+  }
+  async function rememberBackup(entries, partial) {
+    const prev = partial ? await kvGet(kvKey('Backed')) : null, prints = prev ? { ...prev.prints } : {};
+    for (const e of entries) if (isBoard(e)) prints[e.path] = fingerprint(e.text);
+    await kvSet(kvKey('Backed'), { at: Date.now(), prints });
+  }
+  /* A gallery kept by the browser can vanish with the browser's data, so after a save it suggests a
+     backup (at most once a day): when 3 or more boards are unsaved in any backup, or any has
+     waited 3 days. A gallery in a real folder is already safe and is left alone. */
+  async function nudge() {
+    if (kind !== 'browser' || !root) return;
+    try {
+      if (Date.now() - ((await kvGet(kvKey('Nudged'))) || 0) < 20 * 3600e3) return;
+      const { changed, last } = await changes();
+      const days = last ? (Date.now() - last.at) / 864e5 : 0;
+      if (!(changed.length >= 3 || (last && changed.length && days >= 3))) return;
+      await kvSet(kvKey('Nudged'), Date.now());
+      host.toast(tr('tBackupNudge', { n: changed.length }), tr('gBackupNow'), () => backup(!!last), 12000);
+    } catch (e) {}
+  }
+
+  /* "Add boards…": board files picked from the device (several at once) go into the folder shown.
+     A board already there with the same content is skipped. */
+  async function addBoards(files) {
+    const dir = here();
+    let added = 0;
+    try {
+      for (const f of files) {
+        let text, d;
+        try { text = await f.text(); d = WB.parse(text); } catch (e) { continue; }
+        let same = false;
+        for await (const [n, h] of dir.entries()) {
+          if (h.kind === 'file' && n.toLowerCase().endsWith(EXT) && (await (await h.getFile()).text()) === text) { same = true; break; }
+        }
+        if (same) continue;
+        const base = clean(f.name.toLowerCase().endsWith(EXT) ? f.name.slice(0, -EXT.length) : d.title);
+        await writeFile(dir, await freeName(dir, base, EXT), text);
+        added++;
+      }
+    } catch (e) { fail(e, 'adding boards'); }
+    host.toast(added ? tr('tAddedBoards', { n: added }) : tr('tAddedNone'), null, null, 6000);
+    show();
   }
 
   /* ---- The window ------------------------------------------------------ */
@@ -523,19 +592,23 @@
         const d = WB.parse(await (await f.item.handle.getFile()).text());
         if (my !== token) return;
         if (d.title && d.title !== 'Untitled') { f.item.label = d.title; if (f.name.isConnected && f.name.tagName === 'BUTTON') f.name.textContent = d.title; }
-        await WB.loadImages(d.strokes);
+        const first = d.pages.slice(0, 1);                       // a sheet shows its first page
+        await WB.loadImages(d.strokes, first);
         if (my !== token) return;
-        f.icon.appendChild(preview(d.strokes));
+        f.icon.appendChild(preview(d.strokes, first));
       } catch (e) { f.icon.classList.add('broken'); }
       await new Promise((r) => setTimeout(r, 0));
     }
   }
   function button(text, cls, fn) { const b = el('button', cls, text); b.addEventListener('click', fn); return b; }
 
-  function preview(strokes) {
+  function preview(strokes, pages) {
     const b = WB.contentBounds(strokes), bg = host.canvasColor();
     let c;
-    if (b) {
+    if (pages && pages.length) {
+      const box = pages[0];
+      c = WB.renderToCanvas(strokes, box, Math.min(360 / box.w, 270 / box.h, 4), bg, pages).canvas;
+    } else if (b) {
       const pad = Math.max(b.w, b.h) * 0.08 + 4, box = { x: b.x - pad, y: b.y - pad, w: b.w + 2 * pad, h: b.h + 2 * pad };
       c = WB.renderToCanvas(strokes, box, Math.min(360 / box.w, 270 / box.h, 4), bg).canvas;
     } else {
@@ -648,9 +721,16 @@
     if (!browsing) return;
     foot.appendChild(el('span', '', kind === 'browser' ? tr(fromLocalFile ? 'gLocalNote' : 'gBrowserNote') + (canDrop() ? ' ' + tr('gDropShort') : '') : parentName));
     const links = el('div', 'g-links');
-    links.append(button(tr('gBackup'), 'g-link', backup), button(tr('gRestore'), 'g-link', () => $('#restore-input').click()));
+    links.append(button(tr('gBackup'), 'g-link', () => backup(false)), button(tr('gRestore'), 'g-link', () => $('#restore-input').click()));
+    if (mode === 'boards') links.appendChild(button(tr('gAddBoards'), 'g-link', () => $('#addboards-input').click()));
     if (canPickFolder()) links.appendChild(button(tr(kind === 'browser' ? 'gChoose' : 'gChange'), 'g-link', pickFolder));
     foot.appendChild(links);
+    // After a first backup: a smaller one with only what changed since.
+    const my = token;
+    changes().then(({ changed, last }) => {
+      if (my !== token || !last || !changed.length) return;
+      links.insertBefore(button(tr('gBackupChanges', { n: changed.length }), 'g-link', () => backup(true)), links.children[1]);
+    }).catch(() => {});
   }
 
   /* ---- Backup and restore -------------------------------------------------
@@ -670,32 +750,41 @@
     }
     return out;
   }
-  async function backup() {
-    const name = `${cfg.backupName} ${new Date().toISOString().slice(0, 10)}${cfg.backupExt}`;
+  async function backup(onlyChanges) {
+    onlyChanges = onlyChanges === true;
+    const name = `${cfg.backupName}${onlyChanges ? ' (changes)' : ''} ${new Date().toISOString().slice(0, 10)}${cfg.backupExt}`;
     // On computers the save dialog comes first, while the click still counts as the user's own action.
     let handle = null;
     if (typeof window.showSaveFilePicker === 'function' && !fromLocalFile && !/iP(hone|ad|od)|Android/.test(navigator.userAgent)) {
       try { handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: cfg.backupName, accept: { 'application/json': [cfg.backupExt] } }] }); }
       catch (e) { if (e.name === 'AbortError') return host.toast(tr('tBackupCancel'), null, null, 7000); handle = null; }
     }
-    let file;
+    let file, entries;
     try {
-      const entries = await collect(root, '', []);
-      const text = JSON.stringify({ format: cfg.backupFormat, version: 1, created: new Date().toISOString(), entries });
+      const c = await changes();
+      entries = c.entries;
+      if (onlyChanges) {
+        if (!c.changed.length) return host.toast(tr('tNoChanges'), null, null, 5000);
+        const keep = new Set(c.changed.map((e) => e.path));
+        entries = entries.filter((e) => e.dir || keep.has(e.path) || e.path.split('/').pop() === INDEX);
+      }
+      const text = JSON.stringify({ format: cfg.backupFormat, version: 1, created: new Date().toISOString(), partial: onlyChanges || undefined, entries });
       file = new File([text], name, { type: 'application/json' });
       if (handle) {
         const w = await handle.createWritable();
         await w.write(file); await w.close();
+        await rememberBackup(entries, onlyChanges);
         return host.toast(tr('tBackedUp', { t: handle.name }));
       }
     } catch (e) { return fail(e, 'backing up the gallery'); }
     // Phones: the share sheet, where "Save to Files" lets the person pick any folder.
-    const share = () => navigator.share({ files: [file], title: name }).then(() => host.toast(tr('tBackedUp', { t: name })), (e) => {
+    const share = () => navigator.share({ files: [file], title: name }).then(() => { rememberBackup(entries, onlyChanges); host.toast(tr('tBackedUp', { t: name })); }, (e) => {
       if (e.name === 'NotAllowedError') host.toast(tr('tBackupReady'), tr('gShare'), share, 15000);   // the tap went stale while the file was made
       else if (e.name !== 'AbortError') saveDownload(file);
     });
     if (navigator.canShare && navigator.canShare({ files: [file] })) return share();
     saveDownload(file);
+    rememberBackup(entries, onlyChanges);
   }
   function saveDownload(file) {
     const a = document.createElement('a');
@@ -831,6 +920,9 @@
     const ri = $('#restore-input');
     if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) ri.removeAttribute('accept');   // iOS greys out types it does not know
     ri.addEventListener('change', () => { const f = ri.files[0]; ri.value = ''; if (f) restore(f); });
+    const ai = $('#addboards-input');
+    if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) ai.removeAttribute('accept');
+    ai.addEventListener('change', () => { const fs = [...ai.files]; ai.value = ''; if (fs.length) addBoards(fs); });
     document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#g-menu, .g-more')) $('#g-menu').classList.remove('open'); }, true);
     $('#g-grid').addEventListener('scroll', () => $('#g-menu').classList.remove('open'), { passive: true });
   }

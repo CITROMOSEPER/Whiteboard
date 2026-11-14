@@ -78,6 +78,11 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
   background-image: linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: var(--gs) var(--gs);
 }
+/* Lined, like ruled paper: horizontal lines only, a little stronger than the grid's. */
+#board[data-grid="ruled"] {
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px);
+  background-size: 100% var(--gs);
+}
 #canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
 #canvas.brush { cursor: none; }
 #canvas.hand { cursor: grab; }
@@ -253,6 +258,7 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
 .group > .seg { background: transparent; }
 .color-row { display: flex; align-items: center; justify-content: space-between; padding-top: 2px; cursor: pointer; }
 .color-row[hidden] { display: none; }
+.row[hidden] { display: none; }
 
 /* Colour being dragged out of the dock for a fill */
 #drop-blob { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; opacity: 0; transition: opacity 140ms ease; will-change: transform; }
@@ -531,7 +537,16 @@ body.pipetting #canvas { cursor: crosshair; }
   .vslider { height: 120px; width: 34px; }
   #sel-bar { top: calc(var(--top) + 58px); }
 }
-@media (max-width: 440px) { #swatches .swatch:nth-child(n+3) { display: none; } #dock { gap: 2px; } }
+@media (max-width: 440px) {
+  #swatches .swatch:nth-child(n+3) { display: none; }
+  /* Phones: tighter tools, and stickers come from Menu → Stickers…, so everything fits without scrolling. */
+  #dock { gap: 0; padding: 5px; }
+  #dock .ibtn { width: 34px; height: 36px; }
+  #dock .sep { margin: 0 3px; }
+  #swatches { gap: 5px; padding: 0 3px; }
+  #dock .swatch.custom { margin: 0 3px; }
+  #btn-sticker { display: none; }
+}
 @media (max-height: 460px) { .vslider { height: 84px; } }
 
 /* ---------- Accessibility preferences ---------- */
@@ -547,3 +562,56 @@ body.pipetting #canvas { cursor: crosshair; }
   .glass, .sheet, .menu { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--solid); border: 1.5px solid var(--ink); }
   :root { --ink-2: var(--ink); --ring: var(--ink); }
 }
+
+/* ---------- Highlighter, laser pointer ---------- */
+#side.no-dash .dash-btn { display: none; }
+#brush-cursor.hl { border-radius: 3px; }
+#preview-dot.highlighter { border-radius: 4px; }
+#canvas.t-laser, #canvas.t-laser.panning { cursor: none; }
+#laser {
+  position: fixed; left: 0; top: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%;
+  pointer-events: none; z-index: 5; opacity: 0; will-change: transform; transition: opacity 120ms ease;
+  background: radial-gradient(circle, #fff 0 16%, #ff4040 42%, #ff1a1a 72%);
+  box-shadow: 0 0 6px 2px rgba(255, 40, 40, 0.95), 0 0 18px 8px rgba(255, 0, 0, 0.45), 0 0 42px 16px rgba(255, 0, 0, 0.18);
+}
+#laser.on { opacity: 1; }
+
+/* ---------- New sheet ---------- */
+#sheets .sheet { width: min(36rem, 100%); }
+.sz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 4px; background: var(--group); border-radius: 13px; padding: 5px; }
+.sz-tile { display: flex; flex-direction: column; align-items: center; padding: 8px 4px; border-radius: 10px; transition: background-color 150ms ease, transform 120ms ease-out; }
+.sz-tile:hover { background: var(--fill); }
+.sz-tile:active { transform: scale(0.96); background: var(--fill-strong); }
+.sz-tile i { display: block; background: #fdfdfd; border-radius: 2px; box-shadow: 0 0 0 1px var(--ring), 0 1px 3px rgba(0, 0, 0, 0.12); }
+.sz-tile b { font-size: 0.875rem; font-weight: 600; margin-top: 2px; }
+.sz-tile b { text-align: center; line-height: 1.2; }
+.sz-tile small { font-size: 0.6875rem; line-height: 1.25; color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: center; }
+
+/* ---------- Share link, confirmation ---------- */
+#share-link { width: 100%; height: 38px; padding: 0 10px; border: 0; border-radius: 9px; background: var(--solid); color: var(--ink); font: inherit; font-size: 0.8125rem; }
+#share-warn { margin: 6px 4px 0; padding-left: 18px; font-size: 0.75rem; line-height: 1.4; color: var(--ink-2); }
+#share-warn li + li { margin-top: 3px; }
+.share-actions { display: flex; gap: 8px; margin-top: 18px; }
+.share-actions .primary { margin-top: 0; flex: 1; }
+.primary.quiet { background: var(--fill); color: var(--accent); }
+#confirm .sheet { width: min(23rem, 100%); }
+#confirm-text { margin: 2px 2px 18px; line-height: 1.45; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* The dock scrolls sideways where its tools don't fit */
+@media (max-width: 600px) {
+  #dock { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+  #dock::-webkit-scrollbar { display: none; }
+}
+
+/* ---------- Add a page to a sheet (placed and scaled with the board) ---------- */
+.page-add {
+  position: absolute; left: 0; top: 0; width: 44px; height: 44px; border-radius: 50%; z-index: 2;
+  display: none; place-items: center; color: var(--ink); transform-origin: 50% 50%; will-change: transform;
+}
+.page-add.on { display: grid; }
+.page-add svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.page-add:hover { color: var(--accent); }
+.page-del:hover { color: #ff3b30; }
+.page-del svg { width: 20px; height: 20px; stroke-width: 1.8; stroke-linejoin: round; }
+#exp-pattern-block[hidden] { display: none; }

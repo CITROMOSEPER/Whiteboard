@@ -48,6 +48,8 @@ for name in ("THIRD-PARTY-NOTICES.md", "MODEL-LICENSE.md"):
         shutil.copy(root / name, dist / name)
 if (root / "licenses").exists():
     shutil.copytree(root / "licenses", web / "licenses")
+# pdf.js is loaded only when a PDF is opened, from js/vendor/ next to the page (too big to inline).
+shutil.copytree(root / "js" / "vendor", web / "js" / "vendor")
 
 # --- Single file (opened from disk: no manifest or separate icon files there) ---
 icon_uri = "data:image/svg+xml;base64," + base64.b64encode((root / "icons" / "icon.svg").read_bytes()).decode()

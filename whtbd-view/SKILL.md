@@ -41,12 +41,15 @@ It needs Python with `playwright` (`pip install playwright`) and Chrome or Edge 
 ```json
 { "format": "WHTBD", "version": 1, "title": "...", "created": "ISO date", "modified": "ISO date",
   "view": { "x": 0, "y": 0, "zoom": 1 },
+  "pages": [ { "x": 0, "y": 0, "w": 793.7, "h": 1122.52, "src": "data:image/jpeg;base64,..." } ],
   "strokes": [ ...objects, painted in order, later on top... ] }
 ```
 
+`pages` is present only on a **sheet**: a board with a fixed paper size (from New sheet…, in CSS pixels at 96 per inch, so A4 is 793.7 × 1122.52), or a PDF opened as a sheet, where each page carries `src`, a picture of that PDF page. Pages lie beneath all the ink. Exports keep only what is on the pages; the app tints the area around them, and the script draws page edges in grey. Drawing outside the pages is scrap space, but it is still part of the board.
+
 Coordinates are board units, with y pointing down. `view.x/y` is the top-left of the screen and `zoom` is pixels per unit. Object kinds (`tool`):
 
-- **pen**: `color`, `width`, `opacity`, `smooth` (drawn as a curve), `closed`, `points: [[x,y],...]`. Optional `shape` (`line`, `circle`, `rectangle`, `polygon` and so on, for strokes that snapped to a clean shape) and `dash` (`dotted`, `dashed`, `long`, `dashdot`).
+- **pen**: `color`, `width`, `opacity`, `smooth` (drawn as a curve), `closed`, `points: [[x,y],...]`. Optional `shape` (`line`, `circle`, `rectangle`, `polygon` and so on, for strokes that snapped to a clean shape) and `dash` (`dotted`, `dashed`, `long`, `dashdot`). Optional `"highlight": true` for a highlighter stroke: flat square tip, see-through, painted *beneath* everything drawn before it. Optional `pressure: [0-100 per point]`: drawn with a stylus with pressure on; the line is `width` wide at full pressure and thinner where the pen pressed lightly.
 - **eraser**: `width`, `points`. It cuts away the ink painted before it.
 - **text**: `x`, `y` (the top-left anchor), `rot` (degrees, clockwise, turned about the anchor), `font` (`sans`, `serif`, `mono`, `rounded`, `hand`), `size`, `color`, `opacity`, `text` (may contain newlines).
 - **image**: `x`, `y`, `w`, `h`, `rot` (degrees, about the centre), `opacity`, `src` (a base64 data URL).

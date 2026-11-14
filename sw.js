@@ -1,10 +1,12 @@
 /* Offline support. Network first, so an online visit always gets the newest version;
    when the network is missing or too slow, the last copy saved on this device is used. */
-const CACHE = 'whiteboard-v1';
+const CACHE = 'whiteboard-v2';
 const CORE = [
   './', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   // Present only in the multi-file (development) layout; missing files are skipped.
-  'styles.css', 'js/i18n.js', 'js/geometry.js', 'js/io.js', 'js/fill.js', 'js/picker.js', 'js/ink-model.js', 'js/ink.js', 'js/gallery.js', 'js/app.js',
+  'styles.css', 'js/i18n.js', 'js/geometry.js', 'js/io.js', 'js/fill.js', 'js/picker.js', 'js/ink-model.js', 'js/ink.js', 'js/gallery.js', 'js/share.js', 'js/pdf.js', 'js/app.js',
+  // pdf.js, for opening PDFs offline too.
+  'js/vendor/pdfjs/pdf.min.js', 'js/vendor/pdfjs/pdf.worker.min.js',
 ];
 
 self.addEventListener('install', (e) => {

@@ -88,6 +88,11 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
   background-image: linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: var(--gs) var(--gs);
 }
+/* Lined, like ruled paper: horizontal lines only, a little stronger than the grid's. */
+#board[data-grid="ruled"] {
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px);
+  background-size: 100% var(--gs);
+}
 #canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
 #canvas.brush { cursor: none; }
 #canvas.hand { cursor: grab; }
@@ -263,6 +268,7 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
 .group > .seg { background: transparent; }
 .color-row { display: flex; align-items: center; justify-content: space-between; padding-top: 2px; cursor: pointer; }
 .color-row[hidden] { display: none; }
+.row[hidden] { display: none; }
 
 /* Colour being dragged out of the dock for a fill */
 #drop-blob { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; opacity: 0; transition: opacity 140ms ease; will-change: transform; }
@@ -541,7 +547,16 @@ body.pipetting #canvas { cursor: crosshair; }
   .vslider { height: 120px; width: 34px; }
   #sel-bar { top: calc(var(--top) + 58px); }
 }
-@media (max-width: 440px) { #swatches .swatch:nth-child(n+3) { display: none; } #dock { gap: 2px; } }
+@media (max-width: 440px) {
+  #swatches .swatch:nth-child(n+3) { display: none; }
+  /* Phones: tighter tools, and stickers come from Menu → Stickers…, so everything fits without scrolling. */
+  #dock { gap: 0; padding: 5px; }
+  #dock .ibtn { width: 34px; height: 36px; }
+  #dock .sep { margin: 0 3px; }
+  #swatches { gap: 5px; padding: 0 3px; }
+  #dock .swatch.custom { margin: 0 3px; }
+  #btn-sticker { display: none; }
+}
 @media (max-height: 460px) { .vslider { height: 84px; } }
 
 /* ---------- Accessibility preferences ---------- */
@@ -557,6 +572,59 @@ body.pipetting #canvas { cursor: crosshair; }
   .glass, .sheet, .menu { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--solid); border: 1.5px solid var(--ink); }
   :root { --ink-2: var(--ink); --ring: var(--ink); }
 }
+
+/* ---------- Highlighter, laser pointer ---------- */
+#side.no-dash .dash-btn { display: none; }
+#brush-cursor.hl { border-radius: 3px; }
+#preview-dot.highlighter { border-radius: 4px; }
+#canvas.t-laser, #canvas.t-laser.panning { cursor: none; }
+#laser {
+  position: fixed; left: 0; top: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%;
+  pointer-events: none; z-index: 5; opacity: 0; will-change: transform; transition: opacity 120ms ease;
+  background: radial-gradient(circle, #fff 0 16%, #ff4040 42%, #ff1a1a 72%);
+  box-shadow: 0 0 6px 2px rgba(255, 40, 40, 0.95), 0 0 18px 8px rgba(255, 0, 0, 0.45), 0 0 42px 16px rgba(255, 0, 0, 0.18);
+}
+#laser.on { opacity: 1; }
+
+/* ---------- New sheet ---------- */
+#sheets .sheet { width: min(36rem, 100%); }
+.sz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 4px; background: var(--group); border-radius: 13px; padding: 5px; }
+.sz-tile { display: flex; flex-direction: column; align-items: center; padding: 8px 4px; border-radius: 10px; transition: background-color 150ms ease, transform 120ms ease-out; }
+.sz-tile:hover { background: var(--fill); }
+.sz-tile:active { transform: scale(0.96); background: var(--fill-strong); }
+.sz-tile i { display: block; background: #fdfdfd; border-radius: 2px; box-shadow: 0 0 0 1px var(--ring), 0 1px 3px rgba(0, 0, 0, 0.12); }
+.sz-tile b { font-size: 0.875rem; font-weight: 600; margin-top: 2px; }
+.sz-tile b { text-align: center; line-height: 1.2; }
+.sz-tile small { font-size: 0.6875rem; line-height: 1.25; color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: center; }
+
+/* ---------- Share link, confirmation ---------- */
+#share-link { width: 100%; height: 38px; padding: 0 10px; border: 0; border-radius: 9px; background: var(--solid); color: var(--ink); font: inherit; font-size: 0.8125rem; }
+#share-warn { margin: 6px 4px 0; padding-left: 18px; font-size: 0.75rem; line-height: 1.4; color: var(--ink-2); }
+#share-warn li + li { margin-top: 3px; }
+.share-actions { display: flex; gap: 8px; margin-top: 18px; }
+.share-actions .primary { margin-top: 0; flex: 1; }
+.primary.quiet { background: var(--fill); color: var(--accent); }
+#confirm .sheet { width: min(23rem, 100%); }
+#confirm-text { margin: 2px 2px 18px; line-height: 1.45; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* The dock scrolls sideways where its tools don't fit */
+@media (max-width: 600px) {
+  #dock { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+  #dock::-webkit-scrollbar { display: none; }
+}
+
+/* ---------- Add a page to a sheet (placed and scaled with the board) ---------- */
+.page-add {
+  position: absolute; left: 0; top: 0; width: 44px; height: 44px; border-radius: 50%; z-index: 2;
+  display: none; place-items: center; color: var(--ink); transform-origin: 50% 50%; will-change: transform;
+}
+.page-add.on { display: grid; }
+.page-add svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.page-add:hover { color: var(--accent); }
+.page-del:hover { color: #ff3b30; }
+.page-del svg { width: 20px; height: 20px; stroke-width: 1.8; stroke-linejoin: round; }
+#exp-pattern-block[hidden] { display: none; }
 
 </style>
 <script>
@@ -578,6 +646,11 @@ body.pipetting #canvas { cursor: crosshair; }
   <canvas id="canvas" aria-label="Whiteboard canvas"></canvas>
   <textarea id="text-edit" rows="1" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off" data-i18n-label="text"></textarea>
   <div id="brush-cursor" aria-hidden="true"></div>
+  <div id="laser" aria-hidden="true"></div>
+  <button class="glass page-add" id="page-add-top" data-i18n-label="addPageAbove" data-i18n-title="addPageAbove"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="glass page-add" id="page-add-bottom" data-i18n-label="addPageBelow" data-i18n-title="addPageBelow"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="glass page-add page-del" id="page-del-top" data-i18n-label="deletePage" data-i18n-title="deletePage"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6M18.5 6l-.8 13a2 2 0 0 1-2 1.9H8.3a2 2 0 0 1-2-1.9L5.5 6M10 11v6M14 11v6"/></svg></button>
+  <button class="glass page-add page-del" id="page-del-bottom" data-i18n-label="deletePage" data-i18n-title="deletePage"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6M18.5 6l-.8 13a2 2 0 0 1-2 1.9H8.3a2 2 0 0 1-2-1.9L5.5 6M10 11v6M14 11v6"/></svg></button>
   <p id="hint" class="gone"><span data-i18n="hint1"></span><br><span data-i18n="hint2"></span><br><span data-i18n="hint3"></span></p>
 </main>
 
@@ -625,6 +698,9 @@ body.pipetting #canvas { cursor: crosshair; }
   <button class="ibtn tool" data-tool="pen" data-i18n-label="pen" data-i18n-title="pen" data-keys="P" aria-pressed="true">
     <svg viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
   </button>
+  <button class="ibtn tool" data-tool="highlighter" data-i18n-label="highlighter" data-i18n-title="highlighter" data-keys="M" aria-pressed="false">
+    <svg viewBox="0 0 24 24"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
+  </button>
   <button class="ibtn tool" data-tool="eraser" data-i18n-label="eraser" data-i18n-title="eraser" data-keys="E" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
   </button>
@@ -639,6 +715,9 @@ body.pipetting #canvas { cursor: crosshair; }
   </button>
   <button class="ibtn tool" data-tool="hand" data-i18n-label="move" data-i18n-title="move" data-keys="H / Space" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+  </button>
+  <button class="ibtn tool" data-tool="laser" data-i18n-label="laser" data-i18n-title="laser" data-keys="L" aria-pressed="false">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>
   </button>
   <span class="sep"></span>
   <div id="swatches" role="radiogroup"></div>
@@ -696,6 +775,7 @@ body.pipetting #canvas { cursor: crosshair; }
 </div>
 <div class="glass menu" id="menu" role="menu">
   <button class="mi" role="menuitem" data-act="new"><span data-i18n="mNew"></span></button>
+  <button class="mi" role="menuitem" data-act="sheet"><span data-i18n="mNewSheet"></span></button>
   <hr>
   <button class="mi" role="menuitem" data-act="gallery"><span data-i18n="mGallery"></span><kbd>Ctrl G</kbd></button>
   <button class="mi" role="menuitem" data-act="save-file" id="mi-save-file" hidden><span></span><kbd>Ctrl S</kbd></button>
@@ -707,6 +787,7 @@ body.pipetting #canvas { cursor: crosshair; }
   <hr>
   <button class="mi" role="menuitem" data-act="export"><span data-i18n="mExport"></span><kbd>Ctrl E</kbd></button>
   <button class="mi" role="menuitem" data-act="import"><span data-i18n="mImport"></span></button>
+  <button class="mi" role="menuitem" data-act="share"><span data-i18n="mShare"></span></button>
   <hr>
   <button class="mi" role="menuitem" data-act="clear"><span data-i18n="mClear"></span></button>
   <hr>
@@ -783,8 +864,16 @@ body.pipetting #canvas { cursor: crosshair; }
         <button class="switch" role="switch" data-switch="fingerDraw" aria-labelledby="lbl-finger"></button>
       </div>
       <div class="row">
+        <div><span id="lbl-pressure" data-i18n="pressure"></span><p class="note" data-i18n="pressureNote"></p></div>
+        <button class="switch" role="switch" data-switch="pressure" aria-labelledby="lbl-pressure"></button>
+      </div>
+      <div class="row">
         <div><span id="lbl-scratch" data-i18n="scratch"></span><p class="note" data-i18n="scratchNote"></p></div>
         <button class="switch" role="switch" data-switch="scratch" aria-labelledby="lbl-scratch"></button>
+      </div>
+      <div class="row" id="files-copy-row" hidden>
+        <div><span id="lbl-files-copy" data-i18n="filesCopy"></span><p class="note" data-i18n="filesCopyNote"></p></div>
+        <button class="switch" role="switch" data-switch="filesCopy" aria-labelledby="lbl-files-copy"></button>
       </div>
     </div>
 
@@ -812,6 +901,7 @@ body.pipetting #canvas { cursor: crosshair; }
       <div class="seg" data-seg="grid" role="radiogroup">
         <button role="radio" data-value="none" data-i18n="plain"></button>
         <button role="radio" data-value="dots" data-i18n="dots"></button>
+        <button role="radio" data-value="ruled" data-i18n="lined"></button>
         <button role="radio" data-value="lines" data-i18n="grid"></button>
       </div>
     </div>
@@ -819,7 +909,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.14.02.</p>
+      <p id="app-version">version: 2026.11.14.03.</p>
     </footer>
   </div>
 </div>
@@ -889,13 +979,75 @@ body.pipetting #canvas { cursor: crosshair; }
       </div>
     </div>
 
+    <div id="exp-pattern-block">
+      <h3 data-i18n="exportPattern"></h3>
+      <div class="group">
+        <div class="row">
+          <p class="note" id="lbl-exp-pattern" data-i18n="exportPatternNote"></p>
+          <button class="switch" role="switch" id="exp-pattern" aria-labelledby="lbl-exp-pattern" aria-checked="false"></button>
+        </div>
+      </div>
+    </div>
+
     <button class="primary" id="btn-export" data-i18n="export"></button>
+  </div>
+</div>
+
+<!-- New sheet: a board of a fixed paper size -->
+<div class="scrim" id="sheets" role="dialog" aria-modal="true" aria-labelledby="sheets-title">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="sheets-title" data-i18n="sheetTitle"></h2>
+      <button class="pill-btn quiet" data-close data-i18n="cancel"></button>
+    </div>
+    <p class="note" data-i18n="sheetNote"></p>
+    <h3 data-i18n="orientation"></h3>
+    <div class="group">
+      <div class="seg" data-seg="orient" role="radiogroup">
+        <button role="radio" data-value="portrait" data-i18n="portrait"></button>
+        <button role="radio" data-value="landscape" data-i18n="landscape"></button>
+      </div>
+    </div>
+    <div id="sz-list"></div>
+  </div>
+</div>
+
+<!-- Share link -->
+<div class="scrim" id="share" role="dialog" aria-modal="true" aria-labelledby="share-title">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="share-title" data-i18n="shareTitle"></h2>
+      <button class="pill-btn" data-close data-i18n="done"></button>
+    </div>
+    <p class="note" data-i18n="shareNote"></p>
+    <h3 data-i18n="shareLinkLabel"></h3>
+    <div class="group">
+      <input id="share-link" type="text" readonly spellcheck="false" autocomplete="off" data-i18n-label="shareLinkLabel">
+      <p class="note" id="share-stats"></p>
+    </div>
+    <ul id="share-warn" hidden></ul>
+    <div class="share-actions">
+      <button class="primary" id="share-copy" data-i18n="shareCopy"></button>
+      <button class="primary quiet" id="share-send" data-i18n="shareSend" hidden></button>
+    </div>
+  </div>
+</div>
+
+<!-- A question before something that replaces the board -->
+<div class="scrim" id="confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-text">
+  <div class="sheet">
+    <p id="confirm-text"></p>
+    <div class="confirm-actions">
+      <button class="pill-btn quiet" data-close data-i18n="cancel"></button>
+      <button class="pill-btn" id="confirm-ok"></button>
+    </div>
   </div>
 </div>
 
 <div class="glass" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button id="toast-action" hidden></button></div>
 <div id="drop-blob" aria-hidden="true"><i></i></div>
-<input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json" hidden>
+<input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json,.pdf,application/pdf" hidden>
+<input type="file" id="addboards-input" accept=".whtbd,.WHTBD,.json,application/json" multiple hidden>
 <input type="file" id="restore-input" accept=".wbgallery,.wbstickers,.json,application/json" hidden>
 <input type="file" id="import-input" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml,application/pdf,.png,.jpg,.jpeg,.webp,.bmp,.svg,.pdf" hidden>
 
@@ -1770,6 +1922,219 @@ body.pipetting #canvas { cursor: crosshair; }
     hi: ['काटकर हटाएँ', 'किसी चीज़ पर तेज़ी से आगे-पीछे घसीटें ताकि वह हट जाए, जैसे कागज़ पर काटते हैं।', 'काट दिया गया'],
   };
   for (const l in SCRATCH) if (D[l]) [D[l].scratch, D[l].scratchNote, D[l].tScratched] = SCRATCH[l];
+
+  /* Highlighter, laser, pressure, sheets, PDFs, share links. Keys in NEW_KEYS order. */
+  const NEW_KEYS = ['highlighter', 'laser', 'mNewSheet', 'mShare', 'pressure', 'pressureNote',
+    'sheetTitle', 'sheetNote', 'orientation', 'portrait', 'landscape', 'catA', 'catB', 'catUS', 'catScreen',
+    'szLetter', 'szLegal', 'szTabloid', 'szExecutive', 'szHalfLetter', 'szIndex', 'szSlide169', 'szSlide43', 'szSquare', 'tNewSheet',
+    'tPdfReading', 'tPdfFail', 'confirmPdf', 'openPdf', 'tImportedPdf',
+    'shareTitle', 'shareNote', 'shareLinkLabel', 'shareCopy', 'shareSend', 'shareChars', 'shareLong', 'shareNoPics', 'shareNoPdf',
+    'tCopied', 'tSharedOpened', 'tShareBad', 'tShareFail'];
+  const NEW = {
+    en: ['Highlighter', 'Laser pointer', 'New sheet…', 'Share link…', 'Pressure sensitivity', 'Press harder with a stylus for thicker lines. When off, every line keeps the same thickness.',
+      'New sheet', 'A board with a fixed paper size. Exports keep only what is on the sheet; you can still draw around it.', 'Orientation', 'Portrait', 'Landscape', 'A sizes (ISO)', 'B sizes (ISO)', 'North American', 'Screens and slides',
+      'Letter', 'Legal', 'Tabloid', 'Executive', 'Half Letter', 'Index card', 'Slide 16:9', 'Slide 4:3', 'Square', 'New sheet: {t}',
+      'Reading the PDF… page {n} of {t}', 'Could not read this PDF', 'Open this PDF as a new sheet? It replaces the current board (you can undo it).', 'Open PDF', 'Imported {n} pages',
+      'Share link', 'Anyone with this link can open a copy of the board. The board travels inside the link itself; it is not uploaded anywhere.', 'Link', 'Copy link', 'Share…', '{n} characters',
+      'This is a long link. Copying and pasting it works, but some apps and emails cut long links short.', 'Pictures aren’t included in share links ({n} left out).', 'The PDF pages aren’t included, only what was drawn on them.',
+      'Link copied', 'Opened a shared board', 'This share link is damaged or incomplete', 'Could not make the link'],
+    hu: ['Szövegkiemelő', 'Lézermutató', 'Új lap…', 'Megosztási link…', 'Nyomásérzékenység', 'Erősebben nyomva a tollat vastagabb a vonal. Kikapcsolva minden vonal egyforma vastag.',
+      'Új lap', 'Rögzített papírméretű tábla. Az exportálás csak azt tartja meg, ami a lapon van; körülötte is rajzolhatsz.', 'Tájolás', 'Álló', 'Fekvő', 'A méretek (ISO)', 'B méretek (ISO)', 'Észak-amerikai', 'Képernyők és diák',
+      'Letter', 'Legal', 'Tabloid', 'Executive', 'Fél Letter', 'Kartoték', 'Dia 16:9', 'Dia 4:3', 'Négyzet', 'Új lap: {t}',
+      'PDF beolvasása… {n}. oldal / {t}', 'Ez a PDF nem olvasható be', 'Megnyitod ezt a PDF-et új lapként? A jelenlegi tábla helyére kerül (visszavonható).', 'PDF megnyitása', '{n} oldal importálva',
+      'Megosztási link', 'Aki megkapja ezt a linket, megnyithatja a tábla egy másolatát. A tábla magában a linkben utazik, sehová nem töltődik fel.', 'Link', 'Link másolása', 'Megosztás…', '{n} karakter',
+      'Ez egy hosszú link. Másolva és beillesztve működik, de egyes alkalmazások és levelezők levágják a hosszú linkeket.', 'A képek nem kerülnek bele a megosztási linkbe ({n} kimaradt).', 'A PDF oldalai nem kerülnek bele, csak az, amit rájuk rajzoltál.',
+      'Link másolva', 'Megosztott tábla megnyitva', 'Ez a megosztási link sérült vagy hiányos', 'Nem sikerült elkészíteni a linket'],
+    de: ['Textmarker', 'Laserpointer', 'Neues Blatt…', 'Link teilen…', 'Druckempfindlichkeit', 'Mit dem Stift fester drücken ergibt dickere Linien. Aus: Jede Linie bleibt gleich dick.',
+      'Neues Blatt', 'Eine Tafel mit fester Papiergröße. Exporte enthalten nur, was auf dem Blatt ist; daneben kannst du trotzdem zeichnen.', 'Ausrichtung', 'Hochformat', 'Querformat', 'A-Formate (ISO)', 'B-Formate (ISO)', 'Nordamerikanisch', 'Bildschirme und Folien',
+      'Letter', 'Legal', 'Tabloid', 'Executive', 'Half Letter', 'Karteikarte', 'Folie 16:9', 'Folie 4:3', 'Quadrat', 'Neues Blatt: {t}',
+      'PDF wird gelesen… Seite {n} von {t}', 'Dieses PDF konnte nicht gelesen werden', 'Dieses PDF als neues Blatt öffnen? Es ersetzt die aktuelle Tafel (rückgängig machbar).', 'PDF öffnen', '{n} Seiten importiert',
+      'Link teilen', 'Wer diesen Link hat, kann eine Kopie der Tafel öffnen. Die Tafel steckt im Link selbst und wird nirgends hochgeladen.', 'Link', 'Link kopieren', 'Teilen…', '{n} Zeichen',
+      'Das ist ein langer Link. Kopieren und Einfügen funktioniert, aber manche Apps und E-Mail-Programme kürzen lange Links.', 'Bilder sind in Links nicht enthalten ({n} ausgelassen).', 'Die PDF-Seiten sind nicht enthalten, nur was darauf gezeichnet wurde.',
+      'Link kopiert', 'Geteilte Tafel geöffnet', 'Dieser Link ist beschädigt oder unvollständig', 'Der Link konnte nicht erstellt werden'],
+    fr: ['Surligneur', 'Pointeur laser', 'Nouvelle feuille…', 'Lien de partage…', 'Sensibilité à la pression', 'Appuyez plus fort avec un stylet pour des traits plus épais. Désactivé, chaque trait garde la même épaisseur.',
+      'Nouvelle feuille', 'Un tableau au format papier fixe. Les exports ne gardent que ce qui est sur la feuille ; vous pouvez quand même dessiner autour.', 'Orientation', 'Portrait', 'Paysage', 'Formats A (ISO)', 'Formats B (ISO)', 'Amérique du Nord', 'Écrans et diapositives',
+      'Letter', 'Legal', 'Tabloïd', 'Executive', 'Demi-Letter', 'Fiche bristol', 'Diapo 16:9', 'Diapo 4:3', 'Carré', 'Nouvelle feuille : {t}',
+      'Lecture du PDF… page {n} sur {t}', 'Impossible de lire ce PDF', 'Ouvrir ce PDF comme nouvelle feuille ? Il remplace le tableau actuel (annulable).', 'Ouvrir le PDF', '{n} pages importées',
+      'Lien de partage', 'Toute personne ayant ce lien peut ouvrir une copie du tableau. Le tableau voyage dans le lien lui-même ; il n’est envoyé nulle part.', 'Lien', 'Copier le lien', 'Partager…', '{n} caractères',
+      'Ce lien est long. Le copier-coller fonctionne, mais certaines applis et messageries coupent les liens longs.', 'Les images ne sont pas incluses dans les liens ({n} omises).', 'Les pages du PDF ne sont pas incluses, seulement ce qui a été dessiné dessus.',
+      'Lien copié', 'Tableau partagé ouvert', 'Ce lien de partage est abîmé ou incomplet', 'Impossible de créer le lien'],
+    it: ['Evidenziatore', 'Puntatore laser', 'Nuovo foglio…', 'Link di condivisione…', 'Sensibilità alla pressione', 'Premi di più con la penna per linee più spesse. Se disattivata, ogni linea ha lo stesso spessore.',
+      'Nuovo foglio', 'Una lavagna di formato fisso. Le esportazioni tengono solo ciò che è sul foglio; puoi comunque disegnare intorno.', 'Orientamento', 'Verticale', 'Orizzontale', 'Formati A (ISO)', 'Formati B (ISO)', 'Nordamericani', 'Schermi e diapositive',
+      'Letter', 'Legal', 'Tabloid', 'Executive', 'Mezzo Letter', 'Scheda', 'Diapositiva 16:9', 'Diapositiva 4:3', 'Quadrato', 'Nuovo foglio: {t}',
+      'Lettura del PDF… pagina {n} di {t}', 'Impossibile leggere questo PDF', 'Aprire questo PDF come nuovo foglio? Sostituisce la lavagna attuale (puoi annullare).', 'Apri PDF', '{n} pagine importate',
+      'Link di condivisione', 'Chiunque abbia questo link può aprire una copia della lavagna. La lavagna viaggia dentro il link; non viene caricata da nessuna parte.', 'Link', 'Copia link', 'Condividi…', '{n} caratteri',
+      'Questo link è lungo. Copiarlo e incollarlo funziona, ma alcune app ed email accorciano i link lunghi.', 'Le immagini non sono incluse nei link ({n} escluse).', 'Le pagine del PDF non sono incluse, solo ciò che vi è stato disegnato sopra.',
+      'Link copiato', 'Lavagna condivisa aperta', 'Questo link è danneggiato o incompleto', 'Impossibile creare il link'],
+    es: ['Resaltador', 'Puntero láser', 'Nueva hoja…', 'Enlace para compartir…', 'Sensibilidad a la presión', 'Presiona más con el lápiz para trazos más gruesos. Desactivada, todos los trazos tienen el mismo grosor.',
+      'Nueva hoja', 'Una pizarra de tamaño de papel fijo. Las exportaciones solo incluyen lo que está en la hoja; puedes dibujar alrededor igualmente.', 'Orientación', 'Vertical', 'Horizontal', 'Tamaños A (ISO)', 'Tamaños B (ISO)', 'Norteamericanos', 'Pantallas y diapositivas',
+      'Carta', 'Oficio', 'Tabloide', 'Ejecutivo', 'Media carta', 'Ficha', 'Diapositiva 16:9', 'Diapositiva 4:3', 'Cuadrado', 'Nueva hoja: {t}',
+      'Leyendo el PDF… página {n} de {t}', 'No se pudo leer este PDF', '¿Abrir este PDF como hoja nueva? Sustituye la pizarra actual (se puede deshacer).', 'Abrir PDF', '{n} páginas importadas',
+      'Enlace para compartir', 'Cualquiera con este enlace puede abrir una copia de la pizarra. La pizarra viaja dentro del propio enlace; no se sube a ningún sitio.', 'Enlace', 'Copiar enlace', 'Compartir…', '{n} caracteres',
+      'Es un enlace largo. Copiar y pegar funciona, pero algunas apps y correos recortan los enlaces largos.', 'Las imágenes no se incluyen en los enlaces ({n} omitidas).', 'Las páginas del PDF no se incluyen, solo lo que se dibujó sobre ellas.',
+      'Enlace copiado', 'Pizarra compartida abierta', 'Este enlace está dañado o incompleto', 'No se pudo crear el enlace'],
+    pt: ['Marca-texto', 'Ponteiro laser', 'Nova folha…', 'Link de partilha…', 'Sensibilidade à pressão', 'Pressione mais com a caneta para traços mais grossos. Desligada, todos os traços têm a mesma espessura.',
+      'Nova folha', 'Um quadro com tamanho de papel fixo. As exportações só incluem o que está na folha; pode desenhar à volta na mesma.', 'Orientação', 'Retrato', 'Paisagem', 'Tamanhos A (ISO)', 'Tamanhos B (ISO)', 'Norte-americanos', 'Ecrãs e diapositivos',
+      'Carta', 'Ofício', 'Tabloide', 'Executivo', 'Meia carta', 'Ficha', 'Diapositivo 16:9', 'Diapositivo 4:3', 'Quadrado', 'Nova folha: {t}',
+      'A ler o PDF… página {n} de {t}', 'Não foi possível ler este PDF', 'Abrir este PDF como nova folha? Substitui o quadro atual (pode desfazer).', 'Abrir PDF', '{n} páginas importadas',
+      'Link de partilha', 'Quem tiver este link pode abrir uma cópia do quadro. O quadro viaja dentro do próprio link; não é enviado para lado nenhum.', 'Link', 'Copiar link', 'Partilhar…', '{n} caracteres',
+      'Este link é longo. Copiar e colar funciona, mas algumas apps e emails cortam links longos.', 'As imagens não são incluídas nos links ({n} deixadas de fora).', 'As páginas do PDF não são incluídas, só o que foi desenhado sobre elas.',
+      'Link copiado', 'Quadro partilhado aberto', 'Este link está danificado ou incompleto', 'Não foi possível criar o link'],
+    ru: ['Маркер', 'Лазерная указка', 'Новый лист…', 'Ссылка для отправки…', 'Чувствительность к нажиму', 'Сильнее нажимайте стилусом, чтобы линия была толще. Если выключено, все линии одной толщины.',
+      'Новый лист', 'Доска фиксированного формата бумаги. В экспорт попадает только то, что на листе; рисовать вокруг всё равно можно.', 'Ориентация', 'Книжная', 'Альбомная', 'Форматы A (ISO)', 'Форматы B (ISO)', 'Североамериканские', 'Экраны и слайды',
+      'Letter', 'Legal', 'Tabloid', 'Executive', 'Half Letter', 'Карточка', 'Слайд 16:9', 'Слайд 4:3', 'Квадрат', 'Новый лист: {t}',
+      'Чтение PDF… страница {n} из {t}', 'Не удалось прочитать этот PDF', 'Открыть этот PDF как новый лист? Он заменит текущую доску (можно отменить).', 'Открыть PDF', 'Импортировано страниц: {n}',
+      'Ссылка для отправки', 'Любой, у кого есть ссылка, может открыть копию доски. Доска хранится в самой ссылке и никуда не загружается.', 'Ссылка', 'Копировать ссылку', 'Поделиться…', 'Символов: {n}',
+      'Это длинная ссылка. Копирование и вставка работают, но некоторые приложения и почта обрезают длинные ссылки.', 'Изображения не входят в ссылку (пропущено: {n}).', 'Страницы PDF не входят в ссылку, только нарисованное поверх них.',
+      'Ссылка скопирована', 'Открыта присланная доска', 'Эта ссылка повреждена или неполная', 'Не удалось создать ссылку'],
+    uk: ['Маркер', 'Лазерна указка', 'Новий аркуш…', 'Посилання для надсилання…', 'Чутливість до натиску', 'Сильніше натискайте стилусом, щоб лінія була товща. Якщо вимкнено, усі лінії однакової товщини.',
+      'Новий аркуш', 'Дошка фіксованого формату паперу. В експорт потрапляє лише те, що на аркуші; малювати навколо все одно можна.', 'Орієнтація', 'Книжкова', 'Альбомна', 'Формати A (ISO)', 'Формати B (ISO)', 'Північноамериканські', 'Екрани та слайди',
+      'Letter', 'Legal', 'Tabloid', 'Executive', 'Half Letter', 'Картка', 'Слайд 16:9', 'Слайд 4:3', 'Квадрат', 'Новий аркуш: {t}',
+      'Читання PDF… сторінка {n} з {t}', 'Не вдалося прочитати цей PDF', 'Відкрити цей PDF як новий аркуш? Він замінить поточну дошку (можна скасувати).', 'Відкрити PDF', 'Імпортовано сторінок: {n}',
+      'Посилання для надсилання', 'Будь-хто з цим посиланням може відкрити копію дошки. Дошка зберігається в самому посиланні й нікуди не завантажується.', 'Посилання', 'Копіювати посилання', 'Поділитися…', 'Символів: {n}',
+      'Це довге посилання. Копіювання й вставлення працюють, але деякі застосунки та пошта обрізають довгі посилання.', 'Зображення не входять у посилання (пропущено: {n}).', 'Сторінки PDF не входять у посилання, лише намальоване поверх них.',
+      'Посилання скопійовано', 'Відкрито надіслану дошку', 'Це посилання пошкоджене або неповне', 'Не вдалося створити посилання'],
+    tr: ['Fosforlu kalem', 'Lazer işaretçi', 'Yeni sayfa…', 'Paylaşım bağlantısı…', 'Basınç hassasiyeti', 'Kalemle daha sert bastırınca çizgi kalınlaşır. Kapalıyken her çizgi aynı kalınlıktadır.',
+      'Yeni sayfa', 'Sabit kâğıt boyutunda bir tahta. Dışa aktarma yalnızca sayfadakileri içerir; çevresine yine de çizebilirsiniz.', 'Yön', 'Dikey', 'Yatay', 'A boyutları (ISO)', 'B boyutları (ISO)', 'Kuzey Amerika', 'Ekranlar ve slaytlar',
+      'Letter', 'Legal', 'Tabloid', 'Executive', 'Yarım Letter', 'Fiş kartı', 'Slayt 16:9', 'Slayt 4:3', 'Kare', 'Yeni sayfa: {t}',
+      'PDF okunuyor… sayfa {n}/{t}', 'Bu PDF okunamadı', 'Bu PDF yeni sayfa olarak açılsın mı? Geçerli tahtanın yerini alır (geri alınabilir).', 'PDF’yi aç', '{n} sayfa içe aktarıldı',
+      'Paylaşım bağlantısı', 'Bu bağlantıya sahip herkes tahtanın bir kopyasını açabilir. Tahta bağlantının içinde taşınır; hiçbir yere yüklenmez.', 'Bağlantı', 'Bağlantıyı kopyala', 'Paylaş…', '{n} karakter',
+      'Bu uzun bir bağlantı. Kopyalayıp yapıştırmak işe yarar, ancak bazı uygulamalar ve e-postalar uzun bağlantıları kısaltır.', 'Resimler bağlantıya dahil edilmez ({n} tanesi çıkarıldı).', 'PDF sayfaları dahil edilmez, yalnızca üzerlerine çizilenler.',
+      'Bağlantı kopyalandı', 'Paylaşılan tahta açıldı', 'Bu paylaşım bağlantısı bozuk veya eksik', 'Bağlantı oluşturulamadı'],
+    zh: ['荧光笔', '激光笔', '新建纸张…', '分享链接…', '压感', '用触控笔用力按压可画出更粗的线条。关闭时，每条线粗细相同。',
+      '新建纸张', '固定纸张尺寸的白板。导出时只保留纸张上的内容；你仍可在纸张周围绘制。', '方向', '纵向', '横向', 'A 系列（ISO）', 'B 系列（ISO）', '北美', '屏幕和幻灯片',
+      'Letter', 'Legal', 'Tabloid', 'Executive', '半 Letter', '索引卡', '幻灯片 16:9', '幻灯片 4:3', '正方形', '新建纸张：{t}',
+      '正在读取 PDF… 第 {n} 页，共 {t} 页', '无法读取此 PDF', '将此 PDF 作为新纸张打开？它会替换当前白板（可以撤销）。', '打开 PDF', '已导入 {n} 页',
+      '分享链接', '任何拥有此链接的人都能打开白板的副本。白板就保存在链接本身中，不会上传到任何地方。', '链接', '复制链接', '分享…', '{n} 个字符',
+      '这是一个很长的链接。复制粘贴可以使用，但有些应用和邮件会截断长链接。', '分享链接不包含图片（已省略 {n} 张）。', '不包含 PDF 页面，只包含在其上绘制的内容。',
+      '链接已复制', '已打开分享的白板', '此分享链接已损坏或不完整', '无法生成链接'],
+    ja: ['蛍光ペン', 'レーザーポインター', '新しい用紙…', '共有リンク…', '筆圧', 'スタイラスを強く押すほど線が太くなります。オフにすると、すべての線が同じ太さになります。',
+      '新しい用紙', '用紙サイズが決まったボードです。書き出しには用紙上の内容だけが含まれます。用紙の外にも描けます。', '向き', '縦', '横', 'A 判（ISO）', 'B 判（ISO）', '北米', '画面とスライド',
+      'レター', 'リーガル', 'タブロイド', 'エグゼクティブ', 'ハーフレター', '情報カード', 'スライド 16:9', 'スライド 4:3', '正方形', '新しい用紙：{t}',
+      'PDF を読み込み中… {n} / {t} ページ', 'この PDF を読み込めませんでした', 'この PDF を新しい用紙として開きますか？今のボードと置き換わります（取り消せます）。', 'PDF を開く', '{n} ページを読み込みました',
+      '共有リンク', 'このリンクを持っている人は誰でもボードのコピーを開けます。ボードはリンクそのものに含まれ、どこにもアップロードされません。', 'リンク', 'リンクをコピー', '共有…', '{n} 文字',
+      '長いリンクです。コピーして貼り付ければ使えますが、アプリやメールによっては長いリンクが途中で切れます。', '画像は共有リンクに含まれません（{n} 枚を省略）。', 'PDF のページは含まれず、その上に描いた内容だけが含まれます。',
+      'リンクをコピーしました', '共有されたボードを開きました', 'この共有リンクは壊れているか不完全です', 'リンクを作成できませんでした'],
+    ar: ['قلم تمييز', 'مؤشر ليزر', 'ورقة جديدة…', 'رابط مشاركة…', 'الحساسية للضغط', 'اضغط بالقلم بقوة أكبر لخطوط أعرض. عند الإيقاف يبقى سُمك كل الخطوط واحدًا.',
+      'ورقة جديدة', 'لوحة بحجم ورق ثابت. لا يشمل التصدير إلا ما على الورقة؛ ويمكنك الرسم حولها مع ذلك.', 'الاتجاه', 'طولي', 'عرضي', 'مقاسات A ‏(ISO)', 'مقاسات B ‏(ISO)', 'أمريكا الشمالية', 'الشاشات والشرائح',
+      'Letter', 'Legal', 'Tabloid', 'Executive', 'نصف Letter', 'بطاقة فهرسة', 'شريحة 16:9', 'شريحة 4:3', 'مربع', 'ورقة جديدة: {t}',
+      'جارٍ قراءة PDF… الصفحة {n} من {t}', 'تعذّرت قراءة ملف PDF هذا', 'فتح ملف PDF هذا كورقة جديدة؟ سيحل محل اللوحة الحالية (يمكنك التراجع).', 'فتح PDF', 'تم استيراد {n} صفحات',
+      'رابط مشاركة', 'يمكن لأي شخص لديه هذا الرابط فتح نسخة من اللوحة. اللوحة محفوظة داخل الرابط نفسه ولا تُرفع إلى أي مكان.', 'الرابط', 'نسخ الرابط', 'مشاركة…', '{n} حرفًا',
+      'هذا رابط طويل. النسخ واللصق يعملان، لكن بعض التطبيقات والبريد الإلكتروني تقطع الروابط الطويلة.', 'لا تُضمَّن الصور في روابط المشاركة (استُبعد {n}).', 'لا تُضمَّن صفحات PDF، بل ما رُسم فوقها فقط.',
+      'تم نسخ الرابط', 'تم فتح لوحة مشتركة', 'رابط المشاركة هذا تالف أو غير مكتمل', 'تعذّر إنشاء الرابط'],
+    hi: ['हाइलाइटर', 'लेज़र पॉइंटर', 'नई शीट…', 'शेयर लिंक…', 'दबाव संवेदनशीलता', 'स्टाइलस से ज़्यादा दबाएँ तो रेखा मोटी होगी। बंद होने पर हर रेखा एक जैसी मोटी रहती है।',
+      'नई शीट', 'तय काग़ज़ आकार वाला बोर्ड। एक्सपोर्ट में केवल शीट पर का हिस्सा आता है; आप उसके आसपास भी बना सकते हैं।', 'दिशा', 'खड़ा', 'आड़ा', 'A आकार (ISO)', 'B आकार (ISO)', 'उत्तर अमेरिकी', 'स्क्रीन और स्लाइड',
+      'Letter', 'Legal', 'Tabloid', 'Executive', 'आधा Letter', 'इंडेक्स कार्ड', 'स्लाइड 16:9', 'स्लाइड 4:3', 'वर्ग', 'नई शीट: {t}',
+      'PDF पढ़ा जा रहा है… पृष्ठ {n} / {t}', 'यह PDF पढ़ा नहीं जा सका', 'इस PDF को नई शीट के रूप में खोलें? यह मौजूदा बोर्ड की जगह लेगा (पूर्ववत किया जा सकता है)।', 'PDF खोलें', '{n} पृष्ठ इम्पोर्ट किए गए',
+      'शेयर लिंक', 'जिसके पास भी यह लिंक है, वह बोर्ड की एक प्रति खोल सकता है। बोर्ड लिंक के अंदर ही रहता है; कहीं अपलोड नहीं होता।', 'लिंक', 'लिंक कॉपी करें', 'शेयर करें…', '{n} वर्ण',
+      'यह लंबा लिंक है। कॉपी-पेस्ट काम करता है, पर कुछ ऐप और ईमेल लंबे लिंक काट देते हैं।', 'शेयर लिंक में चित्र शामिल नहीं होते ({n} छोड़े गए)।', 'PDF के पृष्ठ शामिल नहीं हैं, केवल उन पर बनाया गया हिस्सा।',
+      'लिंक कॉपी हो गया', 'साझा किया गया बोर्ड खोला गया', 'यह शेयर लिंक ख़राब या अधूरा है', 'लिंक नहीं बन सका'],
+  };
+  for (const l in NEW) if (D[l]) NEW_KEYS.forEach((k, i) => { D[l][k] = NEW[l][i]; });
+
+  /* Adding pages to a sheet: [above, below, done]. */
+  const PAGES = {
+    en: ['Add a page above', 'Add a page below', 'Page added'],
+    hu: ['Új oldal fölé', 'Új oldal alá', 'Oldal hozzáadva'],
+    de: ['Seite oberhalb hinzufügen', 'Seite unterhalb hinzufügen', 'Seite hinzugefügt'],
+    fr: ['Ajouter une page au-dessus', 'Ajouter une page en dessous', 'Page ajoutée'],
+    it: ['Aggiungi una pagina sopra', 'Aggiungi una pagina sotto', 'Pagina aggiunta'],
+    es: ['Añadir una página arriba', 'Añadir una página abajo', 'Página añadida'],
+    pt: ['Adicionar uma página acima', 'Adicionar uma página abaixo', 'Página adicionada'],
+    ru: ['Добавить страницу сверху', 'Добавить страницу снизу', 'Страница добавлена'],
+    uk: ['Додати сторінку зверху', 'Додати сторінку знизу', 'Сторінку додано'],
+    tr: ['Üste sayfa ekle', 'Alta sayfa ekle', 'Sayfa eklendi'],
+    zh: ['在上方添加一页', '在下方添加一页', '已添加页面'],
+    ja: ['上にページを追加', '下にページを追加', 'ページを追加しました'],
+    ar: ['إضافة صفحة في الأعلى', 'إضافة صفحة في الأسفل', 'تمت إضافة صفحة'],
+    hi: ['ऊपर पृष्ठ जोड़ें', 'नीचे पृष्ठ जोड़ें', 'पृष्ठ जोड़ा गया'],
+  };
+  for (const l in PAGES) if (D[l]) [D[l].addPageAbove, D[l].addPageBelow, D[l].tPageAdded] = PAGES[l];
+
+  /* Lined canvas; keeping the gallery safe on iPhone and iPad; smarter backups. Keys in KEEP_KEYS order. */
+  const KEEP_KEYS = ['lined', 'tHomeTip', 'gotIt', 'gBackupChanges', 'tBackupNudge', 'gBackupNow', 'tNoChanges',
+    'filesCopy', 'filesCopyNote', 'tCopyReady', 'gAddBoards', 'tAddedBoards', 'tExportReady'];
+  const KEEP = {
+    en: ['Lined', 'Tip: add Whiteboard to your Home Screen (Share → Add to Home Screen). iPhone and iPad keep a Home Screen app’s gallery far more safely than a browser tab’s.', 'Got it',
+      'Back up changes ({n})…', '{n} boards aren’t in a backup yet. Back them up now?', 'Back up', 'Nothing has changed since the last backup',
+      'Save a copy to Files', 'Every Save to gallery also opens the share sheet, so you can keep the board in Files, for example with a Shortcut that saves into one folder.', 'Your copy for Files is ready', 'Add boards…', 'Added {n} boards', 'Your export is ready'],
+    hu: ['Vonalas', 'Tipp: tedd a Whiteboardot a Főképernyőre (Megosztás → Főképernyőhöz adás). Az iPhone és az iPad a Főképernyőről indított alkalmazás galériáját sokkal biztonságosabban őrzi, mint egy böngészőlapét.', 'Értem',
+      'Változások mentése ({n})…', '{n} tábla még nincs biztonsági mentésben. Mented most?', 'Mentés', 'Az utolsó mentés óta semmi sem változott',
+      'Másolat a Fájlokba', 'Minden galériába mentés megnyitja a megosztási lapot is, így a táblát a Fájlokban is megtarthatod, például egy olyan Paranccsal, amely egy mappába ment.', 'A Fájlokba szánt másolat kész', 'Táblák hozzáadása…', '{n} tábla hozzáadva', 'Az export elkészült'],
+    de: ['Liniert', 'Tipp: Leg Whiteboard auf den Home-Bildschirm (Teilen → Zum Home-Bildschirm). iPhone und iPad bewahren die Galerie einer Home-Bildschirm-App viel sicherer auf als die eines Browser-Tabs.', 'Verstanden',
+      'Änderungen sichern ({n})…', '{n} Tafeln sind noch in keiner Sicherung. Jetzt sichern?', 'Sichern', 'Seit der letzten Sicherung hat sich nichts geändert',
+      'Kopie in Dateien sichern', 'Jedes Sichern in der Galerie öffnet auch das Teilen-Menü, damit du die Tafel in Dateien behalten kannst, etwa mit einem Kurzbefehl, der in einen Ordner sichert.', 'Deine Kopie für Dateien ist bereit', 'Tafeln hinzufügen…', '{n} Tafeln hinzugefügt', 'Dein Export ist bereit'],
+    fr: ['Ligné', 'Astuce : ajoutez Whiteboard à l’écran d’accueil (Partager → Sur l’écran d’accueil). L’iPhone et l’iPad conservent la galerie d’une app de l’écran d’accueil bien plus sûrement que celle d’un onglet.', 'Compris',
+      'Sauvegarder les changements ({n})…', '{n} tableaux ne sont dans aucune sauvegarde. Les sauvegarder maintenant ?', 'Sauvegarder', 'Rien n’a changé depuis la dernière sauvegarde',
+      'Copie dans Fichiers', 'Chaque enregistrement dans la galerie ouvre aussi le menu de partage, pour garder le tableau dans Fichiers, par exemple avec un raccourci qui enregistre dans un dossier.', 'Votre copie pour Fichiers est prête', 'Ajouter des tableaux…', '{n} tableaux ajoutés', 'Votre export est prêt'],
+    it: ['A righe', 'Suggerimento: aggiungi Whiteboard alla schermata Home (Condividi → Aggiungi alla schermata Home). iPhone e iPad conservano la galleria di un’app della schermata Home molto più al sicuro di quella di una scheda.', 'Ho capito',
+      'Backup delle modifiche ({n})…', '{n} lavagne non sono ancora in un backup. Farlo ora?', 'Backup', 'Nulla è cambiato dall’ultimo backup',
+      'Copia in File', 'Ogni salvataggio nella galleria apre anche il foglio di condivisione, così puoi tenere la lavagna in File, ad esempio con un comando rapido che salva in una cartella.', 'La copia per File è pronta', 'Aggiungi lavagne…', '{n} lavagne aggiunte', 'L’esportazione è pronta'],
+    es: ['Rayado', 'Consejo: añade Whiteboard a la pantalla de inicio (Compartir → Añadir a pantalla de inicio). El iPhone y el iPad conservan la galería de una app de la pantalla de inicio mucho mejor que la de una pestaña.', 'Entendido',
+      'Copiar cambios ({n})…', '{n} pizarras aún no están en ninguna copia. ¿Hacer la copia ahora?', 'Hacer copia', 'Nada ha cambiado desde la última copia',
+      'Guardar copia en Archivos', 'Cada vez que guardas en la galería se abre también la hoja de compartir, para conservar la pizarra en Archivos, por ejemplo con un atajo que guarda en una carpeta.', 'Tu copia para Archivos está lista', 'Añadir pizarras…', '{n} pizarras añadidas', 'Tu exportación está lista'],
+    pt: ['Pautado', 'Dica: adicione o Whiteboard ao ecrã principal (Partilhar → Adicionar ao ecrã principal). O iPhone e o iPad guardam a galeria de uma app do ecrã principal com muito mais segurança do que a de um separador.', 'Entendi',
+      'Copiar alterações ({n})…', '{n} quadros ainda não estão em nenhuma cópia. Fazer a cópia agora?', 'Fazer cópia', 'Nada mudou desde a última cópia',
+      'Guardar cópia em Ficheiros', 'Cada gravação na galeria abre também a folha de partilha, para manter o quadro em Ficheiros, por exemplo com um atalho que guarda numa pasta.', 'A sua cópia para Ficheiros está pronta', 'Adicionar quadros…', '{n} quadros adicionados', 'A sua exportação está pronta'],
+    ru: ['Линейка', 'Совет: добавьте Whiteboard на экран «Домой» (Поделиться → На экран «Домой»). iPhone и iPad хранят галерею приложения с экрана «Домой» гораздо надёжнее, чем галерею вкладки браузера.', 'Понятно',
+      'Сохранить изменения ({n})…', 'Досок без резервной копии: {n}. Сохранить сейчас?', 'Сохранить', 'С последней резервной копии ничего не изменилось',
+      'Копия в «Файлы»', 'Каждое сохранение в галерею открывает и меню «Поделиться», чтобы сохранить доску в «Файлы», например быстрой командой, которая сохраняет в одну папку.', 'Копия для «Файлов» готова', 'Добавить доски…', 'Добавлено досок: {n}', 'Экспорт готов'],
+    uk: ['Лінійка', 'Порада: додайте Whiteboard на початковий екран (Поширити → На початковий екран). iPhone та iPad зберігають галерею застосунку з початкового екрана набагато надійніше, ніж галерею вкладки браузера.', 'Зрозуміло',
+      'Зберегти зміни ({n})…', 'Дошок без резервної копії: {n}. Зберегти зараз?', 'Зберегти', 'Від останньої резервної копії нічого не змінилося',
+      'Копія у «Файли»', 'Кожне збереження в галерею відкриває й меню «Поширити», щоб зберегти дошку у «Файли», наприклад швидкою командою, яка зберігає в одну папку.', 'Копія для «Файлів» готова', 'Додати дошки…', 'Додано дошок: {n}', 'Експорт готовий'],
+    tr: ['Çizgili', 'İpucu: Whiteboard’u Ana Ekran’a ekleyin (Paylaş → Ana Ekrana Ekle). iPhone ve iPad, Ana Ekran uygulamasının galerisini tarayıcı sekmesininkinden çok daha güvenli saklar.', 'Anladım',
+      'Değişiklikleri yedekle ({n})…', '{n} tahta henüz hiçbir yedekte yok. Şimdi yedeklensin mi?', 'Yedekle', 'Son yedekten beri hiçbir şey değişmedi',
+      'Dosyalar’a kopya kaydet', 'Galeriye her kayıt paylaşım sayfasını da açar; böylece tahtayı Dosyalar’da tutabilirsiniz, örneğin tek bir klasöre kaydeden bir Kestirme ile.', 'Dosyalar için kopyanız hazır', 'Tahta ekle…', '{n} tahta eklendi', 'Dışa aktarma hazır'],
+    zh: ['横线', '提示：将 Whiteboard 添加到主屏幕（分享 → 添加到主屏幕）。iPhone 和 iPad 保存主屏幕应用的图库要比保存浏览器标签页的可靠得多。', '知道了',
+      '备份更改（{n}）…', '有 {n} 个白板还没有备份。现在备份吗？', '备份', '自上次备份以来没有任何更改',
+      '在“文件”中保存副本', '每次保存到图库时也会打开分享面板，以便把白板保存到“文件”，例如使用一个保存到固定文件夹的快捷指令。', '用于“文件”的副本已准备好', '添加白板…', '已添加 {n} 个白板', '导出已准备好'],
+    ja: ['罫線', 'ヒント：Whiteboard をホーム画面に追加しましょう（共有 → ホーム画面に追加）。iPhone と iPad は、ブラウザのタブよりホーム画面のアプリのギャラリーをはるかに確実に保存します。', 'OK',
+      '変更をバックアップ（{n}）…', 'バックアップされていないボードが {n} 個あります。今バックアップしますか？', 'バックアップ', '前回のバックアップから変更はありません',
+      '「ファイル」にコピーを保存', 'ギャラリーに保存するたびに共有シートも開くので、ボードを「ファイル」に残せます。たとえば 1 つのフォルダに保存するショートカットを使えます。', '「ファイル」用のコピーの準備ができました', 'ボードを追加…', '{n} 個のボードを追加しました', '書き出しの準備ができました'],
+    ar: ['مسطّر', 'نصيحة: أضف Whiteboard إلى الشاشة الرئيسية (مشاركة ← إضافة إلى الشاشة الرئيسية). يحفظ iPhone وiPad معرض تطبيق الشاشة الرئيسية بأمان أكبر بكثير من معرض علامة تبويب المتصفح.', 'حسنًا',
+      'نسخ التغييرات احتياطيًا ({n})…', 'لم تُنسخ {n} لوحات احتياطيًا بعد. هل تنسخها الآن؟', 'نسخ احتياطي', 'لم يتغير شيء منذ آخر نسخة احتياطية',
+      'حفظ نسخة في الملفات', 'كل حفظ في المعرض يفتح أيضًا ورقة المشاركة، لتحتفظ باللوحة في تطبيق الملفات، مثلًا باختصار يحفظ في مجلد واحد.', 'نسختك للملفات جاهزة', 'إضافة لوحات…', 'تمت إضافة {n} لوحات', 'التصدير جاهز'],
+    hi: ['रेखांकित', 'सुझाव: Whiteboard को होम स्क्रीन पर जोड़ें (शेयर → होम स्क्रीन में जोड़ें)। iPhone और iPad होम स्क्रीन ऐप की गैलरी को ब्राउज़र टैब की तुलना में कहीं ज़्यादा सुरक्षित रखते हैं।', 'समझ गया',
+      'बदलावों का बैकअप ({n})…', '{n} बोर्ड अभी किसी बैकअप में नहीं हैं। अभी बैकअप लें?', 'बैकअप लें', 'पिछले बैकअप के बाद कुछ नहीं बदला',
+      'Files में कॉपी सहेजें', 'गैलरी में हर बार सहेजने पर शेयर शीट भी खुलती है, ताकि आप बोर्ड को Files में रख सकें, जैसे किसी एक फ़ोल्डर में सहेजने वाले शॉर्टकट से।', 'Files के लिए आपकी कॉपी तैयार है', 'बोर्ड जोड़ें…', '{n} बोर्ड जोड़े गए', 'आपका एक्सपोर्ट तैयार है'],
+  };
+  for (const l in KEEP) if (D[l]) KEEP_KEYS.forEach((k, i) => { D[l][k] = KEEP[l][i]; });
+  const ADDED_NONE = {
+    en: 'Those boards are already in the gallery',
+    hu: 'Ezek a táblák már a galériában vannak',
+    de: 'Diese Tafeln sind schon in der Galerie',
+    fr: 'Ces tableaux sont déjà dans la galerie',
+    it: 'Queste lavagne sono già nella galleria',
+    es: 'Esas pizarras ya están en la galería',
+    pt: 'Esses quadros já estão na galeria',
+    ru: 'Эти доски уже есть в галерее',
+    uk: 'Ці дошки вже є в галереї',
+    tr: 'Bu tahtalar zaten galeride',
+    zh: '这些白板已在图库中',
+    ja: 'これらのボードはすでにギャラリーにあります',
+    ar: 'هذه اللوحات موجودة في المعرض بالفعل',
+    hi: 'ये बोर्ड पहले से गैलरी में हैं',
+  };
+  for (const l in ADDED_NONE) if (D[l]) D[l].tAddedNone = ADDED_NONE[l];
+
+  /* Canvas pattern in exports; deleting an empty page: [title, note, delete, done]. */
+  const PATTERN = {
+    en: ['Canvas pattern', 'Include the dots, lines or grid of the canvas', 'Delete this empty page', 'Page deleted'],
+    hu: ['Vászon mintája', 'A vászon pontjai, vonalai vagy rácsa is kerüljön bele', 'Üres oldal törlése', 'Oldal törölve'],
+    de: ['Muster der Fläche', 'Punkte, Linien oder Raster der Fläche mit exportieren', 'Diese leere Seite löschen', 'Seite gelöscht'],
+    fr: ['Motif du fond', 'Inclure les points, les lignes ou la grille du fond', 'Supprimer cette page vide', 'Page supprimée'],
+    it: ['Motivo dello sfondo', 'Includi i punti, le righe o la griglia dello sfondo', 'Elimina questa pagina vuota', 'Pagina eliminata'],
+    es: ['Patrón del lienzo', 'Incluir los puntos, las líneas o la cuadrícula del lienzo', 'Eliminar esta página vacía', 'Página eliminada'],
+    pt: ['Padrão da tela', 'Incluir os pontos, as linhas ou a grelha da tela', 'Eliminar esta página vazia', 'Página eliminada'],
+    ru: ['Узор фона', 'Добавить точки, линейку или сетку фона', 'Удалить эту пустую страницу', 'Страница удалена'],
+    uk: ['Візерунок тла', 'Додати крапки, лінійку або сітку тла', 'Видалити цю порожню сторінку', 'Сторінку видалено'],
+    tr: ['Tuval deseni', 'Tuvalin noktalarını, çizgilerini veya ızgarasını ekle', 'Bu boş sayfayı sil', 'Sayfa silindi'],
+    zh: ['画布图案', '包含画布的点、横线或网格', '删除此空白页', '已删除页面'],
+    ja: ['キャンバスの模様', 'キャンバスの点、罫線、方眼を含める', 'この空のページを削除', 'ページを削除しました'],
+    ar: ['نقش اللوحة', 'تضمين نقاط اللوحة أو خطوطها أو شبكتها', 'حذف هذه الصفحة الفارغة', 'تم حذف الصفحة'],
+    hi: ['कैनवास पैटर्न', 'कैनवास के बिंदु, रेखाएँ या ग्रिड शामिल करें', 'यह ख़ाली पृष्ठ हटाएँ', 'पृष्ठ हटाया गया'],
+  };
+  for (const l in PATTERN) if (D[l]) [D[l].exportPattern, D[l].exportPatternNote, D[l].deletePage, D[l].tPageDeleted] = PATTERN[l];
   WB.I18N = D;
   let lang = 'en';
 
@@ -1857,6 +2222,84 @@ body.pipetting #canvas { cursor: crosshair; }
     return s._path;
   };
 
+  /* ---- Pressure --------------------------------------------------------
+     A pen stroke drawn with pressure on carries press: [0..1 per point]. Its width at each point is
+     width × PRESS(p), so `width` stays the widest it can get (bounds and hit-testing need nothing new).
+     Such a stroke is painted as a filled outline: the union of a disc at each point and the band
+     joining neighbouring discs, all wound the same way so a nonzero fill merges them without seams
+     and with no darker overlaps at partial opacity. Dashed strokes and highlighters ignore pressure. */
+  WB.PRESS = (p) => 0.18 + 0.82 * Math.pow(p < 0 ? 0 : p > 1 ? 1 : p, 0.85);
+  WB.hasPress = (s) => !!(s.press && s.points && s.tool === 'pen' && !s.hl && !WB.dashOf(s) && s.press.length === s.points.length >> 1 && s.press.length > 1);
+
+  /* The stroke's centre line as points with a radius each, following the same curve as trace(). */
+  function centerline(s) {
+    const p = s.points, q = s.press, n = p.length >> 1, r = (i) => (s.width / 2) * WB.PRESS(q[(i + n) % n]);
+    const P = [], R = [];
+    const put = (x, y, rad) => { P.push(x, y); R.push(rad); };
+    const quad = (ax, ay, ar, cx, cy, cr, bx, by, br) => {
+      const len = hyp(cx - ax, cy - ay) + hyp(bx - cx, by - cy);
+      const m = Math.max(2, Math.min(8, Math.ceil(len / Math.max(1e-6, Math.min(ar, br)))));
+      for (let j = 1; j <= m; j++) {
+        const t = j / m, u = 1 - t, a = u * u, b = 2 * u * t, c = t * t;
+        put(a * ax + b * cx + c * bx, a * ay + b * cy + c * by, a * ar + b * cr + c * br);
+      }
+    };
+    if (!s.smooth || n < 3) {
+      for (let i = 0; i < n; i++) put(p[2 * i], p[2 * i + 1], r(i));
+      if (s.closed && n > 2) put(p[0], p[1], r(0));
+      return { P, R };
+    }
+    const mid = (i, j) => [(p[2 * i] + p[2 * j]) / 2, (p[2 * i + 1] + p[2 * j + 1]) / 2, (r(i) + r(j)) / 2];
+    if (s.closed) {
+      let a = mid(n - 1, 0);
+      put(a[0], a[1], a[2]);
+      for (let i = 0; i < n; i++) { const b = mid(i, (i + 1) % n); quad(a[0], a[1], a[2], p[2 * i], p[2 * i + 1], r(i), b[0], b[1], b[2]); a = b; }
+      return { P, R };
+    }
+    let a = [p[0], p[1], r(0)];
+    put(a[0], a[1], a[2]);
+    for (let i = 1; i < n - 1; i++) { const b = mid(i, i + 1); quad(a[0], a[1], a[2], p[2 * i], p[2 * i + 1], r(i), b[0], b[1], b[2]); a = b; }
+    put(p[2 * n - 2], p[2 * n - 1], r(n - 1));
+    return { P, R };
+  }
+  const K8 = 1 / Math.cos(Math.PI / 8);
+  function disc(k, x, y, r) {                 // eight quadratic arcs, clockwise on screen
+    k.moveTo(x + r, y);
+    for (let j = 1; j <= 8; j++) {
+      const a = (j * Math.PI) / 4, m = a - Math.PI / 8;
+      k.quadraticCurveTo(x + r * K8 * Math.cos(m), y + r * K8 * Math.sin(m), x + r * Math.cos(a), y + r * Math.sin(a));
+    }
+    k.closePath();
+  }
+  /* A four-cornered patch (flat x, y list), wound the same way as the discs and bands. */
+  function patch(k, q) {
+    let area = 0;
+    for (let j = 0; j < 8; j += 2) { const n2 = (j + 2) % 8; area += q[j] * q[n2 + 1] - q[n2] * q[j + 1]; }
+    if (area > 0) k.moveTo(q[0], q[1]), k.lineTo(q[2], q[3]), k.lineTo(q[4], q[5]), k.lineTo(q[6], q[7]);
+    else k.moveTo(q[6], q[7]), k.lineTo(q[4], q[5]), k.lineTo(q[2], q[3]), k.lineTo(q[0], q[1]);
+    k.closePath();
+  }
+  WB.traceVar = function (s, k) {
+    const { P, R } = centerline(s), m = R.length;
+    disc(k, P[0], P[1], R[0]);
+    for (let i = 1; i < m; i++) {
+      const x1 = P[2 * i - 2], y1 = P[2 * i - 1], x2 = P[2 * i], y2 = P[2 * i + 1], r1 = R[i - 1], r2 = R[i];
+      const d = hyp(x2 - x1, y2 - y1);
+      if (d <= Math.abs(r1 - r2) + 1e-9) { if (r2 > r1 || i === m - 1) disc(k, x2, y2, r2); continue; }   // one disc holds the other
+      const th = Math.atan2(y2 - y1, x2 - x1), al = Math.acos((r1 - r2) / d);
+      patch(k, [x1 + r1 * Math.cos(th + al), y1 + r1 * Math.sin(th + al), x2 + r2 * Math.cos(th + al), y2 + r2 * Math.sin(th + al),
+        x2 + r2 * Math.cos(th - al), y2 + r2 * Math.sin(th - al), x1 + r1 * Math.cos(th - al), y1 + r1 * Math.sin(th - al)]);
+      // Neighbouring bands end and start on different chords of the disc at their joint (when the
+      // line turns or its width changes), so every joint gets its whole disc. Patching only the
+      // sliver between the chords can fold over itself and cancel the band: dark tears.
+      disc(k, x2, y2, r2);
+    }
+  };
+  WB.outlineOf = function (s) {
+    if (!s._opath) { s._opath = new Path2D(); WB.traceVar(s, s._opath); }
+    return s._opath;
+  };
+
   /* Paint one stroke. The context transform must already map world -> pixels. */
   /* ---- Text ----------------------------------------------------------
      A text object is { tool:'text', x, y, text, font, size, color }. (x, y) is the
@@ -1935,11 +2378,13 @@ body.pipetting #canvas { cursor: crosshair; }
     img.addEventListener('load', () => res(true), { once: true });
     img.addEventListener('error', () => res(false), { once: true });
   });
-  WB.loadImages = function (strokes) {
-    return Promise.all(strokes.filter((s) => s.tool === 'image').map((s) => WB.imageReady(WB.imageOf(s))));
+  WB.loadImages = function (strokes, pages) {
+    const all = strokes.filter((s) => s.tool === 'image').concat((pages || []).filter((p) => p.src));
+    return Promise.all(all.map((s) => WB.imageReady(WB.imageOf(s))));
   };
 
-  WB.paint = function (c, s, path) {
+  /* over: paint a highlighter normally instead of beneath (the live stroke is drawn under the ink layer instead). */
+  WB.paint = function (c, s, path, over) {
     if (s.tool === 'image') {
       const img = WB.imageOf(s);
       if (!img.complete || !img.naturalWidth) return;
@@ -1974,13 +2419,46 @@ body.pipetting #canvas { cursor: crosshair; }
       return;
     }
     const erase = s.tool === 'eraser';
-    c.globalCompositeOperation = erase ? 'destination-out' : 'source-over';
+    if (!erase && WB.hasPress(s)) {
+      c.globalCompositeOperation = 'source-over';
+      c.globalAlpha = s.opacity;
+      c.fillStyle = s.color;
+      c.fill(path || WB.outlineOf(s), 'nonzero');
+      return;
+    }
+    // A highlighter has a flat, square tip and slides beneath the ink already there, so the writing
+    // it marks stays crisp on top, like with a real one (on light and dark boards alike).
+    c.globalCompositeOperation = erase ? 'destination-out' : s.hl && !over ? 'destination-over' : 'source-over';
     c.globalAlpha = s.opacity;
     c.strokeStyle = erase ? '#000' : s.color;
     c.lineWidth = s.width;
+    if (s.hl) c.lineCap = 'square';
     c.setLineDash((!erase && WB.dashOf(s)) || NO_DASH);
     c.stroke(path || WB.pathOf(s));
     c.setLineDash(NO_DASH);
+    if (s.hl) c.lineCap = 'round';
+  };
+
+  /* ---- Sheets ------------------------------------------------------------
+     A board may have pages: [{ x, y, w, h, src? }], fixed areas that exports are limited to (a paper
+     size, or the pages of an opened PDF, whose picture is src). Drawing outside them still works;
+     it just isn't exported. paintPages draws the paper (and the PDF pictures) beneath the ink. */
+  WB.paintPages = function (c, pages, paper) {
+    for (const p of pages) {
+      c.save();
+      c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+      if (paper) { c.fillStyle = paper; c.fillRect(p.x, p.y, p.w, p.h); }
+      if (p.src) {
+        const img = WB.imageOf(p);
+        if (img.complete && img.naturalWidth) { c.imageSmoothingQuality = 'high'; c.drawImage(img, p.x, p.y, p.w, p.h); }
+      }
+      c.restore();
+    }
+  };
+  WB.pagesBounds = function (pages) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of pages) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x + p.w); y1 = Math.max(y1, p.y + p.h); }
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   };
 
   /* ---- Line types -------------------------------------------------------
@@ -2367,6 +2845,10 @@ body.pipetting #canvas { cursor: crosshair; }
       `  "created": "${new Date(doc.created).toISOString()}",\n` +
       `  "modified": "${new Date().toISOString()}",\n` +
       `  "view": { "x": ${f(view.x)}, "y": ${f(view.y)}, "zoom": ${+view.zoom.toFixed(4)} },\n`;
+    // A sheet board: the pages exports are limited to (with the picture of each page of an opened PDF).
+    if (doc.pages && doc.pages.length) {
+      out += '  "pages": [\n' + doc.pages.map((p) => `    { "x": ${f(p.x)}, "y": ${f(p.y)}, "w": ${f(p.w)}, "h": ${f(p.h)}${p.src ? `, "src": ${JSON.stringify(p.src)}` : ''} }`).join(',\n') + '\n  ],\n';
+    }
     const lines = doc.strokes.map((s) => {
       if (s.tool === 'text') {
         return `    { "tool": "text", "x": ${f(s.x)}, "y": ${f(s.y)}, ${s.rot ? `"rot": ${f((s.rot * 180) / Math.PI)}, ` : ''}"font": "${s.font}", "size": ${+s.size.toFixed(3)}, "color": "${s.color}", "opacity": ${+s.opacity.toFixed(3)}, "text": ${JSON.stringify(s.text)} }`;
@@ -2385,9 +2867,12 @@ body.pipetting #canvas { cursor: crosshair; }
       let o = `{ "tool": "${s.tool}", `;
       if (s.tool === 'pen') o += `"color": "${s.color}", `;
       if (s.tool === 'pen' && s.dash && WB.DASHES[s.dash]) o += `"dash": "${s.dash}", `;
+      if (s.tool === 'pen' && s.hl) o += '"highlight": true, ';
       o += `"width": ${+s.width.toFixed(3)}, "opacity": ${+s.opacity.toFixed(3)}, "smooth": ${!!s.smooth}, "closed": ${!!s.closed}, `;
       if (s.shape) o += `"shape": "${s.shape}", `;
-      return `    ${o}"points": [${pts.join(',')}] }`;
+      // Pressure: one whole number 0-100 per point.
+      const press = s.tool === 'pen' && s.press && s.press.length === p.length >> 1 ? `, "pressure": [${s.press.map((v) => Math.round(v * 100)).join(',')}]` : '';
+      return `    ${o}"points": [${pts.join(',')}]${press} }`;
     });
     out += '  "strokes": [\n' + lines.join(',\n') + (lines.length ? '\n' : '') + '  ]\n}\n';
     return out;
@@ -2443,12 +2928,26 @@ body.pipetting #canvas { cursor: crosshair; }
         closed: !!s.closed,
       };
       if (st.tool === 'pen' && typeof s.dash === 'string' && WB.DASHES[s.dash]) st.dash = s.dash;
+      if (st.tool === 'pen' && s.highlight === true) { st.hl = true; delete st.dash; }
+      if (st.tool === 'pen' && Array.isArray(s.pressure) && s.pressure.length === points.length >> 1) {
+        st.press = s.pressure.map((v) => Math.min(1, Math.max(0, num(v, 50) / 100)));
+      }
       if (typeof s.shape === 'string') st.shape = s.shape.replace(/[^a-z]/gi, '').slice(0, 24);
       strokes.push(st);
     }
     const v = d.view || {};
     const created = Date.parse(d.created);
+    const pages = [];
+    if (Array.isArray(d.pages)) {
+      for (const p of d.pages) {
+        if (!p || !(num(p.w, 0) > 0 && num(p.h, 0) > 0) || !isFinite(p.x) || !isFinite(p.y)) continue;
+        const pg = { x: +p.x, y: +p.y, w: +p.w, h: +p.h };
+        if (typeof p.src === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(p.src)) pg.src = p.src;
+        pages.push(pg);
+      }
+    }
     return {
+      pages,
       title: typeof d.title === 'string' && d.title.trim() ? d.title.slice(0, 80) : 'Untitled',
       created: isFinite(created) ? created : Date.now(),
       strokes,
@@ -2459,20 +2958,60 @@ body.pipetting #canvas { cursor: crosshair; }
   /* ---- Bitmap -------------------------------------------------------- */
   const MAX_SIDE = 12000, MAX_AREA = 120e6;
 
-  /* b = {x,y,w,h} in world units. Returns { canvas, scale } (scale may be reduced to fit limits). */
-  WB.renderToCanvas = function (strokes, b, scale, bg) {
+  /* ---- The canvas pattern ------------------------------------------------
+     The board's background pattern, for exports that ask for it: dots, lines (ruled) or a grid,
+     one step every GRID board units, lined up with 0, 0 exactly as on screen (where at 100 % the
+     steps are 32 px apart, and halve or double as you zoom). Sheets are placed on these steps. */
+  WB.GRID = 32;
+  /* { kind, color (#000 or #fff, whichever shows on the background), alpha }, or null for none. */
+  WB.patternStyle = function (kind, background) {
+    if (!kind || kind === 'none') return null;
+    const n = parseInt((background || '#ffffff').slice(1), 16);
+    const dark = (0.2126 * (n >> 16) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255 < 0.45;
+    return { kind, color: dark ? '#ffffff' : '#000000', alpha: kind === 'lines' ? 0.08 : 0.16 };
+  };
+  const gridSteps = (a, len) => { const out = []; for (let v = Math.ceil(a / WB.GRID) * WB.GRID; v <= a + len; v += WB.GRID) out.push(v); return out; };
+  WB.paintPattern = function (c, pat, r) {
+    const xs = gridSteps(r.x, r.w), ys = gridSteps(r.y, r.h);
+    c.save();
+    c.globalAlpha = pat.alpha; c.globalCompositeOperation = 'source-over';
+    c.fillStyle = c.strokeStyle = pat.color;
+    c.beginPath();
+    if (pat.kind === 'dots') { for (const y of ys) for (const x of xs) { c.moveTo(x + 1.2, y); c.arc(x, y, 1.2, 0, 2 * Math.PI); } c.fill(); }
+    else {
+      for (const y of ys) { c.moveTo(r.x, y); c.lineTo(r.x + r.w, y); }
+      if (pat.kind === 'lines') for (const x of xs) { c.moveTo(x, r.y); c.lineTo(x, r.y + r.h); }
+      c.lineWidth = 1; c.lineCap = 'butt'; c.stroke();
+    }
+    c.restore();
+  };
+
+  /* b = {x,y,w,h} in world units. Returns { canvas, scale } (scale may be reduced to fit limits).
+     With pages (a sheet board), only what lies on the pages is drawn: the background fills the
+     pages, a PDF's page pictures go beneath the ink, and the gaps between pages stay empty. */
+  WB.renderToCanvas = function (strokes, b, scale, bg, pages, pattern) {
     scale = Math.min(scale, MAX_SIDE / b.w, MAX_SIDE / b.h, Math.sqrt(MAX_AREA / (b.w * b.h)));
     const w = Math.max(1, Math.round(b.w * scale)), h = Math.max(1, Math.round(b.h * scale));
+    const pg = pages && pages.length ? pages : null;
+    const world = (g) => g.setTransform(scale, 0, 0, scale, -b.x * scale, -b.y * scale);
     const ink = document.createElement('canvas'); ink.width = w; ink.height = h;
     const c = ink.getContext('2d');
-    c.setTransform(scale, 0, 0, scale, -b.x * scale, -b.y * scale);
+    world(c);
+    if (pg) { c.beginPath(); for (const p of pg) c.rect(p.x, p.y, p.w, p.h); c.clip(); }
     c.lineCap = 'round'; c.lineJoin = 'round';
     for (const s of strokes) WB.paint(c, s);
-    if (!bg) return { canvas: ink, scale };
-    // Erasers cut holes in the ink layer, so the background goes on a separate layer underneath.
+    if (!bg && !pattern && !(pg && pg.some((p) => p.src))) return { canvas: ink, scale };
+    // Erasers cut holes in the ink layer, so the background, the pattern and a PDF's page
+    // pictures go on a separate layer underneath (on a sheet, only within its pages).
     const out = document.createElement('canvas'); out.width = w; out.height = h;
     const o = out.getContext('2d');
-    o.fillStyle = bg; o.fillRect(0, 0, w, h); o.drawImage(ink, 0, 0);
+    world(o);
+    if (pg) { o.save(); o.beginPath(); for (const p of pg) o.rect(p.x, p.y, p.w, p.h); o.clip(); }
+    if (bg) { o.fillStyle = bg; o.fillRect(b.x, b.y, b.w, b.h); }
+    if (pattern) WB.paintPattern(o, pattern, b);
+    if (pg) { WB.paintPages(o, pg, null); o.restore(); }
+    o.setTransform(1, 0, 0, 1, 0, 0);
+    o.drawImage(ink, 0, 0);
     return { canvas: out, scale };
   };
 
@@ -2510,9 +3049,9 @@ body.pipetting #canvas { cursor: crosshair; }
 
   /* ---- SVG ----------------------------------------------------------- */
   const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  function svgPath(s) {
+  function svgPath(s, outline) {
     let d = '';
-    WB.trace(s, {
+    (outline ? WB.traceVar : WB.trace)(s, {
       moveTo(x, y) { d += `M${f(x)} ${f(y)}`; },
       lineTo(x, y) { d += `L${f(x)} ${f(y)}`; },
       quadraticCurveTo(a, b, x, y) { d += `Q${f(a)} ${f(b)} ${f(x)} ${f(y)}`; },
@@ -2521,8 +3060,10 @@ body.pipetting #canvas { cursor: crosshair; }
     return d;
   }
 
-  WB.toSVG = function (strokes, b, bg, payload) {
+  WB.toSVG = function (strokes, b, bg, payload, pages, pattern) {
     const box = `x="${f(b.x)}" y="${f(b.y)}" width="${f(b.w)}" height="${f(b.h)}"`;
+    const pg = pages && pages.length ? pages : null;
+    const rectOf = (p) => `x="${f(p.x)}" y="${f(p.y)}" width="${f(p.w)}" height="${f(p.h)}"`;
     let defs = '', body = '', n = 0;
     for (const run of runs(strokes)) {
       if (run.kind === 'ink') {
@@ -2538,6 +3079,11 @@ body.pipetting #canvas { cursor: crosshair; }
             // An "under" fill sits beneath everything drawn before it, so it goes first in the document.
             const el = `<path d="${svgPath(s)}" fill="${s.color}" fill-rule="evenodd"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
             body = s.under ? el + body : body + el;
+          } else if (WB.hasPress(s)) {
+            body += `<path d="${svgPath(s, true)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
+          } else if (s.hl) {
+            // A highlighter sits beneath what was drawn before it, like an "under" fill.
+            body = `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}" stroke-linecap="square"${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n` + body;
           } else {
             const dash = WB.dashOf(s);
             body += `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}"${dash ? ` stroke-dasharray="${dash.map(f).join(' ')}"` : ''}${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n`;
@@ -2551,19 +3097,35 @@ body.pipetting #canvas { cursor: crosshair; }
         body = `<g mask="url(#${id})">\n${body}</g>\n`;
       }
     }
+    let under = bg && !pg ? `<rect ${box} fill="${bg}" stroke="none"/>\n` : '';
+    if (pg) {
+      // A sheet: the paper and any PDF page pictures beneath, and everything clipped to the pages.
+      defs += `<clipPath id="pages">${pg.map((p) => `<rect ${rectOf(p)}/>`).join('')}</clipPath>\n`;
+      if (bg) for (const p of pg) under += `<rect ${rectOf(p)} fill="${bg}" stroke="none"/>\n`;
+    }
+    if (pattern) {
+      // One tile per grid step, shifted by half a step so its marks fall on the multiples of GRID.
+      const G = WB.GRID, H = G / 2, mark = pattern.kind === 'dots' ? `<circle cx="${H}" cy="${H}" r="1.2" fill="${pattern.color}"/>`
+        : `<path d="M0 ${H}H${G}${pattern.kind === 'lines' ? `M${H} 0V${G}` : ''}" stroke="${pattern.color}" stroke-width="1" stroke-linecap="butt"/>`;
+      defs += `<pattern id="canvas-pattern" x="${-H}" y="${-H}" width="${G}" height="${G}" patternUnits="userSpaceOnUse">${mark}</pattern>\n`;
+      under += `<rect ${box} fill="url(#canvas-pattern)" fill-opacity="${pattern.alpha}" stroke="none"${pg ? ' clip-path="url(#pages)"' : ''}/>\n`;
+    }
+    if (pg) {
+      for (const p of pg) if (p.src) under += `<image ${rectOf(p)} preserveAspectRatio="none" xlink:href="${p.src}"/>\n`;
+      body = `<g clip-path="url(#pages)">\n${body}</g>\n`;
+    }
     return `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${f(b.x)} ${f(b.y)} ${f(b.w)} ${f(b.h)}" width="${f(b.w)}" height="${f(b.h)}" fill="none" stroke-linecap="round" stroke-linejoin="round">\n` +
       (defs ? `<defs>\n${defs}</defs>\n` : '') +
-      (bg ? `<rect ${box} fill="${bg}" stroke="none"/>\n` : '') +
-      body + (payload ? `<metadata id="whiteboard-board">${payload}</metadata>\n` : '') + '</svg>\n';
+      under + body + (payload ? `<metadata id="whiteboard-board">${payload}</metadata>\n` : '') + '</svg>\n';
   };
 
   /* ---- PDF -----------------------------------------------------------
      Vector output. Eraser runs become luminosity soft masks applied to a
      transparency group holding everything drawn before them. */
-  function pdfPath(s) {
+  function pdfPath(s, outline) {
     let d = '', cx = 0, cy = 0;
-    WB.trace(s, {
+    (outline ? WB.traceVar : WB.trace)(s, {
       moveTo(x, y) { d += `${f(x)} ${f(y)} m `; cx = x; cy = y; },
       lineTo(x, y) { d += `${f(x)} ${f(y)} l `; cx = x; cy = y; },
       quadraticCurveTo(a, b, x, y) {
@@ -2585,13 +3147,17 @@ body.pipetting #canvas { cursor: crosshair; }
     } catch (e) { return null; }
   }
 
-  WB.toPDF = async function (strokes, b, bg, payload) {
-    const k = Math.min(1, 14400 / b.w, 14400 / b.h); // PDF pages max out at 14400 units
-    const PW = f(b.w * k), PH = f(b.h * k);
+  /* pages: a sheet board's pages, each exported as its own PDF page at its true paper size
+     (board units are CSS pixels, 96 per inch; PDF units are points, 72 per inch). Without pages
+     the whole drawing (b) becomes one page, one unit per point as before. */
+  WB.toPDF = async function (strokes, b, bg, payload, pages, pattern) {
+    const sheet = pages && pages.length ? pages : null;
+    const pageList = sheet || [b];
+    const k = sheet ? 0.75 : Math.min(1, 14400 / b.w, 14400 / b.h); // PDF pages max out at 14400 units
     const bbox = `[${f(b.x)} ${f(b.y)} ${f(b.x + b.w)} ${f(b.y + b.h)}]`;
     const rect = `${f(b.x)} ${f(b.y)} ${f(b.w)} ${f(b.h)} re`;
 
-    const objs = [null, null, null]; // 1 catalog, 2 pages, 3 page (filled in at the end)
+    const objs = [null, null]; // 1 catalog, 2 page tree (filled in at the end)
     const add = (body) => (objs.push(body), objs.length);
     const alphaObj = new Map();
     const newStream = () => ({ ops: '1 J 1 j\n', gs: new Map(), xo: new Map() });
@@ -2612,6 +3178,24 @@ body.pipetting #canvas { cursor: crosshair; }
       const out = new Uint8Array(head.length + data.length + tail.length);
       out.set(head); out.set(data, head.length); out.set(tail, head.length + data.length);
       return add(out);
+    }
+    /* A PDF page's picture: a JPEG goes in as it is; anything else as raw pixels. */
+    async function pageImage(p) {
+      const img = WB.imageOf(p);
+      if (!img.complete || !img.naturalWidth) return 0;
+      const dims = `/Width ${img.naturalWidth} /Height ${img.naturalHeight} /BitsPerComponent 8 /ColorSpace /DeviceRGB`;
+      if (p.src.startsWith('data:image/jpeg;base64,')) {
+        const data = fromB64(p.src.slice(23));
+        const head = enc.encode(`<< /Type /XObject /Subtype /Image ${dims} /Filter /DCTDecode /Length ${data.length} >>\nstream\n`), tail = enc.encode('\nendstream');
+        const out = new Uint8Array(head.length + data.length + tail.length);
+        out.set(head); out.set(data, head.length); out.set(tail, head.length + data.length);
+        return add(out);
+      }
+      const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+      const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0);
+      const px = g.getImageData(0, 0, cv.width, cv.height).data, n = cv.width * cv.height, rgbBytes = new Uint8Array(n * 3);
+      for (let i = 0; i < n; i++) { rgbBytes[3 * i] = px[4 * i]; rgbBytes[3 * i + 1] = px[4 * i + 1]; rgbBytes[3 * i + 2] = px[4 * i + 2]; }
+      return streamObj(`/Type /XObject /Subtype /Image ${dims}`, rgbBytes);
     }
     const formObj = (st, cs) => streamObj(
       `/Type /XObject /Subtype /Form /BBox ${bbox} /Group << /S /Transparency /CS /${cs} /I true >> /Resources ${resources(st)}`, st.ops);
@@ -2670,7 +3254,9 @@ body.pipetting #canvas { cursor: crosshair; }
           } else if (s.tool === 'fill') {
             const op = `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} rg ${pdfPath(s)}f*\n`;
             cur.ops = s.under ? op + cur.ops : cur.ops + op;
-          } else cur.ops += `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} RG ${f(s.width)} w [${(WB.dashOf(s) || []).map(f).join(' ')}] 0 d ${pdfPath(s)}S\n`;
+          } else if (WB.hasPress(s)) cur.ops += `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} rg ${pdfPath(s, true)}f\n`;
+          else if (s.hl) cur.ops = `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} RG ${f(s.width)} w 2 J [] 0 d ${pdfPath(s)}S 1 J\n` + cur.ops;   // beneath, like an "under" fill
+          else cur.ops += `/${alpha(cur, s.opacity)} gs ${rgb(s.color)} RG ${f(s.width)} w [${(WB.dashOf(s) || []).map(f).join(' ')}] 0 d ${pdfPath(s)}S\n`;
         }
         has = true;
       } else if (has) {
@@ -2687,15 +3273,43 @@ body.pipetting #canvas { cursor: crosshair; }
       }
     }
 
-    const page = `q ${f(k)} 0 0 ${f(-k)} ${f(-b.x * k)} ${f((b.y + b.h) * k)} cm\n` +
-      (bg ? `${rgb(bg)} rg ${rect} f\n` : '') + cur.ops + 'Q\n';
-    const contentId = await streamObj('', page);
+    // Several pages share the drawing as one form, so it is stored once.
+    let inkOps = cur.ops, inkRes = cur;
+    if (pageList.length > 1) {
+      const formId = await formObj(cur, 'DeviceRGB');
+      inkRes = newStream(); inkRes.xo.set('Ink', formId);
+      inkOps = '/Ink Do\n';
+    }
+    const kids = [];
+    for (const p of pageList) {
+      const st = newStream();
+      for (const [n2, id] of inkRes.gs) st.gs.set(n2, id);
+      for (const [n2, id] of inkRes.xo) st.xo.set(n2, id);
+      const pr = `${f(p.x)} ${f(p.y)} ${f(p.w)} ${f(p.h)} re`;
+      let ops = `q ${f(k)} 0 0 ${f(-k)} ${f(-p.x * k)} ${f((p.y + p.h) * k)} cm\n` + (sheet ? `${pr} W n\n` : '') + (bg ? `${rgb(bg)} rg ${pr} f\n` : '');
+      if (pattern) {
+        // Dots are zero-length strokes with round caps; lines and the grid are hairlines of 1 unit.
+        const xs = gridSteps(p.x, p.w), ys = gridSteps(p.y, p.h);
+        let path = '';
+        if (pattern.kind === 'dots') for (const y of ys) for (const x of xs) path += `${f(x)} ${f(y)} m ${f(x)} ${f(y)} l `;
+        else {
+          for (const y of ys) path += `${f(p.x)} ${f(y)} m ${f(p.x + p.w)} ${f(y)} l `;
+          if (pattern.kind === 'lines') for (const x of xs) path += `${f(x)} ${f(p.y)} m ${f(x)} ${f(p.y + p.h)} l `;
+        }
+        if (path) ops += `q /${alpha(st, pattern.alpha)} gs ${rgb(pattern.color)} RG ${pattern.kind === 'dots' ? '2.4 w 1 J' : '1 w 0 J'} ${path}S Q\n`;
+      }
+      if (p.src) {
+        const id = await pageImage(p);
+        if (id) { st.xo.set('P', id); ops += `q ${f(p.w)} 0 0 ${f(-p.h)} ${f(p.x)} ${f(p.y + p.h)} cm /P Do Q\n`; }
+      }
+      const contentId = await streamObj('', ops + inkOps + 'Q\n');
+      kids.push(add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${f(p.w * k)} ${f(p.h * k)}] /Contents ${contentId} 0 R ` +
+        `/Group << /S /Transparency /CS /DeviceRGB >> /Resources ${resources(st)} >>`));
+    }
     // The board itself, for Import: an uncompressed stream nothing refers to, so viewers ignore it.
     if (payload) add(`<< /Type /WhiteboardBoard /Length ${payload.length} >>\nstream\n${payload}\nendstream`);
     objs[0] = '<< /Type /Catalog /Pages 2 0 R >>';
-    objs[1] = '<< /Type /Pages /Kids [3 0 R] /Count 1 >>';
-    objs[2] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Contents ${contentId} 0 R ` +
-      `/Group << /S /Transparency /CS /DeviceRGB >> /Resources ${resources(cur)} >>`;
+    objs[1] = `<< /Type /Pages /Kids [${kids.map((id) => id + ' 0 R').join(' ')}] /Count ${kids.length} >>`;
 
     const parts = [], offsets = [];
     let pos = 0;
@@ -2822,12 +3436,12 @@ body.pipetting #canvas { cursor: crosshair; }
      Returns { status: 'ok', rings, under } | { status: 'open' } | { status: 'outside' }.
      'open' means the flood reached the edge of the region: no closed shape contains the point. */
   WB.flood = function (strokes, b, scale, wx, wy) {
-    // Pictures are backgrounds, not walls: a shape drawn over a photo still fills.
+    // Pictures and highlighter strokes are backgrounds, not walls: a shape drawn over a photo still fills.
     // A dashed outline still encloses its shape: walls are drawn solid.
     // Lines thinner than 1.5 pixels at this resolution are drawn 1.5 pixels wide, so an outline
     // stays closed (and doesn't fade into a leaky dotted trail) however it was zoomed when drawn.
     const minW = 1.5 / scale;
-    const walls = strokes.filter((s) => s.tool !== 'image').map((s) => (s.dash || (s.points && s.width < minW) ? { ...s, dash: null, width: s.points ? Math.max(s.width, minW) : s.width } : s));
+    const walls = strokes.filter((s) => s.tool !== 'image' && !s.hl).map((s) => (s.dash || (s.points && s.width < minW) ? { ...s, dash: null, width: s.points ? Math.max(s.width, minW) : s.width, _opath: undefined } : s));
     const canvas = WB.renderToCanvas(walls, b, scale, null).canvas;
     const w = canvas.width, h = canvas.height, kx = w / b.w, ky = h / b.h;
     const sx = Math.floor((wx - b.x) * kx), sy = Math.floor((wy - b.y) * ky);
@@ -4189,7 +4803,76 @@ body.pipetting #canvas { cursor: crosshair; }
       if (host.saved) host.saved();
       host.toast(tr('tSavedGallery'));
       if ($('#gallery').classList.contains('open')) show();
+      if (mode === 'boards' && host.filesCopy && host.filesCopy()) shareCopy(name, text);
+      else setTimeout(nudge, 2500);
     } catch (e) { host.report(tr('tSaveFail'), 'saving to the gallery', e); }
+  }
+
+  /* ---- A copy in Files (iPhone and iPad) ------------------------------------
+     There a website can't write into a folder in Files, but it can hand a file to the share sheet,
+     where "Save to Files" (or a Shortcut that saves into a fixed folder, see the README) takes it.
+     So with this switched on, every save to the gallery also offers the board's file there. */
+  function shareCopy(name, text) {
+    const file = new File([text], name, { type: 'application/octet-stream' });
+    if (!(navigator.canShare && navigator.canShare({ files: [file] }))) return;
+    const go = () => navigator.share({ files: [file] }).catch((e) => {
+      if (e.name === 'NotAllowedError') host.toast(tr('tCopyReady'), tr('gShare'), go, 15000);   // the tap went stale while saving
+    });
+    go();
+  }
+
+  /* ---- Changes since the last backup ------------------------------------------
+     Each backup remembers a fingerprint of every board it held. Boards that are new or different
+     since then are "changes": a changes-only backup holds just those (with all folders and their
+     names and colours), and restores like any backup, so several of them can be restored in a row. */
+  const fingerprint = (t) => { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + ':' + t.length; };
+  const isBoard = (e) => !e.dir && e.path.toLowerCase().endsWith(EXT);
+  async function changes() {
+    const last = await kvGet(kvKey('Backed'));                 // { at, prints: { path: fingerprint } }
+    const entries = await collect(root, '', []);
+    return { entries, last, changed: entries.filter((e) => isBoard(e) && (!last || last.prints[e.path] !== fingerprint(e.text))) };
+  }
+  async function rememberBackup(entries, partial) {
+    const prev = partial ? await kvGet(kvKey('Backed')) : null, prints = prev ? { ...prev.prints } : {};
+    for (const e of entries) if (isBoard(e)) prints[e.path] = fingerprint(e.text);
+    await kvSet(kvKey('Backed'), { at: Date.now(), prints });
+  }
+  /* A gallery kept by the browser can vanish with the browser's data, so after a save it suggests a
+     backup (at most once a day): when 3 or more boards are unsaved in any backup, or any has
+     waited 3 days. A gallery in a real folder is already safe and is left alone. */
+  async function nudge() {
+    if (kind !== 'browser' || !root) return;
+    try {
+      if (Date.now() - ((await kvGet(kvKey('Nudged'))) || 0) < 20 * 3600e3) return;
+      const { changed, last } = await changes();
+      const days = last ? (Date.now() - last.at) / 864e5 : 0;
+      if (!(changed.length >= 3 || (last && changed.length && days >= 3))) return;
+      await kvSet(kvKey('Nudged'), Date.now());
+      host.toast(tr('tBackupNudge', { n: changed.length }), tr('gBackupNow'), () => backup(!!last), 12000);
+    } catch (e) {}
+  }
+
+  /* "Add boards…": board files picked from the device (several at once) go into the folder shown.
+     A board already there with the same content is skipped. */
+  async function addBoards(files) {
+    const dir = here();
+    let added = 0;
+    try {
+      for (const f of files) {
+        let text, d;
+        try { text = await f.text(); d = WB.parse(text); } catch (e) { continue; }
+        let same = false;
+        for await (const [n, h] of dir.entries()) {
+          if (h.kind === 'file' && n.toLowerCase().endsWith(EXT) && (await (await h.getFile()).text()) === text) { same = true; break; }
+        }
+        if (same) continue;
+        const base = clean(f.name.toLowerCase().endsWith(EXT) ? f.name.slice(0, -EXT.length) : d.title);
+        await writeFile(dir, await freeName(dir, base, EXT), text);
+        added++;
+      }
+    } catch (e) { fail(e, 'adding boards'); }
+    host.toast(added ? tr('tAddedBoards', { n: added }) : tr('tAddedNone'), null, null, 6000);
+    show();
   }
 
   /* ---- The window ------------------------------------------------------ */
@@ -4369,19 +5052,23 @@ body.pipetting #canvas { cursor: crosshair; }
         const d = WB.parse(await (await f.item.handle.getFile()).text());
         if (my !== token) return;
         if (d.title && d.title !== 'Untitled') { f.item.label = d.title; if (f.name.isConnected && f.name.tagName === 'BUTTON') f.name.textContent = d.title; }
-        await WB.loadImages(d.strokes);
+        const first = d.pages.slice(0, 1);                       // a sheet shows its first page
+        await WB.loadImages(d.strokes, first);
         if (my !== token) return;
-        f.icon.appendChild(preview(d.strokes));
+        f.icon.appendChild(preview(d.strokes, first));
       } catch (e) { f.icon.classList.add('broken'); }
       await new Promise((r) => setTimeout(r, 0));
     }
   }
   function button(text, cls, fn) { const b = el('button', cls, text); b.addEventListener('click', fn); return b; }
 
-  function preview(strokes) {
+  function preview(strokes, pages) {
     const b = WB.contentBounds(strokes), bg = host.canvasColor();
     let c;
-    if (b) {
+    if (pages && pages.length) {
+      const box = pages[0];
+      c = WB.renderToCanvas(strokes, box, Math.min(360 / box.w, 270 / box.h, 4), bg, pages).canvas;
+    } else if (b) {
       const pad = Math.max(b.w, b.h) * 0.08 + 4, box = { x: b.x - pad, y: b.y - pad, w: b.w + 2 * pad, h: b.h + 2 * pad };
       c = WB.renderToCanvas(strokes, box, Math.min(360 / box.w, 270 / box.h, 4), bg).canvas;
     } else {
@@ -4494,9 +5181,16 @@ body.pipetting #canvas { cursor: crosshair; }
     if (!browsing) return;
     foot.appendChild(el('span', '', kind === 'browser' ? tr(fromLocalFile ? 'gLocalNote' : 'gBrowserNote') + (canDrop() ? ' ' + tr('gDropShort') : '') : parentName));
     const links = el('div', 'g-links');
-    links.append(button(tr('gBackup'), 'g-link', backup), button(tr('gRestore'), 'g-link', () => $('#restore-input').click()));
+    links.append(button(tr('gBackup'), 'g-link', () => backup(false)), button(tr('gRestore'), 'g-link', () => $('#restore-input').click()));
+    if (mode === 'boards') links.appendChild(button(tr('gAddBoards'), 'g-link', () => $('#addboards-input').click()));
     if (canPickFolder()) links.appendChild(button(tr(kind === 'browser' ? 'gChoose' : 'gChange'), 'g-link', pickFolder));
     foot.appendChild(links);
+    // After a first backup: a smaller one with only what changed since.
+    const my = token;
+    changes().then(({ changed, last }) => {
+      if (my !== token || !last || !changed.length) return;
+      links.insertBefore(button(tr('gBackupChanges', { n: changed.length }), 'g-link', () => backup(true)), links.children[1]);
+    }).catch(() => {});
   }
 
   /* ---- Backup and restore -------------------------------------------------
@@ -4516,32 +5210,41 @@ body.pipetting #canvas { cursor: crosshair; }
     }
     return out;
   }
-  async function backup() {
-    const name = `${cfg.backupName} ${new Date().toISOString().slice(0, 10)}${cfg.backupExt}`;
+  async function backup(onlyChanges) {
+    onlyChanges = onlyChanges === true;
+    const name = `${cfg.backupName}${onlyChanges ? ' (changes)' : ''} ${new Date().toISOString().slice(0, 10)}${cfg.backupExt}`;
     // On computers the save dialog comes first, while the click still counts as the user's own action.
     let handle = null;
     if (typeof window.showSaveFilePicker === 'function' && !fromLocalFile && !/iP(hone|ad|od)|Android/.test(navigator.userAgent)) {
       try { handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: cfg.backupName, accept: { 'application/json': [cfg.backupExt] } }] }); }
       catch (e) { if (e.name === 'AbortError') return host.toast(tr('tBackupCancel'), null, null, 7000); handle = null; }
     }
-    let file;
+    let file, entries;
     try {
-      const entries = await collect(root, '', []);
-      const text = JSON.stringify({ format: cfg.backupFormat, version: 1, created: new Date().toISOString(), entries });
+      const c = await changes();
+      entries = c.entries;
+      if (onlyChanges) {
+        if (!c.changed.length) return host.toast(tr('tNoChanges'), null, null, 5000);
+        const keep = new Set(c.changed.map((e) => e.path));
+        entries = entries.filter((e) => e.dir || keep.has(e.path) || e.path.split('/').pop() === INDEX);
+      }
+      const text = JSON.stringify({ format: cfg.backupFormat, version: 1, created: new Date().toISOString(), partial: onlyChanges || undefined, entries });
       file = new File([text], name, { type: 'application/json' });
       if (handle) {
         const w = await handle.createWritable();
         await w.write(file); await w.close();
+        await rememberBackup(entries, onlyChanges);
         return host.toast(tr('tBackedUp', { t: handle.name }));
       }
     } catch (e) { return fail(e, 'backing up the gallery'); }
     // Phones: the share sheet, where "Save to Files" lets the person pick any folder.
-    const share = () => navigator.share({ files: [file], title: name }).then(() => host.toast(tr('tBackedUp', { t: name })), (e) => {
+    const share = () => navigator.share({ files: [file], title: name }).then(() => { rememberBackup(entries, onlyChanges); host.toast(tr('tBackedUp', { t: name })); }, (e) => {
       if (e.name === 'NotAllowedError') host.toast(tr('tBackupReady'), tr('gShare'), share, 15000);   // the tap went stale while the file was made
       else if (e.name !== 'AbortError') saveDownload(file);
     });
     if (navigator.canShare && navigator.canShare({ files: [file] })) return share();
     saveDownload(file);
+    rememberBackup(entries, onlyChanges);
   }
   function saveDownload(file) {
     const a = document.createElement('a');
@@ -4677,6 +5380,9 @@ body.pipetting #canvas { cursor: crosshair; }
     const ri = $('#restore-input');
     if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) ri.removeAttribute('accept');   // iOS greys out types it does not know
     ri.addEventListener('change', () => { const f = ri.files[0]; ri.value = ''; if (f) restore(f); });
+    const ai = $('#addboards-input');
+    if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) ai.removeAttribute('accept');
+    ai.addEventListener('change', () => { const fs = [...ai.files]; ai.value = ''; if (fs.length) addBoards(fs); });
     document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#g-menu, .g-more')) $('#g-menu').classList.remove('open'); }, true);
     $('#g-grid').addEventListener('scroll', () => $('#g-menu').classList.remove('open'), { passive: true });
   }
@@ -4686,6 +5392,255 @@ body.pipetting #canvas { cursor: crosshair; }
   const dropFolder = (h) => { if (!$('#gallery').classList.contains('open')) setMode('boards'); return useFolder(h); };
   WB.stickers = { open: inMode('stickers', open), save: saveSticker };
   WB.gallery = { init, open: inMode('boards', open), save: inMode('boards', save), useFolder: dropFolder, canDrop, ref: null, /* the open board's file in the gallery: { dir, name } */ _clean: clean, _state: () => ({ kind, root: root && root.name, path: path.map((p) => p.label) }) };
+})();
+
+</script>
+<script>
+/* Share links: a whole board packed into the part of a link after "#b=".
+
+   The fragment never leaves the browser (it is not sent to the server), so the board stays
+   between the people who have the link. Links get long quickly, so the board is packed tightly:
+
+     1. Strokes are simplified (Ramer-Douglas-Peucker) with a tolerance well under a pixel.
+     2. Points are rounded to a grid fine enough for the stroke: a quarter of its width, at most
+        half a unit, so writing done while zoomed far in survives.
+     3. After the first point, each point is stored as its step from the one before, as a zigzag
+        varint: most steps fit in one byte.
+     4. Binary layout, with a colour table so each colour is written once.
+     5. The result is deflated and written as base64url.
+
+   Layout (version 1); "uv"/"sv" are unsigned/signed varints, "f" a float32, "str" a uv length + UTF-8:
+     u8 version · str title · uv pages, each f x, y, w, h · uv colours, each 3 bytes RGB · uv objects:
+       u8 kind 0 pen, 1 eraser:  u8 flags (1 smooth, 2 closed, 4 highlighter, 8 pressure, 16 shape, 32 dash)
+                                 [uv colour] f width · u8 opacity · [u8 dash] [str shape] · points · [u8 pressure per point]
+       u8 kind 2 text:           f x, y, rot, size · u8 font · uv colour · u8 opacity · str text
+       u8 kind 3 fill:           uv colour · u8 opacity · u8 under · uv rings, each: points
+     points = u8 (grid exponent + 8) · uv count · sv x0, y0 (in grid steps) · sv dx, dy ...
+   Pictures (and the page pictures of an opened PDF) are left out: they would make links far too long. */
+(function () {
+  'use strict';
+  const WB = window.WB;
+  const FONTS = ['sans', 'serif', 'mono', 'rounded', 'hand'];
+  const DASHES = ['dotted', 'dashed', 'long', 'dashdot'];
+  const te = new TextEncoder(), td = new TextDecoder();
+
+  class Out {
+    constructor() { this.b = new Uint8Array(4096); this.n = 0; }
+    need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(Math.max(this.b.length * 2, this.n + k)); nb.set(this.b); this.b = nb; } }
+    u8(v) { this.need(1); this.b[this.n++] = v & 255; }
+    uv(v) { v = Math.max(0, Math.floor(v)); while (v >= 128) { this.u8((v % 128) | 128); v = Math.floor(v / 128); } this.u8(v); }
+    sv(v) { this.uv(v < 0 ? -2 * v - 1 : 2 * v); }
+    f(v) { this.need(4); new DataView(this.b.buffer).setFloat32(this.n, v, true); this.n += 4; }
+    str(s) { const u = te.encode(s); this.uv(u.length); this.need(u.length); this.b.set(u, this.n); this.n += u.length; }
+  }
+  class In {
+    constructor(u) { this.b = u; this.n = 0; this.dv = new DataView(u.buffer, u.byteOffset, u.byteLength); }
+    u8() { if (this.n >= this.b.length) throw new Error('the link ends too early'); return this.b[this.n++]; }
+    uv() { let v = 0, m = 1, x; do { x = this.u8(); v += (x & 127) * m; m *= 128; } while (x & 128); return v; }
+    sv() { const v = this.uv(); return v % 2 ? -(v + 1) / 2 : v / 2; }
+    f() { if (this.n + 4 > this.b.length) throw new Error('the link ends too early'); const v = this.dv.getFloat32(this.n, true); this.n += 4; return v; }
+    str() { const l = this.uv(); if (this.n + l > this.b.length) throw new Error('the link ends too early'); const s = td.decode(this.b.subarray(this.n, this.n + l)); this.n += l; return s; }
+  }
+
+  /* Indices of the points to keep, simplified with tolerance eps. */
+  function simplify(p, eps, closed) {
+    const n = p.length >> 1;
+    if (n < 3) return [...Array(n).keys()];
+    const keep = new Uint8Array(n); keep[0] = keep[n - 1] = 1;
+    const stack = [[0, n - 1]];
+    while (stack.length) {
+      const [a, b] = stack.pop();
+      const ax = p[2 * a], ay = p[2 * a + 1], dx = p[2 * b] - ax, dy = p[2 * b + 1] - ay, l2 = dx * dx + dy * dy;
+      let md = 0, mi = -1;
+      for (let i = a + 1; i < b; i++) {
+        let t = l2 ? ((p[2 * i] - ax) * dx + (p[2 * i + 1] - ay) * dy) / l2 : 0;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const d = Math.hypot(p[2 * i] - ax - t * dx, p[2 * i + 1] - ay - t * dy);
+        if (d > md) { md = d; mi = i; }
+      }
+      if (md > eps) { keep[mi] = 1; stack.push([a, mi], [mi, b]); }
+    }
+    if (closed && n > 3) keep[n >> 1] = 1;   // a closed loop's ends meet: keep its far side too
+    const out = [];
+    for (let i = 0; i < n; i++) if (keep[i]) out.push(i);
+    return out;
+  }
+  const gridExp = (size) => Math.min(30, Math.max(-8, Math.ceil(-Math.log2(Math.max(1e-9, size)))));
+  function putPoints(o, p, idx, e) {
+    const q = Math.pow(2, -e);
+    o.u8(e + 8); o.uv(idx.length);
+    let lx = 0, ly = 0;
+    idx.forEach((i, j) => {
+      const x = Math.round(p[2 * i] / q), y = Math.round(p[2 * i + 1] / q);
+      if (j === 0) { o.sv(x); o.sv(y); } else { o.sv(x - lx); o.sv(y - ly); }
+      lx = x; ly = y;
+    });
+  }
+  function getPoints(r) {
+    const q = Math.pow(2, -(r.u8() - 8)), n = r.uv(), p = new Array(n * 2);
+    let x = 0, y = 0;
+    for (let j = 0; j < n; j++) { x += r.sv(); y += r.sv(); p[2 * j] = x * q; p[2 * j + 1] = y * q; }
+    return p;
+  }
+  const opacityByte = (v) => Math.round(Math.min(1, Math.max(0, v)) * 255);
+
+  async function squeeze(bytes, inflate) {
+    const stream = new Blob([bytes]).stream().pipeThrough(inflate ? new DecompressionStream('deflate-raw') : new CompressionStream('deflate-raw'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+  const toB64url = (u8) => {
+    let s = '';
+    for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  };
+  const fromB64url = (t) => Uint8Array.from(atob(t.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+
+  /* doc -> { text (for after "#b="), images (pictures left out), pdf (page pictures left out) } */
+  async function encode(doc) {
+    const o = new Out(), colors = new Map();
+    const color = (c) => { if (!colors.has(c)) colors.set(c, colors.size); return colors.get(c); };
+    const items = doc.strokes.filter((s) => s.tool !== 'image');
+    for (const s of items) if (s.color && s.tool !== 'eraser') color(s.color);
+    o.u8(1);
+    o.str(doc.title || 'Untitled');
+    o.uv(doc.pages.length);
+    for (const p of doc.pages) { o.f(p.x); o.f(p.y); o.f(p.w); o.f(p.h); }
+    o.uv(colors.size);
+    for (const c of colors.keys()) { const n = parseInt(c.slice(1), 16); o.u8(n >> 16); o.u8(n >> 8); o.u8(n); }
+    o.uv(items.length);
+    for (const s of items) {
+      if (s.tool === 'text') {
+        o.u8(2); o.f(s.x); o.f(s.y); o.f(s.rot || 0); o.f(s.size);
+        o.u8(Math.max(0, FONTS.indexOf(s.font))); o.uv(color(s.color)); o.u8(opacityByte(s.opacity)); o.str(s.text);
+      } else if (s.tool === 'fill') {
+        o.u8(3); o.uv(color(s.color)); o.u8(opacityByte(s.opacity)); o.u8(s.under ? 1 : 0);
+        const b = WB.boundsOf(s), e = gridExp(Math.min(0.5, Math.max(b.x1 - b.x0, b.y1 - b.y0) / 1500));
+        o.uv(s.rings.length);
+        for (const r of s.rings) putPoints(o, r, simplify(r, Math.pow(2, -e) * 0.6, true), e);
+      } else {
+        const pen = s.tool === 'pen', press = WB.hasPress(s), dash = pen && !s.hl ? DASHES.indexOf(s.dash) : -1;
+        const flags = (s.smooth ? 1 : 0) | (s.closed ? 2 : 0) | (s.hl ? 4 : 0) | (press ? 8 : 0) | (s.shape ? 16 : 0) | (dash >= 0 ? 32 : 0);
+        o.u8(pen ? 0 : 1); o.u8(flags);
+        if (pen) o.uv(color(s.color));
+        o.f(s.width); o.u8(opacityByte(s.opacity));
+        if (dash >= 0) o.u8(dash);
+        if (s.shape) o.str(s.shape);
+        const e = gridExp(Math.min(0.5, s.width / 4)), idx = simplify(s.points, Math.pow(2, -e) * 0.6, s.closed);
+        putPoints(o, s.points, idx, e);
+        if (press) for (const i of idx) o.u8(Math.round(s.press[i] * 255));
+      }
+    }
+    const z = await squeeze(o.b.subarray(0, o.n));
+    return {
+      text: toB64url(z),
+      images: doc.strokes.length - items.length,
+      pdf: doc.pages.some((p) => p.src),
+    };
+  }
+
+  /* text after "#b=" -> { title, strokes, pages } */
+  async function decode(text) {
+    const r = new In(await squeeze(fromB64url(text), true));
+    if (r.u8() !== 1) throw new Error('made by a newer version');
+    const title = r.str().slice(0, 80), pages = [], colors = [], strokes = [];
+    const np = r.uv();
+    for (let i = 0; i < np; i++) { const p = { x: r.f(), y: r.f(), w: r.f(), h: r.f() }; if (p.w > 0 && p.h > 0) pages.push(p); }
+    const nc = r.uv();
+    for (let i = 0; i < nc; i++) colors.push('#' + [r.u8(), r.u8(), r.u8()].map((v) => v.toString(16).padStart(2, '0')).join(''));
+    const col = (i) => colors[i] || '#000000';
+    const n = r.uv();
+    for (let i = 0; i < n; i++) {
+      const kind = r.u8();
+      if (kind === 2) {
+        const x = r.f(), y = r.f(), rot = r.f(), size = r.f(), font = FONTS[r.u8()] || 'sans', color = col(r.uv()), opacity = r.u8() / 255, t = r.str();
+        strokes.push({ tool: 'text', x, y, rot, text: t, font, size, color, opacity, width: 0 });
+      } else if (kind === 3) {
+        const color = col(r.uv()), opacity = r.u8() / 255, under = !!r.u8(), nr = r.uv(), rings = [];
+        for (let j = 0; j < nr; j++) { const ring = getPoints(r); if (ring.length >= 6) rings.push(ring); }
+        if (rings.length) strokes.push({ tool: 'fill', color, opacity, under, rings, width: 0 });
+      } else if (kind === 0 || kind === 1) {
+        const flags = r.u8(), s = { tool: kind === 0 ? 'pen' : 'eraser' };
+        if (kind === 0) s.color = col(r.uv());
+        s.width = r.f(); s.opacity = r.u8() / 255;
+        if (flags & 32) s.dash = DASHES[r.u8()];
+        if (flags & 16) s.shape = r.str().replace(/[^a-z]/gi, '').slice(0, 24);
+        s.points = getPoints(r);
+        s.smooth = !!(flags & 1); s.closed = !!(flags & 2);
+        if (flags & 4) s.hl = true;
+        if (flags & 8) { s.press = []; for (let j = 0; j < s.points.length >> 1; j++) s.press.push(r.u8() / 255); }
+        if (!s.dash) delete s.dash;
+        if (s.points.length) strokes.push(s);
+      } else throw new Error('unknown object ' + kind);
+    }
+    return { title: title || 'Untitled', strokes, pages };
+  }
+
+  WB.share = { encode, decode };
+})();
+
+</script>
+<script>
+/* Reading PDFs from other programs, with Mozilla's pdf.js (Apache 2.0, js/vendor/pdfjs/).
+
+   pdf.js is large, so it is loaded only when a PDF is actually opened: from this site's own copy,
+   or, where that can't be loaded (the single-file app opened from disk), from the jsDelivr CDN.
+   Each page is drawn into a picture (JPEG, about 2400 px on its long side) that the board keeps;
+   the board then works the same with or without pdf.js. */
+(function () {
+  'use strict';
+  const WB = window.WB;
+  const VERSION = '4.10.38';
+  const CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${VERSION}/`;
+  let lib = null;
+
+  async function load() {
+    if (lib) return lib;
+    let last = null;
+    const local = new URL('js/vendor/pdfjs/', document.baseURI).href;
+    for (const base of [local, CDN + 'legacy/build/']) {
+      try {
+        // This site's copy is named .js (every server sends that as JavaScript); the CDN's is .mjs.
+        const ext = base.startsWith(CDN) ? '.mjs' : '.js';
+        const m = await import(base + 'pdf.min' + ext);
+        m.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min' + ext;
+        return (lib = m);
+      } catch (e) { last = e; }
+    }
+    throw last || new Error('pdf.js could not be loaded');
+  }
+
+  const LONG_SIDE = 2400;   // pixels on the long side of each page's picture
+
+  /* PDF bytes -> [{ w, h, src }]: each page's size in board units (CSS pixels, 96 per inch) and its
+     picture. onPage(i, n) reports progress. */
+  WB.readPdf = async function (buffer, onPage) {
+    const pdfjs = await load();
+    const task = pdfjs.getDocument({
+      data: new Uint8Array(buffer.slice(0)),
+      isEvalSupported: false,                          // never compile code from the file
+      standardFontDataUrl: CDN + 'standard_fonts/',    // only fetched for PDFs that use the standard fonts without embedding them
+      cMapUrl: CDN + 'cmaps/', cMapPacked: true,
+    });
+    const pdf = await task.promise, out = [];
+    try {
+      for (let i = 1; i <= pdf.numPages; i++) {
+        if (onPage) onPage(i, pdf.numPages);
+        const page = await pdf.getPage(i);
+        const v1 = page.getViewport({ scale: 1 });                     // in points, 72 per inch
+        const scale = Math.min(4, LONG_SIDE / Math.max(v1.width, v1.height));
+        const vp = page.getViewport({ scale });
+        const cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(vp.width)); cv.height = Math.max(1, Math.round(vp.height));
+        const g = cv.getContext('2d');
+        g.fillStyle = '#ffffff'; g.fillRect(0, 0, cv.width, cv.height);
+        await page.render({ canvasContext: g, viewport: vp }).promise;
+        out.push({ w: (v1.width * 96) / 72, h: (v1.height * 96) / 72, src: cv.toDataURL('image/jpeg', 0.88) });
+        cv.width = cv.height = 0;
+        page.cleanup();
+      }
+    } finally { pdf.destroy(); }
+    return out;
+  };
 })();
 
 </script>
@@ -4704,20 +5659,24 @@ body.pipetting #canvas { cursor: crosshair; }
   const ctx = canvas.getContext('2d', { desynchronized: true });
   const base = document.createElement('canvas'), bctx = base.getContext('2d');
   const scratch = document.createElement('canvas'), sctx = scratch.getContext('2d');   // compositing space for the fill animation
+  const sheet = document.createElement('canvas'), shctx = sheet.getContext('2d');     // a sheet's pages, edges and the tint around them, under the ink
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  // iPhone and iPad (an iPad's Safari says it is a Mac, but has touch).
+  const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const darkMq = matchMedia('(prefers-color-scheme: dark)');
 
   const holdMs = () => clamp(+settings.snapDelay || 1, 0.2, 10) * 1000;   // hold still this long to snap a stroke into a shape
   const ZOOM_MIN = 0.02, ZOOM_MAX = 64;
   const PALETTE = ['#111111', '#ffffff', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#af52de'];
-  const SIZE = { pen: [1, 60], eraser: [4, 200] };
+  const HL_PALETTE = ['#ffee00', '#b8ff1f', '#2bff88', '#1fe0ff', '#4d9dff', '#c56bff', '#ff4fd8', '#ff8c1a'];   // neon, like highlighter pens
+  const SIZE = { pen: [1, 60], eraser: [4, 200], highlighter: [4, 160] };
 
   /* ---- State --------------------------------------------------------- */
   const store = {
     get(k, def) { try { return Object.assign(def, JSON.parse(localStorage.getItem(k)) || {}); } catch (e) { return def; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
   };
-  const settings = store.get('wb.settings', { theme: 'system', smoothing: 0, snap: true, fingerDraw: true, scratch: true, grid: 'dots', canvas: 'theme', canvasCustom: '#f4f1e8', snapDelay: 1,
+  const settings = store.get('wb.settings', { theme: 'system', smoothing: 0, snap: true, fingerDraw: true, scratch: true, pressure: false, filesCopy: false, grid: 'dots', canvas: 'theme', canvasCustom: '#f4f1e8', snapDelay: 1,
     ink: false, inkDelay: 1, inkScript: null,   // handwriting to text (alphabet null = follow the language)
     lang: null });                              // interface language (null = follow the system)
   const tr = WB.t;
@@ -4728,11 +5687,12 @@ body.pipetting #canvas { cursor: crosshair; }
     tool: 'pen',
     pen: { color: ink0, width: 4, opacity: 1 },
     eraser: { width: 28, opacity: 1 },
+    highlighter: { color: '#ffee00', width: 24, opacity: 0.5 },
     text: { font: 'sans', size: 24, color: ink0 },
     custom: '#ff2d55',              // last colour mixed in the picker
   });
 
-  const doc = { title: 'Untitled', created: Date.now(), strokes: [] };
+  const doc = { title: 'Untitled', created: Date.now(), strokes: [], pages: [] };   // pages: a sheet's fixed areas (see WB.paintPages)
   const view = { x: 0, y: 0, zoom: 1 };   // screen = world * zoom + (x, y), in CSS pixels
   let fileHandle = null, restored = false;
   const undoStack = [], redoStack = [];
@@ -4758,8 +5718,8 @@ body.pipetting #canvas { cursor: crosshair; }
     const w = board.clientWidth, h = board.clientHeight, d = Math.min(window.devicePixelRatio || 1, 3);
     if (w === W && h === H && d === dpr) return;
     W = w; H = h; dpr = d;
-    canvas.width = base.width = scratch.width = Math.max(1, Math.round(W * dpr));
-    canvas.height = base.height = scratch.height = Math.max(1, Math.round(H * dpr));
+    canvas.width = base.width = scratch.width = sheet.width = Math.max(1, Math.round(W * dpr));
+    canvas.height = base.height = scratch.height = sheet.height = Math.max(1, Math.round(H * dpr));
     baseDirty = true;
     frame(performance.now()); // paint synchronously so a resize never flashes empty
   }
@@ -4776,9 +5736,28 @@ body.pipetting #canvas { cursor: crosshair; }
       if (b.x1 < x0 || b.x0 > x1 || b.y1 < y0 || b.y0 > y1 || (fillAnim && fillAnim.s === s) || (edit && edit.s === s)) continue;
       WB.paint(bctx, s);
     }
+    renderSheet(x0, y0, x1, y1);
     baseView.x = view.x; baseView.y = view.y; baseView.zoom = view.zoom;
     baseDirty = false;
     renderCost = performance.now() - t0;
+  }
+  /* A sheet: what lies outside the pages is tinted (it is never exported), each page has a clear
+     edge, and an opened PDF's page pictures lie beneath the ink. */
+  function renderSheet(x0, y0, x1, y1) {
+    shctx.setTransform(1, 0, 0, 1, 0, 0);
+    shctx.clearRect(0, 0, sheet.width, sheet.height);
+    if (!doc.pages.length) return;
+    worldTransform(shctx);
+    const seen = doc.pages.filter((p) => p.x < x1 && p.x + p.w > x0 && p.y < y1 && p.y + p.h > y0);
+    shctx.beginPath();
+    shctx.rect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
+    for (const p of doc.pages) shctx.rect(p.x, p.y, p.w, p.h);
+    shctx.fillStyle = isDark(canvasColor()) ? 'rgba(0, 0, 0, 0.32)' : 'rgba(96, 96, 104, 0.13)';
+    shctx.fill('evenodd');
+    WB.paintPages(shctx, seen, null);
+    shctx.lineWidth = 1 / view.zoom;
+    shctx.strokeStyle = isDark(canvasColor()) ? 'rgba(255, 255, 255, 0.28)' : 'rgba(0, 0, 0, 0.22)';
+    for (const p of seen) shctx.strokeRect(p.x, p.y, p.w, p.h);
   }
 
   function frame(now) {
@@ -4794,20 +5773,140 @@ body.pipetting #canvas { cursor: crosshair; }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!baseDirty) ctx.drawImage(base, 0, 0);
-    else {
+    if (baseDirty) {
       const k = view.zoom / baseView.zoom;
       ctx.setTransform(k, 0, 0, k, (view.x - baseView.x * k) * dpr, (view.y - baseView.y * k) * dpr);
-      ctx.drawImage(base, 0, 0);
     }
+    if (doc.pages.length) ctx.drawImage(sheet, 0, 0);
+    if (live && live.hl) {                    // a highlighter in progress lies between the paper and the ink
+      const t = ctx.getTransform();
+      paintLive(); ctx.setTransform(t);
+    }
+    ctx.drawImage(base, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (fillAnim) drawFillAnim(now);
     if (selection.size || (selDrag && selDrag.lasso)) drawSelection();
-    if (live) {
-      worldTransform(ctx);
-      const p = new Path2D(); WB.trace(live, p);
-      WB.paint(ctx, live, p);
-    }
+    if (live && !live.hl) paintLive();
+    if (laser.trail.length) drawLaser(now);
     syncView();
+    placePageButtons();
+  }
+
+  /* ---- Adding pages to a sheet --------------------------------------------
+     A "+" button sits just above the top page and just below the bottom one. They move and scale
+     with the board, like part of the sheet, and add a page of the same size there (undoable). */
+  /* Next to it, while the end page is empty (nothing drawn on it, not a PDF page) and isn't the
+     only one, a delete button; the two then sit side by side, centred together. */
+  const pageBtns = { top: $('#page-add-top'), bottom: $('#page-add-bottom') };
+  const delBtns = { top: $('#page-del-top'), bottom: $('#page-del-bottom') };
+  let pageKey = '', emptyKey = '', empty = { top: false, bottom: false }, docRev = 0;
+  const ends = () => ({
+    top: doc.pages.reduce((a, p) => (p.y < a.y ? p : a)),
+    bottom: doc.pages.reduce((a, p) => (p.y + p.h > a.y + a.h ? p : a)),
+  });
+  function pageEmpty(p) {
+    if (p.src || doc.pages.length < 2) return false;
+    return !doc.strokes.some((s) => {
+      if (s.tool === 'eraser') return false;
+      const b = WB.boundsOf(s);
+      return b.x1 > p.x && b.x0 < p.x + p.w && b.y1 > p.y && b.y0 < p.y + p.h;
+    });
+  }
+  function placePageButtons() {
+    if (!doc.pages.length) {
+      if (pageKey) { for (const b of [pageBtns.top, pageBtns.bottom, delBtns.top, delBtns.bottom]) b.classList.remove('on'); pageKey = ''; }
+      return;
+    }
+    const E = ends();
+    const ek = docRev + ':' + doc.pages.length + ':' + doc.strokes.length;
+    if (ek !== emptyKey) { emptyKey = ek; empty = { top: pageEmpty(E.top), bottom: E.bottom !== E.top && pageEmpty(E.bottom) }; }
+    const z = view.zoom, k = clamp(z, 0.45, 1.6), gap = 32 * k, half = 26 * k;
+    const at = { top: [view.x + (E.top.x + E.top.w / 2) * z, view.y + E.top.y * z - gap], bottom: [view.x + (E.bottom.x + E.bottom.w / 2) * z, view.y + (E.bottom.y + E.bottom.h) * z + gap] };
+    const key = [at.top, at.bottom, k, empty.top, empty.bottom].join();
+    if (key === pageKey) return;
+    pageKey = key;
+    for (const w of ['top', 'bottom']) {
+      const [x, y] = at[w], d = empty[w] ? half : 0;
+      pageBtns[w].style.transform = `translate(${x - d}px, ${y}px) translate(-50%, -50%) scale(${k})`;
+      delBtns[w].style.transform = `translate(${x + d}px, ${y}px) translate(-50%, -50%) scale(${k})`;
+      pageBtns[w].classList.add('on');
+      delBtns[w].classList.toggle('on', empty[w]);
+    }
+  }
+  function deletePage(where) {
+    commitPending();
+    const p = ends()[where];
+    if (!pageEmpty(p)) return;
+    const before = snapshot();
+    doc.pages = doc.pages.filter((q) => q !== p);
+    record({ type: 'replace', before, after: snapshot() });
+    invalidate();
+    toast(tr('tPageDeleted'), tr('undo'), undo);
+  }
+  delBtns.top.addEventListener('click', () => deletePage('top'));
+  delBtns.bottom.addEventListener('click', () => deletePage('bottom'));
+  function addPage(where) {
+    commitPending();
+    const pages = doc.pages.slice().sort((a, b) => a.y - b.y);
+    const ref = where === 'top' ? pages[0] : pages[pages.length - 1], gap = 40;
+    const p = { x: onGrid(ref.x, 0), y: where === 'top' ? onGrid(ref.y - gap - ref.h, -1) : onGrid(ref.y + ref.h + gap, 1), w: ref.w, h: ref.h };
+    const before = snapshot();
+    doc.pages = where === 'top' ? [p, ...pages] : [...pages, p];
+    record({ type: 'replace', before, after: snapshot() });
+    invalidate();
+    animateView(p.x + p.w / 2, p.y + p.h / 2, view.zoom);       // glide to the new page
+    toast(tr('tPageAdded'), tr('undo'), undo);
+  }
+  pageBtns.top.addEventListener('click', () => addPage('top'));
+  pageBtns.bottom.addEventListener('click', () => addPage('bottom'));
+
+  function paintLive() {
+    worldTransform(ctx);
+    const p = new Path2D(); (WB.hasPress(live) ? WB.traceVar : WB.trace)(live, p);
+    WB.paint(ctx, live, p, true);
+  }
+
+  /* ---- Laser pointer -----------------------------------------------------
+     A red dot with a glow follows the pen, finger or mouse (the #laser element), trailing a short
+     fading streak. Dragging moves the board, as with the hand tool. Nothing is drawn on the board. */
+  const laser = { el: $('#laser'), trail: [] };
+  function laserAt(x, y) {
+    laser.el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    laser.el.classList.add('on');
+    // Dragging the board: the dot is held still over the board, so it leaves no streak.
+    if (mode === 'pan') { laser.trail.length = 0; requestFrame(); return; }
+    const t = performance.now(), l = laser.trail[laser.trail.length - 1];
+    if (!l || l.x !== x || l.y !== y) laser.trail.push({ x, y, t });
+    requestFrame();
+  }
+  function laserOff() { laser.el.classList.remove('on'); }
+  /* The streak is one tapered ribbon, filled once: narrow and old at the tail, widest at the dot.
+     (Drawn as separate overlapping pieces it showed brighter dots wherever the pieces met.) */
+  function drawLaser(now) {
+    const T = 175, tr0 = laser.trail;
+    while (tr0.length && now - tr0[0].t > T) tr0.shift();
+    const P = [];
+    for (const p of tr0) { const l = P[P.length - 1]; if (!l || Math.hypot(p.x - l.x, p.y - l.y) > 0.75) P.push(p); }
+    if (P.length < 2) { if (tr0.length) requestFrame(); return; }
+    const n = P.length, L = [], Rt = [];
+    for (let i = 0; i < n; i++) {
+      const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)], len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const nx = -(b.y - a.y) / len, ny = (b.x - a.x) / len;
+      const k = Math.max(0, 1 - (now - P[i].t) / T), hw = 0.2 + 1.8 * k * (0.35 + 0.65 * i / (n - 1));
+      L.push(P[i].x + nx * hw, P[i].y + ny * hw); Rt.push(P[i].x - nx * hw, P[i].y - ny * hw);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.7;
+    ctx.shadowColor = 'rgba(255, 30, 30, 0.75)'; ctx.shadowBlur = 6;
+    ctx.fillStyle = '#ff2a2a';
+    ctx.beginPath();
+    ctx.moveTo(L[0], L[1]);
+    for (let i = 2; i < L.length; i += 2) ctx.lineTo(L[i], L[i + 1]);
+    for (let i = Rt.length - 2; i >= 0; i -= 2) ctx.lineTo(Rt[i], Rt[i + 1]);
+    ctx.closePath();
+    ctx.fill('nonzero');
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+    requestFrame();
   }
 
   const synced = { x: NaN, y: NaN, zoom: NaN };
@@ -4869,7 +5968,7 @@ body.pipetting #canvas { cursor: crosshair; }
     animateView((W / 2 - view.x) / view.zoom, (H / 2 - view.y) / view.zoom, target * factor);
   }
   function fitView(instant) {
-    const b = WB.contentBounds(doc.strokes);
+    const b = doc.pages.length ? WB.pagesBounds(doc.pages) : WB.contentBounds(doc.strokes);   // a sheet fits its pages
     if (!b) return animateView(W / 2, H / 2, 1, instant);
     const z = Math.min((W - 150) / b.w, (H - 210) / b.h, 2);
     animateView(b.x + b.w / 2, b.y + b.h / 2, Math.max(z, ZOOM_MIN), instant);
@@ -4885,11 +5984,17 @@ body.pipetting #canvas { cursor: crosshair; }
     mode = 'draw';
     const t = tools[tool], z = view.zoom, now = performance.now();
     const x = (e.clientX - view.x) / z, y = (e.clientY - view.y) / z;
-    const sm = settings.smoothing / 100;
+    const hl = tool === 'highlighter';
+    // A highlighter is wide with a square tip: raw pointer jitter (a diagonal mouse drag comes in
+    // as a staircase) would make its edges wobble and its tip flip, so it is always smoothed a little.
+    const sm = hl ? Math.max(settings.smoothing / 100, 0.3) : settings.smoothing / 100;
+    // Pressure, when it is on: only from a stylus, and only for the pen (not the highlighter or eraser).
+    const pr = settings.pressure && e.pointerType === 'pen' && tool === 'pen' && !WB.DASHES[tools.pen.dash] ? (e.pressure > 0 ? e.pressure : 0.5) : null;
     live = {
       id: e.pointerId, ptype: e.pointerType, t0: now,
-      tool, color: tools.pen.color, width: t.width / z, opacity: t.opacity,
+      tool: hl ? 'pen' : tool, hl: hl || undefined, color: hl ? tools.highlighter.color : tools.pen.color, width: t.width / z, opacity: t.opacity,
       dash: tool === 'pen' && WB.DASHES[tools.pen.dash] ? tools.pen.dash : undefined,
+      press: pr === null ? undefined : [pr], tp: pr,
       points: [x, y], smooth: sm > 0, closed: false,
       tau: sm * 140, sx: x, sy: y, tx: x, ty: y,
       hold: { x: e.clientX, y: e.clientY, t: now, tol: e.pointerType === 'mouse' ? 3 : 7 },
@@ -4900,8 +6005,9 @@ body.pipetting #canvas { cursor: crosshair; }
     requestFrame();
   }
 
-  function addPoint(cx, cy) {
+  function addPoint(cx, cy, pressure) {
     const L = live, h = L.hold;
+    if (L.press && pressure > 0) L.tp += (pressure - L.tp) * 0.6;   // a little smoothing: raw pressure jitters
     const x = (cx - view.x) / view.zoom, y = (cy - view.y) / view.zoom;
     if (L.snapped) {
       // The shape stays in hand until the pen lifts: the pen swings it around its pivot
@@ -4923,7 +6029,7 @@ body.pipetting #canvas { cursor: crosshair; }
     L.tx = x; L.ty = y;
     if (L.tau > 0) return;                    // smoothing on: the frame loop pulls the stroke toward the pointer
     const p = L.points, n = p.length;
-    if (p[n - 2] !== x || p[n - 1] !== y) p.push(x, y);
+    if (p[n - 2] !== x || p[n - 1] !== y) { p.push(x, y); if (L.press) L.press.push(L.tp); }
   }
 
   function stepLive(now, dt) {
@@ -4943,6 +6049,7 @@ body.pipetting #canvas { cursor: crosshair; }
         const a = 1 - Math.exp(-dt / L.tau);
         L.sx += dx * a; L.sy += dy * a;
         L.points.push(L.sx, L.sy);
+        if (L.press) L.press.push(L.tp);
         requestFrame();
       }
     }
@@ -4966,9 +6073,10 @@ body.pipetting #canvas { cursor: crosshair; }
     let len = 0;
     for (let i = 2; i < p.length; i += 2) len += hyp(p[i] - p[i - 2], p[i + 1] - p[i - 1]);
     if (len * view.zoom < 24) return false;
+    if (L.tau > 0 && L.press) L.press.push(L.tp);
     const res = WB.recognize(p);
-    if (!res) return false;
-    L.snapped = true; L.final = res;
+    if (!res) { if (L.tau > 0) { p.length -= 2; if (L.press) L.press.length--; } return false; }
+    L.snapped = true; L.final = res; L.press = undefined;      // a clean shape has an even line
     const pivot = res.closed ? WB.centroid(res.points) : [res.points[0], res.points[1]];
     L.xf = { px: pivot[0], py: pivot[1], cx: L.hold.x, cy: L.hold.y, ax: 0, ay: 0, ang: 0, sc: 1, active: false };
     L.theta0 = shapeAngle(res); L.extra = new Set(); L.shift = false;
@@ -5036,18 +6144,29 @@ body.pipetting #canvas { cursor: crosshair; }
     requestFrame();
     if (cancel || !L) return updateChrome();
     if (L.final) applyFinal(L);
-    else if (L.tau > 0 && !L.snapped) L.points.push(L.tx, L.ty);   // smoothing lags the pen: finish at the pen (never on a snapped shape)
+    else if (L.tau > 0 && !L.snapped) { L.points.push(L.tx, L.ty); if (L.press) L.press.push(L.tp); }   // smoothing lags the pen: finish at the pen (never on a snapped shape)
     if (L.tool === 'eraser' && !doc.strokes.length) return updateChrome();
     const s = { tool: L.tool, color: L.color, width: L.width, opacity: L.opacity, points: L.points, smooth: L.smooth, closed: L.closed };
     if (L.shape) s.shape = L.shape;
     if (L.dash) s.dash = L.dash;
-    if (s.tool === 'pen' && !s.shape && settings.scratch && scratchOut(s, performance.now() - L.t0)) return;
+    if (L.hl) {
+      s.hl = true;
+      // Settle the finished line: drop the small wiggles and draw it as a smooth curve.
+      if (!s.shape && s.points.length > 4) {
+        const pairs = [];
+        for (let i = 0; i < s.points.length; i += 2) pairs.push([s.points[i], s.points[i + 1]]);
+        const kept = WB.rdp(pairs, s.width * 0.06);
+        s.points = kept.flat(); s.smooth = true;
+      }
+    }
+    if (L.press && L.press.length === s.points.length >> 1) s.press = L.press.map((v) => Math.round(v * 100) / 100);
+    if (s.tool === 'pen' && !s.hl && !s.shape && settings.scratch && scratchOut(s, performance.now() - L.t0)) return;
     s._at = performance.now();
     doc.strokes.push(s);
     if (!baseDirty) { worldTransform(bctx); WB.paint(bctx, s); }
     record({ type: 'add', stroke: s });
     // Handwriting: plain pen strokes wait to be read; a snapped shape ends the word; erasing abandons it.
-    if (settings.ink && s.tool === 'pen' && !s.shape) inkAdd(s);
+    if (settings.ink && s.tool === 'pen' && !s.shape && !s.hl) inkAdd(s);
     else if (s.tool === 'pen') inkConvert();
     else inkDrop();
   }
@@ -5266,7 +6385,7 @@ body.pipetting #canvas { cursor: crosshair; }
     for (const s of items) {
       if (s.tool === 'text' || s.tool === 'image') { s.x += dx; s.y += dy; }
       else for (const p of s.rings || [s.points]) for (let i = 0; i < p.length; i += 2) { p[i] += dx; p[i + 1] += dy; }
-      delete s._path; delete s._b;
+      delete s._path; delete s._opath; delete s._b;
     }
     invalidate();
   }
@@ -5425,7 +6544,7 @@ body.pipetting #canvas { cursor: crosshair; }
         s.x = a.x; s.y = a.y; s.size = g.size * Math.sqrt(lu * lv);
       }
     }
-    delete s._path; delete s._b; delete s._t;
+    delete s._path; delete s._opath; delete s._b; delete s._t;
   }
   function beginXform(e, k) {
     const F = selFrame(), z = view.zoom;
@@ -5715,7 +6834,7 @@ body.pipetting #canvas { cursor: crosshair; }
     }
     invalidate(); updateChrome(); selectionChanged();
   }
-  function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; delete s._path; }
+  function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; delete s._path; delete s._opath; }
 
   /* Change the font, size or colour of the text being typed (and remember it for the next one). */
   function styleText(props) {
@@ -5924,6 +7043,7 @@ body.pipetting #canvas { cursor: crosshair; }
     $$('#lang-menu .mi').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.lang === cur[0])));
     titleEl.value = shownTitle();
     smSync(); scriptSync(); syncExport(); updateChrome(); selectionChanged();
+    buildSheets();
     $('#btn-export').textContent = tr('export');
     if (edit) layoutEdit();
   }
@@ -6030,7 +7150,7 @@ body.pipetting #canvas { cursor: crosshair; }
       if (n === 1) {
         tap = { t: now, max: 1, moved: false };
         if (doubleOnText(e, now)) return;
-        if (settings.fingerDraw && tools.tool !== 'hand') beginTool(e, tools.tool);
+        if (tools.tool === 'laser' || (settings.fingerDraw && tools.tool !== 'hand')) beginTool(e, tools.tool);
         else beginPan(e.pointerId, e.clientX, e.clientY);
         return;
       }
@@ -6081,6 +7201,7 @@ body.pipetting #canvas { cursor: crosshair; }
 
   /* What a press on the board starts, for the active tool. */
   function beginTool(e, tool) {
+    if (tool === 'laser') { beginPan(e.pointerId, e.clientX, e.clientY); return laserAt(e.clientX, e.clientY); }
     if (tool === 'select') {
       const add = e.ctrlKey || e.metaKey;
       mode = 'select';
@@ -6101,6 +7222,7 @@ body.pipetting #canvas { cursor: crosshair; }
       const t = touches.get(e.pointerId);
       if (!t) return;
       t.x = e.clientX; t.y = e.clientY;
+      if (tools.tool === 'laser' && touches.size === 1) laserAt(e.clientX, e.clientY);
       if (tap && hyp(t.x - t.sx, t.y - t.sy) > 10) tap.moved = true;
     } else {
       if (e.pointerType === 'pen') lastPen = performance.now();
@@ -6112,8 +7234,8 @@ body.pipetting #canvas { cursor: crosshair; }
     if (mode === 'draw' && live && e.pointerId === live.id) {
       if (live.snapped && live.shift !== e.shiftKey) { live.shift = e.shiftKey; resnap(); }
       const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null;   // every sample the stylus produced, not one per frame
-      if (evs && evs.length) for (const ev of evs) addPoint(ev.clientX, ev.clientY);
-      else addPoint(e.clientX, e.clientY);
+      if (evs && evs.length) for (const ev of evs) addPoint(ev.clientX, ev.clientY, ev.pressure);
+      else addPoint(e.clientX, e.clientY, e.pressure);
       requestFrame();
     } else if (mode === 'pan' && e.pointerId === panId) movePan(e.clientX, e.clientY);
     else if (mode === 'pinch' && e.pointerType === 'touch') movePinch();
@@ -6143,6 +7265,7 @@ body.pipetting #canvas { cursor: crosshair; }
     }
     const isTouch = e.pointerType === 'touch';
     if (isTouch && !touches.delete(e.pointerId)) return;
+    if (isTouch && touches.size === 0) laserOff();
 
     if (mode === 'draw' && live && e.pointerId === live.id) endStroke(cancel);
     else if (mode === 'pan' && e.pointerId === panId) endPan();
@@ -6186,18 +7309,33 @@ body.pipetting #canvas { cursor: crosshair; }
   window.addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
 
   function updateCursor() {
-    const tool = tools.tool, show = cursorPos && (tool === 'pen' || tool === 'eraser') && !spaceHeld && mode !== 'pan';
+    const tool = tools.tool, show = cursorPos && isBrush() && !spaceHeld && mode !== 'pan';
+    if (tool === 'laser' && cursorPos) laserAt(cursorPos.x, cursorPos.y); else if (!(tool === 'laser' && touches.size)) laserOff();
     cursorEl.classList.toggle('on', !!show);
+    cursorEl.classList.toggle('hl', tool === 'highlighter');
     if (!show) return;
     const d = Math.max(5, tools[tool].width);
     cursorEl.style.width = cursorEl.style.height = d + 'px';
-    cursorEl.style.transform = `translate3d(${cursorPos.x - d / 2}px, ${cursorPos.y - d / 2}px, 0)`;
+    // The highlighter's square tip turns to follow the direction it moves in.
+    // Only a quick, deliberate move turns it (faster than 0.35 px/ms over at least 8 px), so the
+    // small jitter of a slow or steady hand doesn't make it twitch.
+    const c = cursorDir, t = performance.now();
+    if (tool === 'highlighter') {
+      if (c.x === null) { c.x = cursorPos.x; c.y = cursorPos.y; c.t = t; }
+      const dx = cursorPos.x - c.x, dy = cursorPos.y - c.y, dist = Math.hypot(dx, dy);
+      if (dist > 8) {
+        if (dist / Math.max(1, t - c.t) > 0.35) c.a = Math.atan2(dy, dx);
+        c.x = cursorPos.x; c.y = cursorPos.y; c.t = t;
+      } else if (t - c.t > 120) { c.x = cursorPos.x; c.y = cursorPos.y; c.t = t; }   // a pause starts a new measurement
+    }
+    cursorEl.style.transform = `translate3d(${cursorPos.x - d / 2}px, ${cursorPos.y - d / 2}px, 0)` + (tool === 'highlighter' ? ` rotate(${c.a}rad)` : '');
   }
+  const cursorDir = { x: null, y: null, t: 0, a: 0 };
 
   /* ---- History ------------------------------------------------------- */
-  const snapshot = () => ({ title: doc.title, created: doc.created, strokes: doc.strokes, handle: fileHandle, gref: WB.gallery.ref });
+  const snapshot = () => ({ title: doc.title, created: doc.created, strokes: doc.strokes, pages: doc.pages, handle: fileHandle, gref: WB.gallery.ref });
   function applySnapshot(s) {
-    doc.title = s.title; doc.created = s.created; doc.strokes = s.strokes; fileHandle = s.handle;
+    doc.title = s.title; doc.created = s.created; doc.strokes = s.strokes; doc.pages = s.pages || []; fileHandle = s.handle;
     WB.gallery.ref = s.gref || null;            // which gallery file this board is, if any
     $('#doc-title').value = shownTitle();
   }
@@ -6256,11 +7394,11 @@ body.pipetting #canvas { cursor: crosshair; }
     invalidate();
     toast(message, tr('undo'), undo);
   }
-  function changed() { updateChrome(); autosave(); }
+  function changed() { docRev++; updateChrome(); autosave(); }
   function updateChrome() {
     $('#btn-undo').disabled = !undoStack.length;
     $('#btn-redo').disabled = !redoStack.length;
-    hint.classList.toggle('gone', !restored || doc.strokes.length > 0 || !!live);
+    hint.classList.toggle('gone', !restored || doc.strokes.length > 0 || !!live || doc.pages.some((p) => p.src));
     document.title = shownTitle() + ' – Whiteboard';
   }
 
@@ -6288,7 +7426,8 @@ body.pipetting #canvas { cursor: crosshair; }
     if (!d) return;
     // Everything but the render caches (keys starting with "_").
     const strokes = doc.strokes.map((s) => { const o = {}; for (const k in s) if (k[0] !== '_') o[k] = s[k]; return o; });
-    try { d.transaction('kv', 'readwrite').objectStore('kv').put({ title: doc.title, created: doc.created, view: { ...view }, strokes }, 'board'); } catch (e) {}
+    const pages = doc.pages.map((p) => ({ x: p.x, y: p.y, w: p.w, h: p.h, src: p.src }));
+    try { d.transaction('kv', 'readwrite').objectStore('kv').put({ title: doc.title, created: doc.created, view: { ...view }, strokes, pages }, 'board'); } catch (e) {}
   }
   function autosave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500); }
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
@@ -6310,6 +7449,14 @@ body.pipetting #canvas { cursor: crosshair; }
     catch (e) { return e.name === 'AbortError' ? false : null; }
   }
   async function writeOut(handle, blob, name) {
+    if (!handle && IOS) {
+      // iPhone and iPad: the share sheet, with "Save Image" (to Photos) and "Save to Files".
+      const file = new File([blob], name, { type: blob.type });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        const go = () => navigator.share({ files: [file] }).catch((e) => { if (e.name === 'NotAllowedError') toast(tr('tExportReady'), tr('gShare'), go, 15000); });
+        return go();
+      }
+    }
     if (!handle) return download(blob, name);
     const w = await handle.createWritable();
     await w.write(blob); await w.close();
@@ -6319,6 +7466,7 @@ body.pipetting #canvas { cursor: crosshair; }
      or the gallery ('gallery'). Whichever was used last wins. */
   let saveTarget = 'gallery';
   const BOARD_TYPES = [{ description: 'Whiteboard', accept: { 'application/x-whtbd': ['.whtbd'] } }];
+  const OPEN_TYPES = [{ description: 'Whiteboard, PDF', accept: { 'application/x-whtbd': ['.whtbd'], 'application/pdf': ['.pdf'] } }];
   const canUseFiles = () => typeof window.showSaveFilePicker === 'function' && location.protocol !== 'file:';
   const commitPending = () => { if (edit) commitText(); inkConvert(); };
 
@@ -6390,7 +7538,7 @@ body.pipetting #canvas { cursor: crosshair; }
   function loadText(text, handle, gref) {
     let d;
     try { d = WB.parse(text); } catch (e) { return toast(tr(e.message)); }
-    replaceBoard({ title: d.title, created: d.created, strokes: d.strokes, handle: handle || null, gref: gref || null }, '');
+    replaceBoard({ title: d.title, created: d.created, strokes: d.strokes, pages: d.pages, handle: handle || null, gref: gref || null }, '');
     saveTarget = handle ? 'file' : 'gallery';
     toast(tr('tOpened', { t: shownTitle() }), tr('undo'), undo);
     fitView(true);
@@ -6402,7 +7550,7 @@ body.pipetting #canvas { cursor: crosshair; }
   async function openBoard() {
     if (!canUseFiles() || !window.showOpenFilePicker) return $('#file-input').click();
     let h;
-    try { [h] = await window.showOpenFilePicker({ id: 'whiteboard-file', types: BOARD_TYPES, excludeAcceptAllOption: false }); }
+    try { [h] = await window.showOpenFilePicker({ id: 'whiteboard-file', types: OPEN_TYPES, excludeAcceptAllOption: false }); }
     catch (e) {
       // A cancel looks exactly like the browser cancelling by itself, which some systems do even
       // after a file was chosen (and then refuse every later dialog at once). The simple file
@@ -6411,14 +7559,70 @@ body.pipetting #canvas { cursor: crosshair; }
       toast(tr('tOpenFallback'), tr('mOpenFrom'), () => $('#file-input').click(), 10000);
       return;
     }
-    try { loadText(await (await h.getFile()).text(), h); } catch (err) { toast(tr('eInvalid')); }
+    try { await openFile(await h.getFile(), h); } catch (err) { toast(tr('eInvalid')); }
   }
   $('#file-input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    try { loadText(await file.text()); } catch (err) { toast(tr('eInvalid')); }
+    try { await openFile(file); } catch (err) { toast(tr('eInvalid')); }
   });
+
+  /* A board file opens as it is. A PDF this app exported opens the board inside it; any other PDF
+     becomes a sheet: a board the size of the PDF's pages, with the pages beneath the ink. */
+  const isPdfBytes = (buf) => buf.byteLength > 4 && String.fromCharCode(...new Uint8Array(buf, 0, 5)) === '%PDF-';
+  async function openFile(file, handle) {
+    const buf = await file.arrayBuffer();
+    if (isPdfBytes(buf)) {
+      const text = await WB.extractBoard(buf);
+      return text ? loadText(text) : openPdf(buf, file.name);
+    }
+    loadText(new TextDecoder().decode(buf), handle);
+  }
+  async function readPdfPages(buf) {
+    try {
+      const pages = await WB.readPdf(buf, (i, n) => toast(tr('tPdfReading', { n: i, t: n }), null, null, 60000));
+      $('#toast').classList.remove('on');
+      return pages.length ? pages : null;
+    } catch (e) { report(tr('tPdfFail'), 'reading the PDF', e); return null; }
+  }
+  async function openPdf(buf, name) {
+    commitPending();
+    if ((doc.strokes.length || doc.pages.length) && !(await ask(tr('confirmPdf'), tr('openPdf')))) return;
+    const read = await readPdfPages(buf);
+    if (!read) return;
+    // Pages one under the other, centred, each starting on a step of the canvas pattern (see onGrid).
+    const maxW = Math.max(...read.map((p) => p.w));
+    let y = 0;
+    const pages = read.map((p) => { const o = { x: onGrid((maxW - p.w) / 2, 0), y, w: p.w, h: p.h, src: p.src }; y = onGrid(y + p.h + 40, 1); return o; });
+    await WB.loadImages([], pages);
+    replaceBoard({ title: name.replace(/\.pdf$/i, '').trim() || 'Untitled', created: Date.now(), strokes: [], pages, handle: null, gref: null }, '');
+    saveTarget = 'gallery';
+    toast(tr('tOpened', { t: shownTitle() }), tr('undo'), undo);
+    fitPage(pages[0], true);
+  }
+  /* Pages start on a step of the canvas pattern, so the lines, grid and dots fall the same way on
+     every page: a horizontal line along its top edge, a vertical one along its left. Zoomed out,
+     the pattern on screen skips to every 2nd or 4th step, so pages go on every 4th step (128
+     units), which keeps them lined up down to about 15 % zoom. dir rounds down (-1), up (1) or
+     to the nearest (0). */
+  const PAGE_STEP = 4 * WB.GRID;
+  const onGrid = (v, dir) => (dir < 0 ? Math.floor : dir > 0 ? Math.ceil : Math.round)(v / PAGE_STEP) * PAGE_STEP;
+  /* The view on one page: the whole page, as large as fits. */
+  function fitPage(p, instant) {
+    const z = Math.min((W - 150) / p.w, (H - 210) / p.h, 2);
+    animateView(p.x + p.w / 2, p.y + p.h / 2, Math.max(z, ZOOM_MIN), instant);
+  }
+
+  /* ---- Confirmation ------------------------------------------------------ */
+  let asking = null;
+  function ask(text, ok) {
+    $('#confirm-text').textContent = text;
+    $('#confirm-ok').textContent = ok;
+    openSheet('#confirm');
+    return new Promise((res) => { asking = res; });
+  }
+  $('#confirm-ok').addEventListener('click', () => { const r = asking; asking = null; closeSheets(); if (r) r(true); });
   window.addEventListener('dragover', (e) => e.preventDefault());
   /* Dropped from the file manager: a folder becomes the gallery; a board opens, and where the
      browser hands over the file itself, Save writes back into it like after "Open from…". */
@@ -6433,8 +7637,8 @@ body.pipetting #canvas { cursor: crosshair; }
     let handle = null;
     try { handle = pending ? await pending : null; } catch (err) { handle = null; }
     if (handle && handle.kind === 'directory') return WB.gallery.useFolder(handle);
-    if (handle) { try { return loadText(await (await handle.getFile()).text(), handle); } catch (err) { /* read it as a plain file */ } }
-    if (file) { try { loadText(await file.text()); } catch (err) { toast(tr('eInvalid')); } }
+    if (handle) { try { return await openFile(await handle.getFile(), handle); } catch (err) { /* read it as a plain file */ } }
+    if (file) { try { await openFile(file); } catch (err) { toast(tr('eInvalid')); } }
   });
 
   /* ---- Export -------------------------------------------------------- */
@@ -6446,12 +7650,13 @@ body.pipetting #canvas { cursor: crosshair; }
     svg: { mime: 'image/svg+xml', name: 'SVG image', note: 'nSvg', vector: true },
     pdf: { mime: 'application/pdf', name: 'PDF document', note: 'nPdf', vector: true },
   };
-  const exp = { format: 'png', scale: '2', bg: 'theme' };
+  const exp = { format: 'png', scale: '2', bg: 'theme', pattern: false };
   const canvasColor = () => getComputedStyle(root).getPropertyValue('--canvas').trim() || '#ffffff';
 
   async function doExport() {
     commitPending();
-    const b0 = WB.contentBounds(doc.strokes);
+    const sheetPages = doc.pages.length ? doc.pages : null;      // a sheet exports exactly its pages
+    const b0 = sheetPages ? WB.pagesBounds(sheetPages) : WB.contentBounds(doc.strokes);
     if (!b0) return toast(tr('tNothing'));
     const F = FORMATS[exp.format], ext = F.ext || exp.format, name = safeName() + '.' + ext;
     const handle = await pickSave(name, F.name, F.mime, ext);   // ask where first, while the tap is still fresh
@@ -6459,18 +7664,20 @@ body.pipetting #canvas { cursor: crosshair; }
     const btn = $('#btn-export');
     btn.disabled = true; btn.textContent = tr('exporting');
     try {
-      const pad = Math.max(16, Math.max(b0.w, b0.h) * 0.04);
+      const pad = sheetPages ? 0 : Math.max(16, Math.max(b0.w, b0.h) * 0.04);
       const b = { x: b0.x - pad, y: b0.y - pad, w: b0.w + 2 * pad, h: b0.h + 2 * pad };
       let bg = exp.bg === 'none' ? null : exp.bg === 'white' ? '#ffffff' : canvasColor();
       if (!bg && F.opaque) bg = canvasColor();
+      // The board's dots, lines or grid, when asked for, in a colour that shows on the background.
+      const pattern = exp.pattern ? WB.patternStyle(settings.grid, bg || canvasColor()) : null;
       let blob, shrunk = false;
-      await WB.loadImages(doc.strokes);                         // pictures must be decoded before they can be drawn
+      await WB.loadImages(doc.strokes, doc.pages);              // pictures must be decoded before they can be drawn
       // The board rides along inside the file, so Import can give it back editable.
       const payload = await WB.boardPayload(WB.serialize(doc, view));
-      if (exp.format === 'svg') blob = new Blob([WB.toSVG(doc.strokes, b, bg, payload)], { type: F.mime });
-      else if (exp.format === 'pdf') blob = await WB.toPDF(doc.strokes, b, bg, payload);
+      if (exp.format === 'svg') blob = new Blob([WB.toSVG(doc.strokes, b, bg, payload, sheetPages, pattern)], { type: F.mime });
+      else if (exp.format === 'pdf') blob = await WB.toPDF(doc.strokes, b, bg, payload, sheetPages, pattern);
       else {
-        const r = WB.renderToCanvas(doc.strokes, b, +exp.scale, bg);
+        const r = WB.renderToCanvas(doc.strokes, b, +exp.scale, bg, sheetPages, pattern);
         shrunk = r.scale < +exp.scale;
         blob = exp.format === 'bmp' ? WB.canvasToBMP(r.canvas) : await WB.canvasToBlob(r.canvas, F.mime, 0.92);
         blob = await WB.embedPayload(blob, payload, r.canvas.width, r.canvas.height);
@@ -6495,13 +7702,33 @@ body.pipetting #canvas { cursor: crosshair; }
     e.target.value = '';
     if (!file) return;
     try {
-      const text = await WB.extractBoard(await file.arrayBuffer());
+      const buf = await file.arrayBuffer();
+      const text = await WB.extractBoard(buf);
       if (text) return loadText(text);
+      if (isPdfBytes(buf)) { const pages = await readPdfPages(buf); if (pages) await placePages(pages); return; }
       const pic = await WB.pictureFromFile(file);
-      if (!pic) return toast(tr(file.type === 'application/pdf' || /\.pdf$/i.test(file.name) ? 'tImportPdf' : 'tImportFail'), null, null, 9000);
+      if (!pic) return toast(tr('tImportFail'), null, null, 9000);
       await placePicture(pic);
     } catch (err) { report(tr('tImportFail'), 'importing "' + file.name + '"', err); }
   });
+  /* A PDF's pages, one picture each, top to bottom in the middle of the view, all selected. */
+  async function placePages(pages) {
+    const z = view.zoom, f0 = pages[0], k = Math.min(1, (0.8 * W) / f0.w, (0.8 * H) / f0.h) / z;
+    const cx = (W / 2 - view.x) / z;
+    let y = (H / 2 - view.y) / z - (f0.h * k) / 2;
+    const items = pages.map((p) => {
+      const w = p.w * k, h = p.h * k, s = { tool: 'image', x: cx - w / 2, y, w, h, opacity: 1, src: p.src, width: 0 };
+      y += h + 24 / z;
+      return s;
+    });
+    await WB.loadImages(items);
+    doc.strokes.push(...items);
+    record({ type: 'batch', list: items.map((s) => ({ type: 'add', stroke: s })) });
+    invalidate();
+    setTool('select');
+    selection.clear(); for (const s of items) selection.add(s); selectionChanged();
+    toast(tr('tImportedPdf', { n: items.length }), tr('undo'), undo);
+  }
   async function placePicture(pic) {
     // Its natural size on screen, shrunk to fit within most of the visible board.
     const z = view.zoom, k = Math.min(1, (0.8 * W) / pic.w, (0.8 * H) / pic.h);
@@ -6563,19 +7790,24 @@ body.pipetting #canvas { cursor: crosshair; }
   }, true);
 
   function openSheet(id) { closePopovers(); closeSheets(); $(id).classList.add('open'); const f = $('[data-close]', $(id)); if (f) f.focus({ preventScroll: true }); }
-  function closeSheets() { $$('.scrim.open').forEach((s) => s.classList.remove('open')); }
+  function closeSheets() {
+    $$('.scrim.open').forEach((s) => s.classList.remove('open'));
+    if (asking) { const r = asking; asking = null; r(false); }
+  }
   const sheetOpen = () => !!$('.scrim.open');
   $$('.scrim').forEach((s) => s.addEventListener('click', (e) => { if (e.target === s || e.target.closest('[data-close]')) closeSheets(); }));
 
   const ACTIONS = {
-    new: () => replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], handle: null }, tr('mNew')) || animateView(W / 2, H / 2, 1),
+    new: () => replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], pages: [], handle: null }, tr('mNew')) || animateView(W / 2, H / 2, 1),
+    sheet: () => openSheet('#sheets'),
+    share: openShare,
     open: openBoard,
     gallery: () => WB.gallery.open(),
     stickers: () => WB.stickers.open(),
     'save-gallery': () => WB.gallery.save(),
     'save-file': saveBoardFile,
     'save-to': saveBoardTo,
-    export: () => openSheet('#export'),
+    export: () => { syncExport(); openSheet('#export'); },
     import: importFile,
     clear: () => { if (doc.strokes.length) replaceBoard({ ...snapshot(), strokes: [] }, tr('tCleared')); },
     settings: () => openSheet('#settings'),
@@ -6603,13 +7835,95 @@ body.pipetting #canvas { cursor: crosshair; }
   titleEl.addEventListener('blur', () => { titleEl.value = shownTitle(); });
   titleEl.addEventListener('focus', () => titleEl.select());
 
+  /* ---- New sheet -------------------------------------------------------
+     A board of a fixed paper size. Sizes in mm, inches or pixels, given portrait (short side first);
+     the orientation switch turns them. Board units are CSS pixels: 96 per inch. */
+  const SHEET_SIZES = [
+    ['catA', 'mm', [['A0', 841, 1189], ['A1', 594, 841], ['A2', 420, 594], ['A3', 297, 420], ['A4', 210, 297], ['A5', 148, 210], ['A6', 105, 148]]],
+    ['catB', 'mm', [['B0', 1000, 1414], ['B1', 707, 1000], ['B2', 500, 707], ['B3', 353, 500], ['B4', 250, 353], ['B5', 176, 250], ['B6', 125, 176]]],
+    ['catUS', 'in', [['szLetter', 8.5, 11], ['szLegal', 8.5, 14], ['szTabloid', 11, 17], ['szExecutive', 7.25, 10.5], ['szHalfLetter', 5.5, 8.5], ['szIndex', 3, 5]]],
+    ['catScreen', 'px', [['szSlide169', 1080, 1920], ['szSlide43', 768, 1024], ['szSquare', 1080, 1080]]],
+  ];
+  const UNIT = { mm: 96 / 25.4, in: 96, px: 1 };
+  function buildSheets() {
+    const list = $('#sz-list'), land = settings.sheetOrient === 'landscape';
+    list.textContent = '';
+    for (const [cat, unit, sizes] of SHEET_SIZES) {
+      const h3 = document.createElement('h3'); h3.textContent = tr(cat); list.appendChild(h3);
+      const grid = document.createElement('div'); grid.className = 'sz-grid'; list.appendChild(grid);
+      for (const [key, a, b] of sizes) {
+        const w = land ? b : a, h = land ? a : b, name = /^[AB]\d$/.test(key) ? key : tr(key);
+        const btn = document.createElement('button'); btn.className = 'sz-tile';
+        const shape = document.createElement('i'), k = 40 / Math.max(w, h);
+        shape.style.width = Math.round(w * k) + 'px'; shape.style.height = Math.round(h * k) + 'px';
+        shape.style.margin = `${Math.round((44 - h * k) / 2)}px 0 ${Math.round((44 - h * k) / 2) + 4}px`;   // centred in a 44 px box
+        const label = document.createElement('b'); label.textContent = name;
+        const dims = document.createElement('small'); dims.textContent = `${w} × ${h} ${unit}`;
+        btn.append(shape, label, dims);
+        btn.addEventListener('click', () => {
+          closeSheets();
+          const page = { x: 0, y: 0, w: Math.round(w * UNIT[unit] * 100) / 100, h: Math.round(h * UNIT[unit] * 100) / 100 };
+          replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], pages: [page], handle: null, gref: null }, tr('tNewSheet', { t: name }));
+          fitPage(page);
+        });
+        grid.appendChild(btn);
+      }
+    }
+  }
+
+  /* ---- Share links ---------------------------------------------------------
+     The board travels in the link's fragment (after #), which browsers never send to a server:
+     GitHub Pages never sees it. See js/share.js for the encoding. */
+  let shareLink = '';
+  async function openShare() {
+    commitPending();
+    let r;
+    try { r = await WB.share.encode(doc); } catch (e) { return report(tr('tShareFail'), 'making the link', e); }
+    const site = location.protocol.startsWith('http') ? location.origin + location.pathname : 'https://citromoseper.github.io/Whiteboard/';
+    shareLink = site + '#b=' + r.text;
+    $('#share-link').value = shareLink;
+    $('#share-stats').textContent = tr('shareChars', { n: shareLink.length.toLocaleString(WB.lang()) });
+    const warn = [];
+    if (shareLink.length > 8000) warn.push(tr('shareLong'));
+    if (r.images) warn.push(tr('shareNoPics', { n: r.images }));
+    if (r.pdf) warn.push(tr('shareNoPdf'));
+    const ul = $('#share-warn'); ul.textContent = '';
+    for (const w of warn) { const li = document.createElement('li'); li.textContent = w; ul.appendChild(li); }
+    ul.hidden = !warn.length;
+    $('#share-send').hidden = !navigator.share;
+    openSheet('#share');
+  }
+  $('#share-copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(shareLink); }
+    catch (e) { const i = $('#share-link'); i.focus(); i.select(); try { document.execCommand('copy'); } catch (e2) { return; } }
+    toast(tr('tCopied'));
+  });
+  $('#share-send').addEventListener('click', () => { navigator.share({ title: shownTitle(), url: shareLink }).catch(() => {}); });
+  $('#share-link').addEventListener('focus', (e) => e.target.select());
+  /* Opening a share link: the board replaces the current one (undoable), and the fragment is
+     dropped from the address so a reload doesn't open it again. */
+  function openShared() {
+    const h = location.hash;
+    if (!h.startsWith('#b=')) return;
+    history.replaceState(null, '', location.pathname + location.search);
+    WB.share.decode(h.slice(3)).then((d) => {
+      replaceBoard({ title: d.title, created: Date.now(), strokes: d.strokes, pages: d.pages, handle: null, gref: null }, '');
+      saveTarget = 'gallery';
+      toast(tr('tSharedOpened'), tr('undo'), undo, 6000);
+      fitView(true);
+    }).catch((e) => { console.error('share link', e); toast(tr('tShareBad'), null, null, 6000); });
+  }
+
   /* ---- UI: tools, colours, sliders ----------------------------------- */
   const side = $('#side'), preview = $('#preview');
-  const sizeT = () => { const [a, b] = SIZE[tools.tool] || SIZE.pen; return Math.sqrt((brush().width - a) / (b - a)); };
-  const brush = () => tools[tools.tool === 'eraser' ? 'eraser' : 'pen'];
-  const brushKind = () => (tools.tool === 'eraser' ? 'eraser' : 'pen');
-
-  const isBrush = () => tools.tool === 'pen' || tools.tool === 'eraser';
+  const BRUSHES = ['pen', 'eraser', 'highlighter'];
+  const brushKind = () => (BRUSHES.includes(tools.tool) ? tools.tool : 'pen');
+  const brush = () => tools[brushKind()];
+  const sizeT = () => { const [a, b] = SIZE[brushKind()]; return Math.sqrt((brush().width - a) / (b - a)); };
+  const isBrush = () => BRUSHES.includes(tools.tool);
+  /* The dock's colours: the highlighter has its own neon set and its own colour. */
+  const palette = () => (tools.tool === 'highlighter' ? HL_PALETTE : PALETTE);
+  const curColor = () => (tools.tool === 'highlighter' ? tools.highlighter.color : tools.pen.color);
   function setTool(t) {
     if (edit) commitText();
     if (t !== tools.tool) inkConvert();          // finish reading what was written before switching tools
@@ -6618,21 +7932,28 @@ body.pipetting #canvas { cursor: crosshair; }
   }
   function setColor(c) {
     if (edit) commitText();
-    tools.pen.color = c;
-    if (tools.tool !== 'pen') { clearSelection(); tools.tool = 'pen'; }
+    if (tools.tool === 'highlighter') tools.highlighter.color = c;
+    else {
+      tools.pen.color = c;
+      if (tools.tool !== 'pen') { clearSelection(); tools.tool = 'pen'; }
+    }
     store.set('wb.tools', tools); refreshTools();
   }
 
   function refreshTools() {
     $$('.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tools.tool)));
-    const c = tools.pen.color, inPalette = PALETTE.includes(c);
-    $$('#swatches .swatch').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.color === c)));
+    const c = curColor(), pal = palette(), inPalette = pal.includes(c);
+    $$('#swatches .swatch').forEach((b, i) => {
+      if (b.dataset.color !== pal[i]) { b.dataset.color = pal[i]; b.style.setProperty('--c', pal[i]); b.setAttribute('aria-label', pal[i]); }
+      b.setAttribute('aria-checked', String(pal[i] === c));
+    });
     const custom = $('.swatch.custom');
     custom.setAttribute('aria-checked', String(!inPalette));
     custom.style.setProperty('--c', c);
     $('#dock').classList.toggle('erasing', tools.tool === 'eraser');
     side.classList.toggle('hidden', !isBrush());
     side.classList.toggle('erasing', tools.tool === 'eraser');
+    side.classList.toggle('no-dash', tools.tool !== 'pen');
     const dash = WB.DASHES[tools.pen.dash] ? tools.pen.dash : 'solid';
     $('#dash-icon').setAttribute('stroke-dasharray', DASH_ICON[dash]);
     $$('#dash-menu [data-dash]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.dash === dash)));
@@ -6640,6 +7961,7 @@ body.pipetting #canvas { cursor: crosshair; }
     canvas.classList.toggle('hand', tools.tool === 'hand' || spaceHeld);
     canvas.classList.toggle('t-text', tools.tool === 'text' && !spaceHeld);
     canvas.classList.toggle('t-select', tools.tool === 'select' && !spaceHeld);
+    canvas.classList.toggle('t-laser', tools.tool === 'laser' && !spaceHeld);
     const b = brush(), st = clamp(sizeT(), 0, 1), ot = (b.opacity - 0.05) / 0.95;
     const s1 = $('#sl-size'), s2 = $('#sl-opacity');
     s1.style.setProperty('--t', st); s1.setAttribute('aria-valuenow', Math.round(st * 100)); s1.setAttribute('aria-valuetext', b.width + ' pixels');
@@ -6665,7 +7987,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const b = brush(), dot = $('#preview-dot'), d = clamp(b.width, 2, 86);
     dot.style.width = dot.style.height = d + 'px';
     dot.className = brushKind();
-    dot.style.background = brushKind() === 'pen' ? tools.pen.color : '';
+    dot.style.background = brushKind() === 'eraser' ? '' : brush().color;
     dot.style.opacity = b.opacity;
     $('#preview-label').textContent = kind === 'size' ? b.width + ' px' : Math.round(b.opacity * 100) + '%';
   }
@@ -6750,6 +8072,9 @@ body.pipetting #canvas { cursor: crosshair; }
     const none = $('[data-seg="bg"] [data-value="none"]');
     none.disabled = !!F.opaque;
     if (F.opaque && exp.bg === 'none') { exp.bg = 'theme'; syncBg(); }
+    // The pattern switch only means something when the canvas has one.
+    $('#exp-pattern-block').hidden = settings.grid === 'none';
+    $('#exp-pattern').setAttribute('aria-checked', String(exp.pattern));
   }
 
   function initUI() {
@@ -6758,15 +8083,15 @@ body.pipetting #canvas { cursor: crosshair; }
       const b = document.createElement('button');
       b.className = 'swatch'; b.dataset.color = c; b.style.setProperty('--c', c);
       b.setAttribute('role', 'radio'); b.setAttribute('aria-label', c);
-      dragToFill(b, () => c);
-      b.addEventListener('click', () => setColor(c));
+      dragToFill(b, () => b.dataset.color);
+      b.addEventListener('click', () => setColor(b.dataset.color));
       sw.appendChild(b);
     }
     // The rainbow swatch opens the colour picker; like the others it can also be dragged out to fill.
     const customBtn = $('#btn-custom');
-    dragToFill(customBtn, () => (PALETTE.includes(tools.pen.color) ? tools.custom : tools.pen.color));
+    dragToFill(customBtn, () => (palette().includes(curColor()) ? tools.custom : curColor()));
     customBtn.addEventListener('click', () => {
-      WB.picker.toggle({ anchor: customBtn, color: PALETTE.includes(tools.pen.color) ? tools.custom : tools.pen.color,
+      WB.picker.toggle({ anchor: customBtn, color: palette().includes(curColor()) ? tools.custom : curColor(),
         onChange: (c) => { tools.custom = c; setColor(c); } });
     });
     $$('.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
@@ -6803,9 +8128,12 @@ body.pipetting #canvas { cursor: crosshair; }
       settings.snapDelay = v; sd.value = v; saveSettings();
     });
     seg('grid', () => settings.grid, (v) => { settings.grid = v; saveSettings(); board.dataset.grid = v; });
+    seg('orient', () => settings.sheetOrient || 'portrait', (v) => { settings.sheetOrient = v; saveSettings(); buildSheets(); });
+    buildSheets();
     seg('format', () => exp.format, (v) => { exp.format = v; syncExport(); });
     seg('scale', () => exp.scale, (v) => { exp.scale = v; });
     syncBg = seg('bg', () => exp.bg, (v) => { exp.bg = v; });
+    $('#exp-pattern').addEventListener('click', () => { exp.pattern = !exp.pattern; syncExport(); });
     syncExport();
 
     const sm = $('#smoothing'), smOut = $('#smoothing-out');
@@ -6872,6 +8200,8 @@ body.pipetting #canvas { cursor: crosshair; }
     else if (k === 't') { e.preventDefault(); setTool('text'); }
     else if (k === 'v') setTool('select');
     else if (k === 'h') setTool('hand');
+    else if (k === 'm') setTool('highlighter');
+    else if (k === 'l') setTool('laser');
     else if (k === '[' && isBrush()) nudgeSize(-1);
     else if (k === ']' && isBrush()) nudgeSize(1);
   });
@@ -6887,6 +8217,7 @@ body.pipetting #canvas { cursor: crosshair; }
     commit: commitPending,
     placeSticker: (text) => placeSticker(text),
     saved: () => { saveTarget = 'gallery'; },
+    filesCopy: () => IOS && settings.filesCopy,
     canvasColor: () => canvasColor(),
     toast, report, openSheet, closeSheets,
   });
@@ -6895,7 +8226,20 @@ body.pipetting #canvas { cursor: crosshair; }
   WB.onImageReady = invalidate;                             // a picture finished decoding: draw it
   // iPhone and iPad only offer files whose type the system knows, and .whtbd is not one of them,
   // so there the chooser takes any file and the app checks it after choosing.
-  if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) $('#file-input').removeAttribute('accept');
+  if (IOS) $('#file-input').removeAttribute('accept');
+  $('#files-copy-row').hidden = !IOS;          // "Save a copy to Files" is for iPhone and iPad only
+
+  /* iPhone and iPad in the browser (not opened from the Home Screen): once, a tip. iOS keeps the
+     storage of a Home Screen app far more reliably, and that is where the gallery lives there. */
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  if (IOS && !standalone && location.protocol.startsWith('http')) {
+    let seen = false;
+    try { seen = localStorage.getItem('wb.homeTip') === '1'; } catch (e) {}
+    if (!seen) setTimeout(() => {
+      toast(tr('tHomeTip'), tr('gotIt'), null, 20000);
+      try { localStorage.setItem('wb.homeTip', '1'); } catch (e) {}
+    }, 4000);
+  }
   new ResizeObserver(resize).observe(board);
   window.addEventListener('resize', resize);
   resize();
@@ -6904,10 +8248,12 @@ body.pipetting #canvas { cursor: crosshair; }
     restored = true;
     if (!saved || !Array.isArray(saved.strokes) || doc.strokes.length || live) return updateChrome();
     doc.title = saved.title || 'Untitled'; doc.created = saved.created || Date.now(); doc.strokes = saved.strokes;
+    doc.pages = Array.isArray(saved.pages) ? saved.pages : [];
     if (saved.view && saved.view.zoom > 0) Object.assign(view, saved.view);
     titleEl.value = shownTitle();
     updateChrome(); invalidate();
-  });
+  }).then(openShared);
+  window.addEventListener('hashchange', openShared);
 
   /* Installed-app extras (only when served from a web address; skipped for a file opened from disk). */
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
@@ -6915,7 +8261,7 @@ body.pipetting #canvas { cursor: crosshair; }
   }
   if ('launchQueue' in window) {                                      // opening a .whtbd file with the installed app
     window.launchQueue.setConsumer(async (p) => {
-      if (p.files && p.files.length) loadText(await (await p.files[0].getFile()).text(), p.files[0]);
+      if (p.files && p.files.length) await openFile(await p.files[0].getFile(), p.files[0]);
     });
   }
 

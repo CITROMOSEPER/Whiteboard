@@ -29,6 +29,11 @@
   <canvas id="canvas" aria-label="Whiteboard canvas"></canvas>
   <textarea id="text-edit" rows="1" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off" data-i18n-label="text"></textarea>
   <div id="brush-cursor" aria-hidden="true"></div>
+  <div id="laser" aria-hidden="true"></div>
+  <button class="glass page-add" id="page-add-top" data-i18n-label="addPageAbove" data-i18n-title="addPageAbove"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="glass page-add" id="page-add-bottom" data-i18n-label="addPageBelow" data-i18n-title="addPageBelow"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="glass page-add page-del" id="page-del-top" data-i18n-label="deletePage" data-i18n-title="deletePage"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6M18.5 6l-.8 13a2 2 0 0 1-2 1.9H8.3a2 2 0 0 1-2-1.9L5.5 6M10 11v6M14 11v6"/></svg></button>
+  <button class="glass page-add page-del" id="page-del-bottom" data-i18n-label="deletePage" data-i18n-title="deletePage"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6M18.5 6l-.8 13a2 2 0 0 1-2 1.9H8.3a2 2 0 0 1-2-1.9L5.5 6M10 11v6M14 11v6"/></svg></button>
   <p id="hint" class="gone"><span data-i18n="hint1"></span><br><span data-i18n="hint2"></span><br><span data-i18n="hint3"></span></p>
 </main>
 
@@ -76,6 +81,9 @@
   <button class="ibtn tool" data-tool="pen" data-i18n-label="pen" data-i18n-title="pen" data-keys="P" aria-pressed="true">
     <svg viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
   </button>
+  <button class="ibtn tool" data-tool="highlighter" data-i18n-label="highlighter" data-i18n-title="highlighter" data-keys="M" aria-pressed="false">
+    <svg viewBox="0 0 24 24"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
+  </button>
   <button class="ibtn tool" data-tool="eraser" data-i18n-label="eraser" data-i18n-title="eraser" data-keys="E" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
   </button>
@@ -90,6 +98,9 @@
   </button>
   <button class="ibtn tool" data-tool="hand" data-i18n-label="move" data-i18n-title="move" data-keys="H / Space" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+  </button>
+  <button class="ibtn tool" data-tool="laser" data-i18n-label="laser" data-i18n-title="laser" data-keys="L" aria-pressed="false">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>
   </button>
   <span class="sep"></span>
   <div id="swatches" role="radiogroup"></div>
@@ -147,6 +158,7 @@
 </div>
 <div class="glass menu" id="menu" role="menu">
   <button class="mi" role="menuitem" data-act="new"><span data-i18n="mNew"></span></button>
+  <button class="mi" role="menuitem" data-act="sheet"><span data-i18n="mNewSheet"></span></button>
   <hr>
   <button class="mi" role="menuitem" data-act="gallery"><span data-i18n="mGallery"></span><kbd>Ctrl G</kbd></button>
   <button class="mi" role="menuitem" data-act="save-file" id="mi-save-file" hidden><span></span><kbd>Ctrl S</kbd></button>
@@ -158,6 +170,7 @@
   <hr>
   <button class="mi" role="menuitem" data-act="export"><span data-i18n="mExport"></span><kbd>Ctrl E</kbd></button>
   <button class="mi" role="menuitem" data-act="import"><span data-i18n="mImport"></span></button>
+  <button class="mi" role="menuitem" data-act="share"><span data-i18n="mShare"></span></button>
   <hr>
   <button class="mi" role="menuitem" data-act="clear"><span data-i18n="mClear"></span></button>
   <hr>
@@ -234,8 +247,16 @@
         <button class="switch" role="switch" data-switch="fingerDraw" aria-labelledby="lbl-finger"></button>
       </div>
       <div class="row">
+        <div><span id="lbl-pressure" data-i18n="pressure"></span><p class="note" data-i18n="pressureNote"></p></div>
+        <button class="switch" role="switch" data-switch="pressure" aria-labelledby="lbl-pressure"></button>
+      </div>
+      <div class="row">
         <div><span id="lbl-scratch" data-i18n="scratch"></span><p class="note" data-i18n="scratchNote"></p></div>
         <button class="switch" role="switch" data-switch="scratch" aria-labelledby="lbl-scratch"></button>
+      </div>
+      <div class="row" id="files-copy-row" hidden>
+        <div><span id="lbl-files-copy" data-i18n="filesCopy"></span><p class="note" data-i18n="filesCopyNote"></p></div>
+        <button class="switch" role="switch" data-switch="filesCopy" aria-labelledby="lbl-files-copy"></button>
       </div>
     </div>
 
@@ -263,6 +284,7 @@
       <div class="seg" data-seg="grid" role="radiogroup">
         <button role="radio" data-value="none" data-i18n="plain"></button>
         <button role="radio" data-value="dots" data-i18n="dots"></button>
+        <button role="radio" data-value="ruled" data-i18n="lined"></button>
         <button role="radio" data-value="lines" data-i18n="grid"></button>
       </div>
     </div>
@@ -270,7 +292,7 @@
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.14.02.</p>
+      <p id="app-version">version: 2026.11.14.03.</p>
     </footer>
   </div>
 </div>
@@ -340,13 +362,75 @@
       </div>
     </div>
 
+    <div id="exp-pattern-block">
+      <h3 data-i18n="exportPattern"></h3>
+      <div class="group">
+        <div class="row">
+          <p class="note" id="lbl-exp-pattern" data-i18n="exportPatternNote"></p>
+          <button class="switch" role="switch" id="exp-pattern" aria-labelledby="lbl-exp-pattern" aria-checked="false"></button>
+        </div>
+      </div>
+    </div>
+
     <button class="primary" id="btn-export" data-i18n="export"></button>
+  </div>
+</div>
+
+<!-- New sheet: a board of a fixed paper size -->
+<div class="scrim" id="sheets" role="dialog" aria-modal="true" aria-labelledby="sheets-title">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="sheets-title" data-i18n="sheetTitle"></h2>
+      <button class="pill-btn quiet" data-close data-i18n="cancel"></button>
+    </div>
+    <p class="note" data-i18n="sheetNote"></p>
+    <h3 data-i18n="orientation"></h3>
+    <div class="group">
+      <div class="seg" data-seg="orient" role="radiogroup">
+        <button role="radio" data-value="portrait" data-i18n="portrait"></button>
+        <button role="radio" data-value="landscape" data-i18n="landscape"></button>
+      </div>
+    </div>
+    <div id="sz-list"></div>
+  </div>
+</div>
+
+<!-- Share link -->
+<div class="scrim" id="share" role="dialog" aria-modal="true" aria-labelledby="share-title">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="share-title" data-i18n="shareTitle"></h2>
+      <button class="pill-btn" data-close data-i18n="done"></button>
+    </div>
+    <p class="note" data-i18n="shareNote"></p>
+    <h3 data-i18n="shareLinkLabel"></h3>
+    <div class="group">
+      <input id="share-link" type="text" readonly spellcheck="false" autocomplete="off" data-i18n-label="shareLinkLabel">
+      <p class="note" id="share-stats"></p>
+    </div>
+    <ul id="share-warn" hidden></ul>
+    <div class="share-actions">
+      <button class="primary" id="share-copy" data-i18n="shareCopy"></button>
+      <button class="primary quiet" id="share-send" data-i18n="shareSend" hidden></button>
+    </div>
+  </div>
+</div>
+
+<!-- A question before something that replaces the board -->
+<div class="scrim" id="confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-text">
+  <div class="sheet">
+    <p id="confirm-text"></p>
+    <div class="confirm-actions">
+      <button class="pill-btn quiet" data-close data-i18n="cancel"></button>
+      <button class="pill-btn" id="confirm-ok"></button>
+    </div>
   </div>
 </div>
 
 <div class="glass" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button id="toast-action" hidden></button></div>
 <div id="drop-blob" aria-hidden="true"><i></i></div>
-<input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json" hidden>
+<input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json,.pdf,application/pdf" hidden>
+<input type="file" id="addboards-input" accept=".whtbd,.WHTBD,.json,application/json" multiple hidden>
 <input type="file" id="restore-input" accept=".wbgallery,.wbstickers,.json,application/json" hidden>
 <input type="file" id="import-input" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml,application/pdf,.png,.jpg,.jpeg,.webp,.bmp,.svg,.pdf" hidden>
 
@@ -358,6 +442,8 @@
 <script src="js/ink-model.js"></script>
 <script src="js/ink.js"></script>
 <script src="js/gallery.js"></script>
+<script src="js/share.js"></script>
+<script src="js/pdf.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
