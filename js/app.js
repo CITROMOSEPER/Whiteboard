@@ -102,6 +102,12 @@
     if (!doc.pages.length) return;
     worldTransform(shctx);
     const seen = doc.pages.filter((p) => p.x < x1 && p.x + p.w > x0 && p.y < y1 && p.y + p.h > y0);
+    // A decoded page picture takes about 17 MB; a long PDF scrolled through would keep them all.
+    // Pages more than a screen away from the view let theirs go (decoded again when they return).
+    const mx = x1 - x0, my = y1 - y0;
+    for (const p of doc.pages) {
+      if (p._img && !(p.x < x1 + mx && p.x + p.w > x0 - mx && p.y < y1 + my && p.y + p.h > y0 - my)) { p._img.onload = null; p._img.src = ''; delete p._img; }
+    }
     shctx.beginPath();
     shctx.rect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
     for (const p of doc.pages) shctx.rect(p.x, p.y, p.w, p.h);
@@ -1747,7 +1753,11 @@
     invalidate();
     toast(message, tr('undo'), undo);
   }
-  function changed() { docRev++; updateChrome(); autosave(); }
+  /* unsaved: the board has changes that are in no file or gallery entry (it only lives in the
+     browser's autosave). Then something that would replace it, like a share link, asks first. */
+  let unsaved = false;
+  function changed() { docRev++; unsaved = true; updateChrome(); autosave(); }
+  const markSaved = () => { unsaved = false; autosave(); };
   function updateChrome() {
     $('#btn-undo').disabled = !undoStack.length;
     $('#btn-redo').disabled = !redoStack.length;
@@ -1778,9 +1788,36 @@
     const d = await db;
     if (!d) return;
     // Everything but the render caches (keys starting with "_").
-    const strokes = doc.strokes.map((s) => { const o = {}; for (const k in s) if (k[0] !== '_') o[k] = s[k]; return o; });
-    const pages = doc.pages.map((p) => ({ x: p.x, y: p.y, w: p.w, h: p.h, src: p.src }));
-    try { d.transaction('kv', 'readwrite').objectStore('kv').put({ title: doc.title, created: doc.created, view: { ...view }, strokes, pages }, 'board'); } catch (e) {}
+    const strokes = doc.strokes.map((s) => {
+      const o = {};
+      for (const k in s) if (k[0] !== '_') o[k] = s[k];
+      if (s.tool === 'image') { delete o.src; o.img = imgKey(s); }         // pictures too are stored once (below)
+      return o;
+    });
+    // A PDF's page pictures are large and never change, so each is stored once under its own key
+    // ("img:" + a fingerprint of the picture) and the board only names it. Writing an 80-page PDF
+    // board after every stroke is then a small write, not tens of MB. Pictures nothing uses any
+    // more are removed.
+    if (!storedImgs) storedImgs = new Set((await dbKeys()).filter((k) => String(k).startsWith('img:')));
+    const pages = doc.pages.map((p) => ({ x: p.x, y: p.y, w: p.w, h: p.h, img: p.src ? imgKey(p) : undefined }));
+    try {
+      const st = d.transaction('kv', 'readwrite').objectStore('kv'), used = new Set();
+      for (const p of doc.pages.concat(doc.strokes.filter((s) => s.tool === 'image'))) {
+        if (!p.src) continue;
+        const k = imgKey(p); used.add(k);
+        if (!storedImgs.has(k)) { st.put(p.src, k); storedImgs.add(k); }
+      }
+      for (const k of [...storedImgs]) if (!used.has(k)) { st.delete(k); storedImgs.delete(k); }
+      st.put({ title: doc.title, created: doc.created, view: { ...view }, strokes, pages, unsaved }, 'board');
+    } catch (e) {}
+  }
+  let storedImgs = null;
+  const imgKey = (p) => p._key || (p._key = 'img:' + fingerprint(p.src));
+  function fingerprint(t) { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + t.length.toString(36); }
+  async function dbKeys() {
+    const d = await db;
+    if (!d) return [];
+    return new Promise((res) => { const q = d.transaction('kv').objectStore('kv').getAllKeys(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
   }
   function autosave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500); }
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
@@ -1845,7 +1882,7 @@
     } catch (e) { e.step = e.step || step; throw e; }
   }
   function fileSaved(h) {
-    fileHandle = h; saveTarget = 'file';
+    fileHandle = h; saveTarget = 'file'; markSaved();
     toast(tr('tSavedFile', { t: h.name }));
   }
 
@@ -1892,7 +1929,7 @@
     let d;
     try { d = WB.parse(text); } catch (e) { return toast(tr(e.message)); }
     replaceBoard({ title: d.title, created: d.created, strokes: d.strokes, pages: d.pages, handle: handle || null, gref: gref || null }, '');
-    saveTarget = handle ? 'file' : 'gallery';
+    saveTarget = handle ? 'file' : 'gallery'; markSaved();
     toast(tr('tOpened', { t: shownTitle() }), tr('undo'), undo);
     fitView(true);
   }
@@ -1950,7 +1987,7 @@
     const pages = read.map((p) => { const o = { x: onGrid((maxW - p.w) / 2, 0), y, w: p.w, h: p.h, src: p.src }; y = onGrid(y + p.h + 40, 1); return o; });
     await WB.loadImages([], pages);
     replaceBoard({ title: name.replace(/\.pdf$/i, '').trim() || 'Untitled', created: Date.now(), strokes: [], pages, handle: null, gref: null }, '');
-    saveTarget = 'gallery';
+    saveTarget = 'gallery'; markSaved();
     toast(tr('tOpened', { t: shownTitle() }), tr('undo'), undo);
     fitPage(pages[0], true);
   }
@@ -2154,6 +2191,7 @@
     new: () => replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], pages: [], handle: null }, tr('mNew')) || animateView(W / 2, H / 2, 1),
     sheet: () => openSheet('#sheets'),
     share: openShare,
+    'open-link': () => { $('#open-link-input').value = ''; openSheet('#open-link'); setTimeout(() => $('#open-link-input').focus(), 50); },
     open: openBoard,
     gallery: () => WB.gallery.open(),
     stickers: () => WB.stickers.open(),
@@ -2259,13 +2297,34 @@
     const h = location.hash;
     if (!h.startsWith('#b=')) return;
     history.replaceState(null, '', location.pathname + location.search);
-    WB.share.decode(h.slice(3)).then((d) => {
-      replaceBoard({ title: d.title, created: Date.now(), strokes: d.strokes, pages: d.pages, handle: null, gref: null }, '');
-      saveTarget = 'gallery';
-      toast(tr('tSharedOpened'), tr('undo'), undo, 6000);
-      fitView(true);
-    }).catch((e) => { console.error('share link', e); toast(tr('tShareBad'), null, null, 6000); });
+    openShareCode(h.slice(3));
   }
+  /* A board drawn but not saved anywhere would be lost to the autosave of the shared one, so that
+     case asks first (as opening a PDF does). Undo still brings the old board back. */
+  async function openShareCode(code) {
+    let d;
+    try { d = await WB.share.decode(code); } catch (e) { console.error('share link', e); return toast(tr('tShareBad'), null, null, 6000); }
+    if (doc.strokes.length && unsaved && !(await ask(tr('confirmShared'), tr('openSharedBtn')))) return;
+    replaceBoard({ title: d.title, created: Date.now(), strokes: d.strokes, pages: d.pages, handle: null, gref: null }, '');
+    saveTarget = 'gallery'; markSaved();
+    toast(tr('tSharedOpened'), tr('undo'), undo, 6000);
+    fitView(true);
+  }
+  /* "Open share link…": for when there's no address bar to paste into (the installed app). */
+  const linkCode = (v) => {
+    v = (v || '').trim();
+    const i = v.indexOf('#b=');
+    const code = i >= 0 ? v.slice(i + 3) : v;
+    return /^[A-Za-z0-9_-]{8,}$/.test(code) ? code : null;
+  };
+  function openLink() {
+    const code = linkCode($('#open-link-input').value);
+    if (!code) return toast(tr('tLinkBad'), null, null, 5000);
+    closeSheets();
+    openShareCode(code);
+  }
+  $('#open-link-go').addEventListener('click', openLink);
+  $('#open-link-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); openLink(); } });
 
   /* ---- UI: tools, colours, sliders ----------------------------------- */
   const side = $('#side'), preview = $('#preview');
@@ -2569,7 +2628,7 @@
     retitle: (label) => { doc.title = label; titleEl.value = shownTitle(); updateChrome(); autosave(); },
     commit: commitPending,
     placeSticker: (text) => placeSticker(text),
-    saved: () => { saveTarget = 'gallery'; },
+    saved: () => { saveTarget = 'gallery'; markSaved(); },
     filesCopy: () => IOS && settings.filesCopy,
     canvasColor: () => canvasColor(),
     toast, report, openSheet, closeSheets,
@@ -2597,11 +2656,17 @@
   window.addEventListener('resize', resize);
   resize();
 
-  dbGet('board').then((saved) => {
+  dbGet('board').then(async (saved) => {
     restored = true;
     if (!saved || !Array.isArray(saved.strokes) || doc.strokes.length || live) return updateChrome();
+    const pages = Array.isArray(saved.pages) ? saved.pages : [];
+    for (const p of pages) if (p.img) { p.src = await dbGet(p.img); p._key = p.img; delete p.img; if (!p.src) delete p.src; }
+    for (const s of saved.strokes) if (s.tool === 'image' && s.img) { s.src = (await dbGet(s.img)) || ''; s._key = s.img; delete s.img; }
+    saved.strokes = saved.strokes.filter((s) => s.tool !== 'image' || s.src);
+    if (doc.strokes.length || live) return updateChrome();      // drawing started while the pictures were read
     doc.title = saved.title || 'Untitled'; doc.created = saved.created || Date.now(); doc.strokes = saved.strokes;
-    doc.pages = Array.isArray(saved.pages) ? saved.pages : [];
+    doc.pages = pages;
+    unsaved = saved.unsaved !== false;                           // older autosaves didn't say: assume unsaved
     if (saved.view && saved.view.zoom > 0) Object.assign(view, saved.view);
     titleEl.value = shownTitle();
     updateChrome(); invalidate();

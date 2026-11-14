@@ -1081,6 +1081,26 @@
     hi: ['कैनवास पैटर्न', 'कैनवास के बिंदु, रेखाएँ या ग्रिड शामिल करें', 'यह ख़ाली पृष्ठ हटाएँ', 'पृष्ठ हटाया गया'],
   };
   for (const l in PATTERN) if (D[l]) [D[l].exportPattern, D[l].exportPatternNote, D[l].deletePage, D[l].tPageDeleted] = PATTERN[l];
+
+  /* Opening a pasted share link; asking before a link replaces unsaved work. */
+  const LINK_KEYS = ['mOpenLink', 'openLinkTitle', 'openLinkNote', 'openLinkGo', 'confirmShared', 'openSharedBtn', 'tLinkBad'];
+  const LINK = {
+    en: ['Open share link…', 'Open a share link', 'Paste a link someone shared with you. It opens as a copy of their board.', 'Open', 'Open the shared board? It replaces the current board, which has unsaved changes (you can undo it).', 'Open board', 'That isn’t a Whiteboard share link'],
+    hu: ['Megosztási link megnyitása…', 'Megosztási link megnyitása', 'Illeszd be a veled megosztott linket. A tábla másolataként nyílik meg.', 'Megnyitás', 'Megnyitod a megosztott táblát? A jelenlegi, nem mentett változásokat tartalmazó tábla helyére kerül (visszavonható).', 'Tábla megnyitása', 'Ez nem Whiteboard megosztási link'],
+    de: ['Geteilten Link öffnen…', 'Geteilten Link öffnen', 'Füge einen Link ein, den jemand mit dir geteilt hat. Er öffnet sich als Kopie der Tafel.', 'Öffnen', 'Die geteilte Tafel öffnen? Sie ersetzt die aktuelle Tafel mit ungesicherten Änderungen (rückgängig machbar).', 'Tafel öffnen', 'Das ist kein Whiteboard-Link'],
+    fr: ['Ouvrir un lien partagé…', 'Ouvrir un lien partagé', 'Collez un lien qu’on vous a envoyé. Il s’ouvre comme une copie du tableau.', 'Ouvrir', 'Ouvrir le tableau partagé ? Il remplace le tableau actuel, qui a des modifications non enregistrées (annulable).', 'Ouvrir le tableau', 'Ce n’est pas un lien de partage Whiteboard'],
+    it: ['Apri link condiviso…', 'Apri un link condiviso', 'Incolla un link che qualcuno ti ha mandato. Si apre come copia della lavagna.', 'Apri', 'Aprire la lavagna condivisa? Sostituisce la lavagna attuale, che ha modifiche non salvate (puoi annullare).', 'Apri lavagna', 'Questo non è un link di Whiteboard'],
+    es: ['Abrir enlace compartido…', 'Abrir un enlace compartido', 'Pega un enlace que alguien te haya enviado. Se abre como una copia de la pizarra.', 'Abrir', '¿Abrir la pizarra compartida? Sustituye la pizarra actual, que tiene cambios sin guardar (se puede deshacer).', 'Abrir pizarra', 'Eso no es un enlace de Whiteboard'],
+    pt: ['Abrir link partilhado…', 'Abrir um link partilhado', 'Cole um link que alguém partilhou consigo. Abre como uma cópia do quadro.', 'Abrir', 'Abrir o quadro partilhado? Substitui o quadro atual, que tem alterações por guardar (pode desfazer).', 'Abrir quadro', 'Isso não é um link do Whiteboard'],
+    ru: ['Открыть ссылку…', 'Открыть присланную ссылку', 'Вставьте ссылку, которую вам прислали. Доска откроется как копия.', 'Открыть', 'Открыть присланную доску? Она заменит текущую доску с несохранёнными изменениями (можно отменить).', 'Открыть доску', 'Это не ссылка Whiteboard'],
+    uk: ['Відкрити посилання…', 'Відкрити надіслане посилання', 'Вставте посилання, яке вам надіслали. Дошка відкриється як копія.', 'Відкрити', 'Відкрити надіслану дошку? Вона замінить поточну дошку з незбереженими змінами (можна скасувати).', 'Відкрити дошку', 'Це не посилання Whiteboard'],
+    tr: ['Paylaşım bağlantısı aç…', 'Paylaşım bağlantısı aç', 'Sizinle paylaşılan bir bağlantıyı yapıştırın. Tahtanın bir kopyası olarak açılır.', 'Aç', 'Paylaşılan tahta açılsın mı? Kaydedilmemiş değişiklikleri olan geçerli tahtanın yerini alır (geri alınabilir).', 'Tahtayı aç', 'Bu bir Whiteboard paylaşım bağlantısı değil'],
+    zh: ['打开分享链接…', '打开分享链接', '粘贴别人分享给你的链接。它会以白板副本的形式打开。', '打开', '打开分享的白板？它会替换当前有未保存更改的白板（可以撤销）。', '打开白板', '这不是 Whiteboard 分享链接'],
+    ja: ['共有リンクを開く…', '共有リンクを開く', '共有されたリンクを貼り付けてください。ボードのコピーとして開きます。', '開く', '共有されたボードを開きますか？保存されていない変更がある今のボードと置き換わります（取り消せます）。', 'ボードを開く', 'Whiteboard の共有リンクではありません'],
+    ar: ['فتح رابط مشاركة…', 'فتح رابط مشاركة', 'الصق رابطًا شاركه أحدهم معك. يُفتح كنسخة من لوحته.', 'فتح', 'فتح اللوحة المشتركة؟ ستحل محل اللوحة الحالية التي فيها تغييرات غير محفوظة (يمكنك التراجع).', 'فتح اللوحة', 'هذا ليس رابط مشاركة من Whiteboard'],
+    hi: ['शेयर लिंक खोलें…', 'शेयर लिंक खोलें', 'किसी का भेजा लिंक चिपकाएँ। बोर्ड एक कॉपी के रूप में खुलेगा।', 'खोलें', 'साझा बोर्ड खोलें? यह मौजूदा बोर्ड की जगह लेगा, जिसमें बिना सहेजे बदलाव हैं (पूर्ववत किया जा सकता है)।', 'बोर्ड खोलें', 'यह Whiteboard शेयर लिंक नहीं है'],
+  };
+  for (const l in LINK) if (D[l]) LINK_KEYS.forEach((k, i) => { D[l][k] = LINK[l][i]; });
   WB.I18N = D;
   let lang = 'en';
 

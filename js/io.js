@@ -55,6 +55,15 @@
     try { d = JSON.parse(text); } catch (e) { throw new Error('eInvalid'); }
     if (!d || d.format !== 'WHTBD' || !Array.isArray(d.strokes)) throw new Error('eNotBoard');
     if (d.version > 1) throw new Error('eNewer');
+    return WB.normalize(d);
+  };
+  /* The checks every board goes through, from a file or from a share link (js/share.js builds the
+     same shape): only finite numbers, known tools, fonts, line types and #rrggbb colours, opacity
+     0.01-1, text at most 20 000 characters, pictures only as image data. Anything else is dropped
+     or replaced by a default, so a damaged or hand-made board can always be shown, saved and reopened.
+     d is the file's JSON: points as [x, y] pairs, angles in degrees, pressure 0-100. */
+  WB.normalize = function (d) {
+    if (!d || !Array.isArray(d.strokes)) throw new Error('eNotBoard');
     const num = (v, def) => (typeof v === 'number' && isFinite(v) ? v : def);
     const strokes = [];
     const hex = (c) => (/^#[0-9a-f]{6}$/i.test(c) ? c.toLowerCase() : '#000000');

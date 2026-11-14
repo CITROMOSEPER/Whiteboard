@@ -588,7 +588,7 @@ body.pipetting #canvas { cursor: crosshair; }
 .sz-tile small { font-size: 0.6875rem; line-height: 1.25; color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: center; }
 
 /* ---------- Share link, confirmation ---------- */
-#share-link { width: 100%; height: 38px; padding: 0 10px; border: 0; border-radius: 9px; background: var(--solid); color: var(--ink); font: inherit; font-size: 0.8125rem; }
+#open-link-input, #share-link { width: 100%; height: 38px; padding: 0 10px; border: 0; border-radius: 9px; background: var(--solid); color: var(--ink); font: inherit; font-size: 0.8125rem; }
 #share-warn { margin: 6px 4px 0; padding-left: 18px; font-size: 0.75rem; line-height: 1.4; color: var(--ink-2); }
 #share-warn li + li { margin-top: 3px; }
 .share-actions { display: flex; gap: 8px; margin-top: 18px; }

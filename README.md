@@ -112,6 +112,7 @@ The **menu** (top left) holds everything about files.
 | **Export…** | PNG, JPEG, WebP, BMP, SVG or PDF, at 1×, 2× or 4×, on the board's colour, white, or transparent, with or without the canvas pattern (dots, lines or grid). |
 | **Import…** | Brings in a picture or a PDF's pages, or restores a board from one of its exports. |
 | **Share link…** | Makes a link that opens a copy of the board (see below). |
+| **Open share link…** | Opens a link someone sent you by pasting it, handy in the installed app, which has no address bar. |
 
 **Ctrl S** saves to wherever the board was saved last (its file, or the gallery).
 
@@ -121,6 +122,7 @@ The **menu** (top left) holds everything about files.
 
 - The board is stored **in the link itself**, in the part after `#`, which browsers never send to the server. Nothing is uploaded anywhere, and the link works as long as the app exists.
 - Links grow with the drawing. A sketch or a few lines of notes make a short link; a page of handwriting makes one of roughly ten thousand characters. Long links work when copied and pasted, but some chat apps and emails cut them short.
+- Opening a link replaces the board on screen. If that board has changes you haven't saved, the app asks first, and **Undo** brings it back either way.
 - **Pictures, and the pages of an opened PDF, aren't included**: they would make links far too long. The dialog tells you when something was left out. Send the `.whtbd` file (or an export) when they matter.
 
 ### The gallery

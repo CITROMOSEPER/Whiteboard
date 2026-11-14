@@ -67,6 +67,17 @@
     for (let i = 0; i < n; i++) if (keep[i]) out.push(i);
     return out;
   }
+  /* Simplifying looks only at the line's shape, so on a straight line pressed harder in the middle
+     the change would vanish. Points where the pressure has moved by more than 0.08 since the last
+     kept point are kept as well. */
+  function keepPressure(idx, press) {
+    const keep = new Set(idx), out = [];
+    let last = press[0];
+    for (let i = 0; i < press.length; i++) {
+      if (keep.has(i) || Math.abs(press[i] - last) > 0.08) { out.push(i); last = press[i]; }
+    }
+    return out;
+  }
   const gridExp = (size) => Math.min(30, Math.max(-8, Math.ceil(-Math.log2(Math.max(1e-9, size)))));
   function putPoints(o, p, idx, e) {
     const q = Math.pow(2, -e);
@@ -78,17 +89,36 @@
       lx = x; ly = y;
     });
   }
+  /* Points as [x, y] pairs (the file's shape). Each point takes at least two bytes, so a count
+     larger than what is left of the link is a damaged link, not a reason to allocate. */
   function getPoints(r) {
-    const q = Math.pow(2, -(r.u8() - 8)), n = r.uv(), p = new Array(n * 2);
+    const q = Math.pow(2, -(r.u8() - 8)), n = r.uv(), p = [];
+    if (n * 2 > r.b.length - r.n) throw new Error('the link is damaged');
     let x = 0, y = 0;
-    for (let j = 0; j < n; j++) { x += r.sv(); y += r.sv(); p[2 * j] = x * q; p[2 * j + 1] = y * q; }
+    for (let j = 0; j < n; j++) { x += r.sv(); y += r.sv(); p.push([x * q, y * q]); }
     return p;
   }
   const opacityByte = (v) => Math.round(Math.min(1, Math.max(0, v)) * 255);
 
+  /* Deflate, or inflate. Inflating stops past MAX_BOARD bytes: a link of a few MB could otherwise
+     unpack into gigabytes and bring the tab down. */
+  const MAX_BOARD = 64 * 1024 * 1024;
   async function squeeze(bytes, inflate) {
     const stream = new Blob([bytes]).stream().pipeThrough(inflate ? new DecompressionStream('deflate-raw') : new CompressionStream('deflate-raw'));
-    return new Uint8Array(await new Response(stream).arrayBuffer());
+    if (!inflate) return new Uint8Array(await new Response(stream).arrayBuffer());
+    const reader = stream.getReader(), parts = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.length;
+      if (total > MAX_BOARD) { reader.cancel().catch(() => {}); throw new Error('the board in the link is too large'); }
+      parts.push(value);
+    }
+    const out = new Uint8Array(total);
+    let o = 0;
+    for (const p of parts) { out.set(p, o); o += p.length; }
+    return out;
   }
   const toB64url = (u8) => {
     let s = '';
@@ -127,7 +157,9 @@
         o.f(s.width); o.u8(opacityByte(s.opacity));
         if (dash >= 0) o.u8(dash);
         if (s.shape) o.str(s.shape);
-        const e = gridExp(Math.min(0.5, s.width / 4)), idx = simplify(s.points, Math.pow(2, -e) * 0.6, s.closed);
+        const e = gridExp(Math.min(0.5, s.width / 4));
+        let idx = simplify(s.points, Math.pow(2, -e) * 0.6, s.closed);
+        if (press) idx = keepPressure(idx, s.press);
         putPoints(o, s.points, idx, e);
         if (press) for (const i of idx) o.u8(Math.round(s.press[i] * 255));
       }
@@ -140,13 +172,15 @@
     };
   }
 
-  /* text after "#b=" -> { title, strokes, pages } */
+  /* text after "#b=" -> { title, strokes, pages, ... }. The link is read into the shape of a .whtbd
+     file and goes through the same checks as a file (WB.normalize), so whatever a damaged or
+     hand-made link holds, the board it gives can be shown, saved and opened again. */
   async function decode(text) {
     const r = new In(await squeeze(fromB64url(text), true));
     if (r.u8() !== 1) throw new Error('made by a newer version');
-    const title = r.str().slice(0, 80), pages = [], colors = [], strokes = [];
+    const title = r.str(), pages = [], colors = [], strokes = [];
     const np = r.uv();
-    for (let i = 0; i < np; i++) { const p = { x: r.f(), y: r.f(), w: r.f(), h: r.f() }; if (p.w > 0 && p.h > 0) pages.push(p); }
+    for (let i = 0; i < np; i++) pages.push({ x: r.f(), y: r.f(), w: r.f(), h: r.f() });
     const nc = r.uv();
     for (let i = 0; i < nc; i++) colors.push('#' + [r.u8(), r.u8(), r.u8()].map((v) => v.toString(16).padStart(2, '0')).join(''));
     const col = (i) => colors[i] || '#000000';
@@ -155,26 +189,25 @@
       const kind = r.u8();
       if (kind === 2) {
         const x = r.f(), y = r.f(), rot = r.f(), size = r.f(), font = FONTS[r.u8()] || 'sans', color = col(r.uv()), opacity = r.u8() / 255, t = r.str();
-        strokes.push({ tool: 'text', x, y, rot, text: t, font, size, color, opacity, width: 0 });
+        strokes.push({ tool: 'text', x, y, rot: (rot * 180) / Math.PI, text: t, font, size, color, opacity });
       } else if (kind === 3) {
         const color = col(r.uv()), opacity = r.u8() / 255, under = !!r.u8(), nr = r.uv(), rings = [];
-        for (let j = 0; j < nr; j++) { const ring = getPoints(r); if (ring.length >= 6) rings.push(ring); }
-        if (rings.length) strokes.push({ tool: 'fill', color, opacity, under, rings, width: 0 });
+        for (let j = 0; j < nr; j++) rings.push(getPoints(r));
+        strokes.push({ tool: 'fill', color, opacity, under, rings });
       } else if (kind === 0 || kind === 1) {
         const flags = r.u8(), s = { tool: kind === 0 ? 'pen' : 'eraser' };
         if (kind === 0) s.color = col(r.uv());
         s.width = r.f(); s.opacity = r.u8() / 255;
         if (flags & 32) s.dash = DASHES[r.u8()];
-        if (flags & 16) s.shape = r.str().replace(/[^a-z]/gi, '').slice(0, 24);
+        if (flags & 16) s.shape = r.str();
         s.points = getPoints(r);
         s.smooth = !!(flags & 1); s.closed = !!(flags & 2);
-        if (flags & 4) s.hl = true;
-        if (flags & 8) { s.press = []; for (let j = 0; j < s.points.length >> 1; j++) s.press.push(r.u8() / 255); }
-        if (!s.dash) delete s.dash;
-        if (s.points.length) strokes.push(s);
+        if (flags & 4) s.highlight = true;
+        if (flags & 8) { s.pressure = []; for (let j = 0; j < s.points.length; j++) s.pressure.push(Math.round((r.u8() / 255) * 100)); }
+        strokes.push(s);
       } else throw new Error('unknown object ' + kind);
     }
-    return { title: title || 'Untitled', strokes, pages };
+    return WB.normalize({ title, strokes, pages, created: new Date().toISOString() });
   }
 
   WB.share = { encode, decode };
