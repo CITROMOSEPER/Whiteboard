@@ -1495,14 +1495,14 @@
 
   /* Two- and three-finger taps (undo, redo) only count when they really are two or three
      distinct, steady fingers: set down together (within TAP_TOGETHER ms), apart from each other
-     (at least TAP_APART px), none moving, none as big as a palm, lifted quickly, and no other
-     contact joining in. A palm landing first, which the screen sees as several touches close
-     together, never undoes anything. */
-  const TAP_TOGETHER = 150, TAP_APART = 36, PALM = 48;   // ms, px, px of contact size
-  const contact = (e) => Math.max(e.width || 0, e.height || 0);
+     (at least TAP_APART px), none moving, lifted quickly, and no other contact joining in. A palm
+     landing first, which the screen sees as several touches close together, never undoes anything.
+     (Contact sizes are not used: screens report them so differently that a finger can look as big
+     as a palm.) */
+  const TAP_TOGETHER = 150, TAP_APART = 36;   // ms, px
   function tapCounts(t, now) {
     const n = t.downs.length;
-    if (t.moved || t.palm || now - t.t >= 350 || (n !== 2 && n !== 3) || t.max !== n) return 0;
+    if (t.moved || now - t.t >= 350 || (n !== 2 && n !== 3) || t.max !== n) return 0;
     if (t.downs[n - 1].t - t.downs[0].t > TAP_TOGETHER) return 0;
     for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
       if (hyp(t.downs[i].x - t.downs[j].x, t.downs[i].y - t.downs[j].y) < TAP_APART) return 0;
@@ -1543,20 +1543,17 @@
 
     if (e.pointerType === 'touch') {
       if (penDown || now - lastPen < 400) return;
-      // A contact as big as a palm (where the screen reports contact sizes) is a resting hand: it
-      // takes no part in drawing, panning, pinching or taps. If one lands during a tap, the tap is off.
-      if (contact(e) > PALM) { if (tap) tap.palm = true; return; }
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
       const n = touches.size;
-      const down = { x: e.clientX, y: e.clientY, t: now }, palm = contact(e) > PALM;
+      const down = { x: e.clientX, y: e.clientY, t: now };
       if (n === 1) {
-        tap = { t: now, max: 1, moved: false, palm, downs: [down] };
+        tap = { t: now, max: 1, moved: false, downs: [down] };
         if (doubleOnText(e, now)) return;
         if (tools.tool === 'laser' || (settings.fingerDraw && tools.tool !== 'hand')) beginTool(e, tools.tool);
         else beginPan(e.pointerId, e.clientX, e.clientY);
         return;
       }
-      if (tap) { tap.max = Math.max(tap.max, n); tap.downs.push(down); if (palm) tap.palm = true; }
+      if (tap) { tap.max = Math.max(tap.max, n); tap.downs.push(down); }
       if (mode === 'draw') {
         if (live && live.ptype === 'touch' && now - live.t0 < 450) endStroke(true);  // it was the start of a pinch
         else { touches.delete(e.pointerId); return; }                                // a resting finger mid-stroke
@@ -1626,7 +1623,6 @@
       t.x = e.clientX; t.y = e.clientY;
       if (tools.tool === 'laser' && touches.size === 1) laserAt(e.clientX, e.clientY);
       if (tap && hyp(t.x - t.sx, t.y - t.sy) > 10) tap.moved = true;
-      if (tap && contact(e) > PALM) tap.palm = true;
     } else {
       if (e.pointerType === 'pen') lastPen = performance.now();
       cursorPos = { x: e.clientX, y: e.clientY };
