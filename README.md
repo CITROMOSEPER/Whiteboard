@@ -2,6 +2,8 @@
 
 **Open it here: https://citromoseper.github.io/Whiteboard/**
 
+Tutorials and an overview: **https://citromoseper.github.io/**
+
 A fast, free whiteboard for pen, touch and mouse that runs in your browser. Nothing to download, no account. It borrows the best ideas from Procreate (shapes that snap clean, colours you drag into a shape to fill it) and wraps them in a calm, glass-style interface.
 
 It works on computers, tablets and phones, in 14 languages, and keeps working offline once it has been opened. Your browser may offer to **install** it (an app icon and its own window); that is optional.
