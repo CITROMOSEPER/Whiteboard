@@ -915,7 +915,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.15.02.</p>
+      <p id="app-version">version: 2026.11.15.03.</p>
       <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
@@ -7321,10 +7321,19 @@ body.pipetting #canvas { cursor: crosshair; }
     mode = 'pan'; panId = id; panSamples = [{ x, y, t: performance.now() }];
     canvas.classList.add('panning');
   }
+  /* Touchscreens now and then report a point far from where the finger really is (a missed
+     sample, two contacts briefly swapped). Taken at face value, one such point throws the board
+     across the screen, and its speed sends the glide after a flick off into the distance.
+     A sample that jumps further than a finger plausibly moves (over JUMP px, faster than
+     JUMP_SPEED px/ms) is not followed: the gesture re-anchors there instead, so the board stays
+     put and carries on smoothly from the next sample. */
+  const JUMP = 60, JUMP_SPEED = 3, GLIDE_MAX = 3;   // px, px/ms, px/ms
+  const isJump = (dx, dy, dt) => { const d = hyp(dx, dy); return d > JUMP && d / Math.max(dt, 8) > JUMP_SPEED; };
   function movePan(x, y) {
-    const l = panSamples[panSamples.length - 1];
+    const l = panSamples[panSamples.length - 1], now = performance.now();
+    if (isJump(x - l.x, y - l.y, now - l.t)) { panSamples = [{ x, y, t: now }]; return; }   // a glitch: re-anchor, don't move
     view.x += x - l.x; view.y += y - l.y;
-    panSamples.push({ x, y, t: performance.now() });
+    panSamples.push({ x, y, t: now });
     if (panSamples.length > 10) panSamples.shift();
     invalidate();
   }
@@ -7332,24 +7341,53 @@ body.pipetting #canvas { cursor: crosshair; }
     mode = null; canvas.classList.remove('panning');
     const now = performance.now(), l = panSamples[panSamples.length - 1], f = panSamples.find((s) => now - s.t < 100);
     if (f && f !== l && now - l.t < 60 && !reduceMotion.matches) {
-      const dt = l.t - f.t, vx = (l.x - f.x) / dt, vy = (l.y - f.y) / dt;   // hand the release velocity to the glide
-      if (dt > 0 && hyp(vx, vy) > 0.15) { motion = { type: 'glide', vx, vy }; lastFrame = now; }
+      const dt = l.t - f.t;
+      let vx = (l.x - f.x) / dt, vy = (l.y - f.y) / dt;                  // hand the release velocity to the glide
+      const v = hyp(vx, vy);
+      if (v > GLIDE_MAX) { vx *= GLIDE_MAX / v; vy *= GLIDE_MAX / v; }   // never faster than a real, hard flick
+      if (dt > 0 && v > 0.15) { motion = { type: 'glide', vx, vy }; lastFrame = now; }
     }
     requestFrame();
   }
+  /* Pinch: always the same two fingers (the first two down; a palm or third finger doesn't take
+     over), until one of them lifts. Fingers very close together give a distance too noisy to zoom
+     by, so then the board only moves; and one sample never zooms by more than about a fifth. */
+  const PINCH_MIN = 40;   // px between the fingers before their distance is trusted
   function beginPinch() {
-    const [a, b] = [...touches.values()];
+    const [ia, ib] = [...touches.keys()], a = touches.get(ia), b = touches.get(ib);
     mode = 'pinch'; canvas.classList.remove('panning');
-    pinch = { d: hyp(a.x - b.x, a.y - b.y) || 1, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+    pinch = { a: ia, b: ib, d: hyp(a.x - b.x, a.y - b.y) || 1, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, t: performance.now() };
   }
   function movePinch() {
-    const [a, b] = [...touches.values()];
-    if (!b) return;
-    const d = hyp(a.x - b.x, a.y - b.y) || 1, cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
-    const zoom = clamp(view.zoom * d / pinch.d, ZOOM_MIN, ZOOM_MAX), k = zoom / view.zoom;
+    const a = touches.get(pinch.a), b = touches.get(pinch.b);
+    if (!a || !b) return touches.size >= 2 ? beginPinch() : undefined;
+    const now = performance.now(), d = hyp(a.x - b.x, a.y - b.y) || 1, cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+    if (isJump(cx - pinch.cx, cy - pinch.cy, now - pinch.t) || (d > PINCH_MIN && pinch.d > PINCH_MIN && Math.abs(Math.log(d / pinch.d)) > 0.7)) {
+      Object.assign(pinch, { d, cx, cy, t: now });                        // a glitch: re-anchor, don't move or zoom
+      return;
+    }
+    const ratio = d > PINCH_MIN && pinch.d > PINCH_MIN ? clamp(d / pinch.d, 0.82, 1.22) : 1;
+    const zoom = clamp(view.zoom * ratio, ZOOM_MIN, ZOOM_MAX), k = zoom / view.zoom;
     view.x = cx - (pinch.cx - view.x) * k; view.y = cy - (pinch.cy - view.y) * k; view.zoom = zoom;
-    pinch = { d, cx, cy };
+    Object.assign(pinch, { d, cx, cy, t: now });
     invalidate();
+  }
+
+  /* Two- and three-finger taps (undo, redo) only count when they really are two or three
+     distinct, steady fingers: set down together (within TAP_TOGETHER ms), apart from each other
+     (at least TAP_APART px), none moving, none as big as a palm, lifted quickly, and no other
+     contact joining in. A palm landing first, which the screen sees as several touches close
+     together, never undoes anything. */
+  const TAP_TOGETHER = 150, TAP_APART = 36, PALM = 48;   // ms, px, px of contact size
+  const contact = (e) => Math.max(e.width || 0, e.height || 0);
+  function tapCounts(t, now) {
+    const n = t.downs.length;
+    if (t.moved || t.palm || now - t.t >= 350 || (n !== 2 && n !== 3) || t.max !== n) return 0;
+    if (t.downs[n - 1].t - t.downs[0].t > TAP_TOGETHER) return 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      if (hyp(t.downs[i].x - t.downs[j].x, t.downs[i].y - t.downs[j].y) < TAP_APART) return 0;
+    }
+    return n;
   }
 
   /* ---- Pointer input -------------------------------------------------
@@ -7385,16 +7423,20 @@ body.pipetting #canvas { cursor: crosshair; }
 
     if (e.pointerType === 'touch') {
       if (penDown || now - lastPen < 400) return;
+      // A contact as big as a palm (where the screen reports contact sizes) is a resting hand: it
+      // takes no part in drawing, panning, pinching or taps. If one lands during a tap, the tap is off.
+      if (contact(e) > PALM) { if (tap) tap.palm = true; return; }
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
       const n = touches.size;
+      const down = { x: e.clientX, y: e.clientY, t: now }, palm = contact(e) > PALM;
       if (n === 1) {
-        tap = { t: now, max: 1, moved: false };
+        tap = { t: now, max: 1, moved: false, palm, downs: [down] };
         if (doubleOnText(e, now)) return;
         if (tools.tool === 'laser' || (settings.fingerDraw && tools.tool !== 'hand')) beginTool(e, tools.tool);
         else beginPan(e.pointerId, e.clientX, e.clientY);
         return;
       }
-      if (tap) tap.max = Math.max(tap.max, n);
+      if (tap) { tap.max = Math.max(tap.max, n); tap.downs.push(down); if (palm) tap.palm = true; }
       if (mode === 'draw') {
         if (live && live.ptype === 'touch' && now - live.t0 < 450) endStroke(true);  // it was the start of a pinch
         else { touches.delete(e.pointerId); return; }                                // a resting finger mid-stroke
@@ -7464,6 +7506,7 @@ body.pipetting #canvas { cursor: crosshair; }
       t.x = e.clientX; t.y = e.clientY;
       if (tools.tool === 'laser' && touches.size === 1) laserAt(e.clientX, e.clientY);
       if (tap && hyp(t.x - t.sx, t.y - t.sy) > 10) tap.moved = true;
+      if (tap && contact(e) > PALM) tap.palm = true;
     } else {
       if (e.pointerType === 'pen') lastPen = performance.now();
       cursorPos = { x: e.clientX, y: e.clientY };
@@ -7527,7 +7570,8 @@ body.pipetting #canvas { cursor: crosshair; }
       else { mode = null; requestFrame(); }
     }
     if (isTouch && touches.size === 0 && tap) {
-      if (!cancel && !tap.moved && now - tap.t < 350 && tap.max >= 2) { stopMotion(); tap.max === 2 ? undo() : redo(); }
+      const fingers = cancel ? 0 : tapCounts(tap, now);
+      if (fingers) { stopMotion(); fingers === 2 ? undo() : redo(); }
       tap = null;
     }
   }
