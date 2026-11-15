@@ -1139,6 +1139,10 @@
     hi: 'आपका बोर्ड खुल रहा है…',
   };
   for (const l in OPENING) if (D[l]) D[l].tOpening = OPENING[l];
+
+  /* The link to the landing site, under the credits in Settings. */
+  const WEBSITE = { en: 'Website', hu: 'Weboldal', de: 'Website', fr: 'Site web', it: 'Sito web', es: 'Sitio web', pt: 'Site', ru: 'Сайт', uk: 'Сайт', tr: 'Web sitesi', zh: '网站', ja: 'ウェブサイト', ar: 'الموقع', hi: 'वेबसाइट' };
+  for (const l in WEBSITE) if (D[l]) D[l].website = WEBSITE[l];
   WB.I18N = D;
   let lang = 'en';
 

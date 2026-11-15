@@ -240,6 +240,9 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
 .menu .mi[hidden], .menu kbd[hidden] { display: none; }
 .credits { margin-top: 22px; text-align: center; font-size: 0.75rem; line-height: 1.5; color: var(--ink-2); user-select: text; -webkit-user-select: text; }
 .credits p { margin: 0; }
+.credit-links { margin-top: 6px !important; }
+.credit-links a { color: var(--accent); text-decoration: none; }
+.credit-links a:hover { text-decoration: underline; }
 #app-version { font-variant-numeric: tabular-nums; opacity: 0.8; }
 .menu hr { border: 0; height: 1px; background: var(--hairline); margin: 5px 10px; }
 
@@ -912,7 +915,8 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.15.01.</p>
+      <p id="app-version">version: 2026.11.15.02.</p>
+      <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
 </div>
@@ -2212,6 +2216,10 @@ body.pipetting #canvas { cursor: crosshair; }
     hi: 'आपका बोर्ड खुल रहा है…',
   };
   for (const l in OPENING) if (D[l]) D[l].tOpening = OPENING[l];
+
+  /* The link to the landing site, under the credits in Settings. */
+  const WEBSITE = { en: 'Website', hu: 'Weboldal', de: 'Website', fr: 'Site web', it: 'Sito web', es: 'Sitio web', pt: 'Site', ru: 'Сайт', uk: 'Сайт', tr: 'Web sitesi', zh: '网站', ja: 'ウェブサイト', ar: 'الموقع', hi: 'वेबसाइट' };
+  for (const l in WEBSITE) if (D[l]) D[l].website = WEBSITE[l];
   WB.I18N = D;
   let lang = 'en';
 
