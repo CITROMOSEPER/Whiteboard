@@ -22,7 +22,12 @@
     }
     const lines = doc.strokes.map((s) => {
       if (s.tool === 'text') {
-        return `    { "tool": "text", "x": ${f(s.x)}, "y": ${f(s.y)}, ${s.rot ? `"rot": ${f((s.rot * 180) / Math.PI)}, ` : ''}"font": "${s.font}", "size": ${+s.size.toFixed(3)}, "color": "${s.color}", "opacity": ${+s.opacity.toFixed(3)}, "text": ${JSON.stringify(s.text)} }`;
+        return `    { "tool": "text", "x": ${f(s.x)}, "y": ${f(s.y)}, ${s.rot ? `"rot": ${f((s.rot * 180) / Math.PI)}, ` : ''}"font": "${s.font}", "size": ${+s.size.toFixed(3)}, "color": "${s.color}", "opacity": ${+s.opacity.toFixed(3)}, ${s.math ? '"math": true, ' : ''}"text": ${JSON.stringify(s.text)} }`;
+      }
+      if (s.tool === 'plot') {
+        // A graph: its box like a picture's, the maths point at its centre, the units across it, and the functions as written.
+        const rot = s.rot ? `"rot": ${f((s.rot * 180) / Math.PI)}, ` : '';
+        return `    { "tool": "plot", "x": ${f(s.x)}, "y": ${f(s.y)}, "w": ${f(s.w)}, "h": ${f(s.h)}, ${rot}"opacity": ${+s.opacity.toFixed(3)}, "cx": ${+s.cx.toPrecision(10)}, "cy": ${+s.cy.toPrecision(10)}, "span": ${+s.span.toPrecision(10)}, "fns": ${JSON.stringify(s.fns.map((q) => ({ src: q.src, color: q.color })))} }`;
       }
       if (s.tool === 'image') {
         // "rot" is in degrees in the file (clockwise), and left out when the picture is upright.
@@ -72,6 +77,15 @@
         if (typeof s.text === 'string' && s.text.trim() && isFinite(s.x) && isFinite(s.y)) {
           strokes.push({ tool: 'text', x: +s.x, y: +s.y, rot: (num(s.rot, 0) % 360) * Math.PI / 180, text: s.text.slice(0, 20000), font: WB.FONTS[s.font] ? s.font : 'sans',
             size: Math.max(0.01, num(s.size, 24)), color: hex(s.color), opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), width: 0 });
+          if (s.math === true) strokes[strokes.length - 1].math = true;
+        }
+        continue;
+      }
+      if (s && s.tool === 'plot') {
+        if (isFinite(s.x) && isFinite(s.y) && num(s.w, 0) > 0 && num(s.h, 0) > 0 && Array.isArray(s.fns)) {
+          const fns = s.fns.filter((q) => q && typeof q.src === 'string').slice(0, 12).map((q) => ({ src: q.src.slice(0, 500), color: hex(q.color) }));
+          strokes.push({ tool: 'plot', x: +s.x, y: +s.y, w: +s.w, h: +s.h, rot: (num(s.rot, 0) % 360) * Math.PI / 180, opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))),
+            cx: num(s.cx, 0), cy: num(s.cy, 0), span: Math.min(1e9, Math.max(1e-9, num(s.span, 20))), fns, width: 0 });
         }
         continue;
       }
@@ -303,7 +317,23 @@
     return d;
   }
 
+  /* A graph or a typeset maths text, as a picture with the same box: SVG and PDF have no way to
+     draw them natively, so they go in as high-resolution images (sharp at 4 px per unit). */
+  WB.rasterize = function (s) {
+    const F = WB.frameOf(s), q = Math.min(4, 4000 / Math.max(F.w, F.h, 1e-6));
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.ceil(F.w * q)); cv.height = Math.max(1, Math.ceil(F.h * q));
+    const g = cv.getContext('2d');
+    g.setTransform(q, 0, 0, q, -F.x * q, -F.y * q);
+    const flat = { ...s, rot: 0, opacity: 1 };
+    if (s.tool === 'text') { flat.x = F.x; flat.y = F.y; delete flat._t; delete flat._b; }
+    WB.paint(g, flat);
+    return { tool: 'image', x: F.x, y: F.y, w: F.w, h: F.h, rot: F.rot || 0, opacity: s.opacity, src: cv.toDataURL('image/png'), width: 0 };
+  };
+  const flatten = (strokes) => strokes.map((s) => (s.tool === 'plot' || (s.tool === 'text' && s.math) ? WB.rasterize(s) : s));
+
   WB.toSVG = function (strokes, b, bg, payload, pages, pattern) {
+    strokes = flatten(strokes);
     const box = `x="${f(b.x)}" y="${f(b.y)}" width="${f(b.w)}" height="${f(b.h)}"`;
     const pg = pages && pages.length ? pages : null;
     const rectOf = (p) => `x="${f(p.x)}" y="${f(p.y)}" width="${f(p.w)}" height="${f(p.h)}"`;
@@ -394,6 +424,7 @@
      (board units are CSS pixels, 96 per inch; PDF units are points, 72 per inch). Without pages
      the whole drawing (b) becomes one page, one unit per point as before. */
   WB.toPDF = async function (strokes, b, bg, payload, pages, pattern) {
+    strokes = flatten(strokes);
     const sheet = pages && pages.length ? pages : null;
     const pageList = sheet || [b];
     const k = sheet ? 0.75 : Math.min(1, 14400 / b.w, 14400 / b.h); // PDF pages max out at 14400 units

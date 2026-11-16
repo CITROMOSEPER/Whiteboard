@@ -135,10 +135,14 @@ def summary(d):
     for s in st:
         if s.get('tool') == 'text':
             out.append(f"Text at ({s['x']},{s['y']}) size {s.get('size')} {s.get('font')} {s.get('color')}"
-                       + (f" rot {s['rot']}°" if s.get('rot') else '') + f": {s['text']!r}")
+                       + (f" rot {s['rot']}°" if s.get('rot') else '') + (' (typeset maths, $…$ is LaTeX)' if s.get('math') else '') + f": {s['text']!r}")
         elif s.get('tool') == 'image':
             kb = len(s.get('src', '')) * 3 // 4 // 1024
             out.append(f"Picture at ({s['x']},{s['y']}) {s['w']}x{s['h']}" + (f" rot {s['rot']}°" if s.get('rot') else '') + f", ~{kb} KB")
+        elif s.get('tool') == 'plot':
+            fns = '; '.join(f.get('src', '') for f in s.get('fns', []))
+            out.append(f"Graph at ({s['x']},{s['y']}) {s['w']}x{s['h']}" + (f" rot {s['rot']}°" if s.get('rot') else '')
+                       + f", centred on ({s.get('cx')},{s.get('cy')}), {s.get('span')} units across: {fns}")
     return '\n'.join(out)
 
 

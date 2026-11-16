@@ -6,6 +6,8 @@ Tutorials and an overview: **https://citromoseper.github.io/Whiteboard-site/**
 
 A fast, free whiteboard for pen, touch and mouse that runs in your browser. Nothing to download, no account. It borrows the best ideas from Procreate (shapes that snap clean, colours you drag into a shape to fill it) and wraps them in a calm, glass-style interface.
 
+**New: AI for handwriting.** Select what you wrote and tidy it into typed text with proper maths, solve an equation with the steps shown, or turn a function into a graph you can explore. It uses your own API key, which [never leaves your device](#your-api-key-is-safe).
+
 It works on computers, tablets and phones, in 14 languages, and keeps working offline once it has been opened. Your browser may offer to **install** it (an app icon and its own window); that is optional.
 
 ---
@@ -15,6 +17,7 @@ It works on computers, tablets and phones, in 14 languages, and keeps working of
 - [Drawing](#drawing)
 - [Text and handwriting](#text-and-handwriting)
 - [Selecting and changing things](#selecting-and-changing-things)
+- [AI: tidy up, solve, plot](#ai-tidy-up-solve-plot)
 - [Pictures](#pictures)
 - [Sheets and PDFs](#sheets-and-pdfs)
 - [Stickers](#stickers)
@@ -61,6 +64,37 @@ Choose the select tool (the arrow), then tap something, or drag a loop around se
 - **Top bar:** **Duplicate** (copies appear slightly offset, already selected), **Save as sticker**, and **Delete**.
 
 Everything can be undone: the arrows at the top right, or tap with **two fingers** to undo and **three fingers** to redo.
+
+## AI: tidy up, solve, plot
+
+Select some handwriting, press **AI** in the bar at the top, and choose what to do with it:
+
+- **Tidy up handwriting** turns it into typed text, with the maths typeset properly: fractions, exponents, roots, sums, Greek letters. It is a normal text object afterwards; double-click it to edit (maths is written as LaTeX between `$` signs, e.g. `$\frac{x}{2}$`).
+- **Solve, showing the steps** writes the working under the problem, in the handwritten font and your ink colour. The answer is then **checked on your device** by putting it back into the problem: a ✓ means it fits, a ⚠ warning means it does not and the steps need a second look.
+- **Plot as a graph** turns a written function (`f(x) = sin(x)`, `y = x² − 1`, several at once) into a graph that takes its place. Move, resize and turn it like a picture. **Double-click or double-tap** it (or press **Explore** in its bar) to drag around inside it and zoom with the wheel or a pinch; click outside it or press Esc to stop. **Functions** in its bar edits what is drawn, one per line, and the graph follows as you type. Typed functions are plotted straight away, without AI.
+
+The AI only **reads** the handwriting. Graphs are drawn and answers checked by the app itself, on your device, so the numbers are exact.
+
+### Your API key is safe
+
+The AI features use **your own API key** from an AI provider. That key **never leaves your device**, except to go straight to the provider you chose:
+
+- **There is no Whiteboard server.** Whiteboard is a static web page. Nothing you do in it, and no key, is ever sent to me or to anyone else.
+- **The key is stored only in your browser, on this device.** It is not in your boards, files, exports, backups or share links, so sharing a board can never share your key.
+- **Requests go directly from your browser to the provider** (Google, OpenAI, Anthropic, or the server you entered), over an encrypted connection. Only the picture of what you selected is sent, and only when you use an AI action.
+- **You can remove it any time:** Settings → AI → **Remove keys**.
+
+The provider may charge your key for each use. Gemini has a free tier.
+
+### Tutorial: set it up and try it
+
+1. **Get a key.** Open **Settings → AI**, choose a provider and tap **Get a key ↗**. For Gemini, sign in to Google AI Studio and press *Create API key*; it is free to start.
+2. **Paste the key** into the **API key** field. It is saved in this browser straight away.
+3. **Pick a model.** The field shows the suggested one (for Gemini, `gemini-flash-lite-latest`, quick and good at handwriting). **Show available** lists every model your key can use; pick one from the list, or type to narrow it down. If a model gets stuck or fails, try another one.
+4. **Write something.** For example `2x + 3 = 7`, or `f(x) = sin(x)`.
+5. **Select it** with the select tool (a loop around it), press **AI**, and choose **Solve**, **Tidy up** or **Plot**. A few seconds later the result appears, and **Undo** brings the handwriting back if you change your mind.
+
+**Other providers.** OpenAI and Claude work the same way. **Other** takes any OpenAI-compatible server address, such as OpenRouter, or a model running on your own computer with Ollama or LM Studio (then nothing leaves your computer at all).
 
 ## Pictures
 

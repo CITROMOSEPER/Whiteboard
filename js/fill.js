@@ -14,7 +14,7 @@
     // Lines thinner than 1.5 pixels at this resolution are drawn 1.5 pixels wide, so an outline
     // stays closed (and doesn't fade into a leaky dotted trail) however it was zoomed when drawn.
     const minW = 1.5 / scale;
-    const walls = strokes.filter((s) => s.tool !== 'image' && !s.hl).map((s) => (s.dash || (s.points && s.width < minW) ? { ...s, dash: null, width: s.points ? Math.max(s.width, minW) : s.width, _opath: undefined } : s));
+    const walls = strokes.filter((s) => s.tool !== 'image' && s.tool !== 'plot' && !s.hl).map((s) => (s.dash || (s.points && s.width < minW) ? { ...s, dash: null, width: s.points ? Math.max(s.width, minW) : s.width, _opath: undefined } : s));
     const canvas = WB.renderToCanvas(walls, b, scale, null).canvas;
     const w = canvas.width, h = canvas.height, kx = w / b.w, ky = h / b.h;
     const sx = Math.floor((wx - b.x) * kx), sy = Math.floor((wy - b.y) * ky);

@@ -1146,6 +1146,36 @@
   WB.I18N = D;
   let lang = 'en';
 
+  /* AI actions on a selection (bring your own key) and graphs. Other languages fall back to English. */
+  Object.assign(D.en, {
+    aiActions: 'AI actions', aiShort: 'AI', aiTidy: 'Tidy up handwriting', aiSolve: 'Solve, showing the steps', aiPlot: 'Plot as a graph', aiSettingsMenu: 'AI settings…',
+    plotHome: 'Back to the start view', plotEdit: 'Functions', plotExplore: 'Explore', plotEditNote: 'One per line, e.g. f(x) = sin(x) or y = x^2 − 1. While exploring, drag to move around and scroll or pinch to zoom.',
+    aiTitle: 'AI (your own key)', aiProvider: 'Provider', aiOther: 'Other', aiBaseUrl: 'Server address (OpenAI-compatible)', aiKey: 'API key', aiGetKey: 'Get a key ↗',
+    aiModel: 'Model', aiListModels: 'Show available',
+    aiPrivacy: 'Your key is kept only in this browser, on this device. There is no Whiteboard server: when you use an AI action, your browser sends a picture of the selected part of the board straight to the provider you chose. Your key is never put in boards, files or share links.',
+    aiCost: 'The provider may bill your key for each use. Gemini has a free tier. Graphs and answer checks are worked out on your device.',
+    aiForget: 'Remove keys',
+    tAiReading: 'Reading the handwriting…', tAiNoKey: 'Add an API key in Settings → AI first', tAiNothing: 'Select some handwriting first',
+    tAiFailed: 'AI request failed: {e}', tAiKeyBad: 'The provider did not accept the API key', tAiQuota: 'The provider says the limit is reached. Try again later', tAiNetwork: 'Could not reach the provider',
+    tAiTidied: 'Handwriting tidied up', tAiSolved: 'Solved', tAiChecked: 'Solved, and the answer checks out', tAiCheckFailed: 'Solved, but the answer did not check out: look over the steps',
+    tAiPlotted: 'Graph added. Double-click or double-tap it to explore', tAiNoFn: 'No function of x was found to plot', tAiEmpty: 'No writing was found',
+    tAiModels: '{n} models available', tAiForgot: 'API keys removed', aiCheckFail: 'check: this answer does not satisfy the problem',
+  });
+  Object.assign(D.hu, {
+    aiActions: 'MI-műveletek', aiShort: 'MI', aiTidy: 'Kézírás letisztázása', aiSolve: 'Megoldás lépésekkel', aiPlot: 'Ábrázolás grafikonon', aiSettingsMenu: 'MI-beállítások…',
+    plotHome: 'Vissza a kezdő nézetre', plotEdit: 'Függvények', plotExplore: 'Felfedezés', plotEditNote: 'Soronként egy, pl. f(x) = sin(x) vagy y = x^2 − 1. Felfedezés közben húzással mozoghatsz, görgetéssel vagy csippentéssel nagyíthatsz.',
+    aiTitle: 'MI (saját kulccsal)', aiProvider: 'Szolgáltató', aiOther: 'Egyéb', aiBaseUrl: 'Szerver címe (OpenAI-kompatibilis)', aiKey: 'API-kulcs', aiGetKey: 'Kulcs kérése ↗',
+    aiModel: 'Modell', aiListModels: 'Elérhetők',
+    aiPrivacy: 'A kulcsod csak ebben a böngészőben, ezen az eszközön marad. Nincs Whiteboard-szerver: egy MI-művelet használatakor a böngésződ a tábla kijelölt részéről készült képet közvetlenül a választott szolgáltatónak küldi. A kulcs soha nem kerül táblába, fájlba vagy megosztott linkbe.',
+    aiCost: 'A szolgáltató minden használatért díjat számolhat fel a kulcsodra. A Geminihez van ingyenes keret. A grafikonok és a válaszok ellenőrzése a saját eszközödön készül.',
+    aiForget: 'Kulcsok törlése',
+    tAiReading: 'A kézírás olvasása…', tAiNoKey: 'Előbb adj meg egy API-kulcsot: Beállítások → MI', tAiNothing: 'Előbb jelölj ki kézírást',
+    tAiFailed: 'Az MI-kérés nem sikerült: {e}', tAiKeyBad: 'A szolgáltató nem fogadta el az API-kulcsot', tAiQuota: 'A szolgáltató szerint elérted a korlátot. Próbáld később', tAiNetwork: 'A szolgáltató nem érhető el',
+    tAiTidied: 'Kézírás letisztázva', tAiSolved: 'Megoldva', tAiChecked: 'Megoldva, és a válasz ellenőrizve helyes', tAiCheckFailed: 'Megoldva, de a válasz nem stimmel: nézd át a lépéseket',
+    tAiPlotted: 'Grafikon hozzáadva. Dupla kattintással vagy koppintással fedezheted fel', tAiNoFn: 'Nem található ábrázolható x-függvény', tAiEmpty: 'Nem található írás',
+    tAiModels: '{n} modell érhető el', tAiForgot: 'API-kulcsok törölve', aiCheckFail: 'ellenőrzés: ez a válasz nem elégíti ki a feladatot',
+  });
+
   /* The best supported language for this device's preferences. */
   WB.systemLang = function () {
     for (const l of navigator.languages || [navigator.language || 'en']) {

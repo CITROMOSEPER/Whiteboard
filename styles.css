@@ -507,6 +507,12 @@ body.pipetting #canvas { cursor: crosshair; }
 /* ---------- Language menu ---------- */
 #lang-menu { z-index: 61; min-width: 264px; max-height: min(430px, calc(100% - 24px)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; transform-origin: 50% 0; }
 #lang-menu::-webkit-scrollbar { display: none; }
+#ai-model-menu { z-index: 61; max-height: min(320px, calc(100% - 24px)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; transform-origin: 50% 0; }
+#ai-model-menu::-webkit-scrollbar { display: none; }
+#ai-model-menu .mi { font-size: 0.8125rem; font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; justify-content: space-between; }
+#ai-model-menu .mi span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ai-model-menu .mi[aria-selected="true"]::after { content: "✓"; font-weight: 600; font-family: system-ui, sans-serif; }
+#ai-model-menu .mi:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 #lang-menu .mi i { font-style: normal; opacity: 0.55; margin-inline-start: 8px; font-size: 0.8125rem; }
 #lang-menu .mi[aria-checked="true"]::after { content: "✓"; font-weight: 600; }
 #lang-btn { max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -618,3 +624,30 @@ body.pipetting #canvas { cursor: crosshair; }
 .page-del:hover { color: #ff3b30; }
 .page-del svg { width: 20px; height: 20px; stroke-width: 1.8; stroke-linejoin: round; }
 #exp-pattern-block[hidden] { display: none; }
+
+/* ---------- AI actions and graphs ---------- */
+#ai-menu { z-index: 30; min-width: 220px; transform-origin: 50% 0; }
+#sel-ai.busy svg { animation: ai-spin 1.1s linear infinite; }
+@keyframes ai-spin { to { transform: rotate(360deg); } }
+.field { width: 100%; height: 38px; padding: 0 10px; border: 0; border-radius: 9px; background: var(--solid); color: var(--ink); font: inherit; font-size: 0.8125rem; user-select: text; -webkit-user-select: text; }
+.field:focus { outline: 2px solid var(--accent); }
+#ai-group .row-top { align-items: center; margin-bottom: 4px; }
+#ai-group .row-top a { font-size: 0.8125rem; color: var(--accent); text-decoration: none; }
+#ai-group .row-top a:not([href]) { display: none; }
+#ai-group .pill-btn { height: 28px; padding: 0 10px; font-size: 0.8125rem; }
+#ai-group > .note { min-height: 0; }
+#ai-provider button { white-space: nowrap; }
+#plot-bar {
+  position: fixed; left: 0; top: 0; z-index: 12; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 4px; border-radius: 14px;
+  max-width: calc(100vw - 16px); opacity: 0; visibility: hidden; transition: opacity 160ms ease, visibility 0s linear 160ms;
+}
+#plot-bar.on { opacity: 1; visibility: visible; transition: opacity 160ms ease, visibility 0s; }
+#plot-bar .ibtn { width: 34px; height: 34px; border-radius: 10px; }
+#plot-bar .ibtn svg { width: 20px; height: 20px; }
+#plot-bar .tbtn { height: 34px; padding: 0 10px; border-radius: 10px; font-weight: 600; }
+#plot-bar .tbtn[aria-pressed="true"], #plot-bar .tbtn[aria-expanded="true"] { background: var(--fill-strong); }
+#pb-panel { flex-basis: 100%; padding: 4px 2px 2px; }
+#pb-fns { display: block; width: min(340px, calc(100vw - 40px)); min-height: 64px; padding: 8px 10px; border: 0; border-radius: 9px; resize: vertical;
+  background: var(--solid); color: var(--ink); font: 0.875rem/1.45 ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; user-select: text; -webkit-user-select: text; }
+#pb-fns:focus { outline: 2px solid var(--accent); }
+#pb-panel .note { max-width: 340px; }

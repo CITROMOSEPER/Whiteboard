@@ -145,6 +145,8 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (fillAnim) drawFillAnim(now);
     if (selection.size || (selDrag && selDrag.lasso)) drawSelection();
+    if (plotActive) drawPlotActive();
+    placePlotBar();
     if (live && !live.hl) paintLive();
     if (laser.trail.length) drawLaser(now);
     syncView();
@@ -710,7 +712,8 @@
      A click selects the object under the pointer, a drag draws a lasso.
      With Ctrl/Cmd held a click toggles one object and a lasso adds to the selection. */
   const selection = new Set();
-  let selDrag = null;   // { id, x, y, add, lasso: [world points] | null }
+  let selDrag = null;
+  let plotActive = null, plotDrag = null;   // the graph open for exploring, and the pointers dragging inside it (see "Graphs")   // { id, x, y, add, lasso: [world points] | null }
 
   function selectAt(cx, cy, add) {
     const z = view.zoom, x = (cx - view.x) / z, y = (cy - view.y) / z;
@@ -742,7 +745,7 @@
   }
   function translate(items, dx, dy) {
     for (const s of items) {
-      if (s.tool === 'text' || s.tool === 'image') { s.x += dx; s.y += dy; }
+      if (s.tool === 'text' || s.tool === 'image' || s.tool === 'plot') { s.x += dx; s.y += dy; }
       else for (const p of s.rings || [s.points]) for (let i = 0; i < p.length; i += 2) { p[i] += dx; p[i + 1] += dy; }
       delete s._path; delete s._opath; delete s._b;
     }
@@ -819,7 +822,7 @@
     if (xf) return xf.cur;
     const items = [...selection].filter((s) => doc.strokes.includes(s));
     if (!items.length) return null;
-    if (items.length === 1 && (items[0].tool === 'image' || items[0].tool === 'text')) {
+    if (items.length === 1 && (items[0].tool === 'image' || items[0].tool === 'text' || items[0].tool === 'plot')) {
       const F = WB.frameOf(items[0]);
       return { x: F.x, y: F.y, w: F.w, h: F.h, rot: F.rot || 0 };
     }
@@ -877,7 +880,7 @@
   function geometry(s) {
     const g = {};
     for (const k of ['x', 'y', 'w', 'h', 'rot', 'size', 'width']) if (s[k] !== undefined) g[k] = s[k];
-    if (s.tool === 'image' || s.tool === 'text') g.rot = s.rot || 0;   // so putting it back also un-turns it
+    if (s.tool === 'image' || s.tool === 'text' || s.tool === 'plot') g.rot = s.rot || 0;   // so putting it back also un-turns it
     if (s.points) g.points = s.points.slice();
     if (s.rings) g.rings = s.rings.map((r) => r.slice());
     return g;
@@ -891,11 +894,11 @@
     const flat = (p) => { const out = new Array(p.length); for (let i = 0; i < p.length; i += 2) { const q = pt(p[i], p[i + 1]); out[i] = q.x; out[i + 1] = q.y; } return out; };
     if (g.points) { s.points = flat(g.points); s.width = g.width * area; }
     if (g.rings) s.rings = g.rings.map(flat);
-    if (s.tool === 'image' || s.tool === 'text') {
+    if (s.tool === 'image' || s.tool === 'text' || s.tool === 'plot') {
       const r = g.rot || 0, u = vec(Math.cos(r), Math.sin(r)), v = vec(-Math.sin(r), Math.cos(r));
       const lu = hyp(u.x, u.y), lv = hyp(v.x, v.y);
       s.rot = Math.atan2(u.y, u.x);
-      if (s.tool === 'image') {
+      if (s.tool === 'image' || s.tool === 'plot') {
         const c = pt(g.x + g.w / 2, g.y + g.h / 2);
         s.w = g.w * lu; s.h = g.h * lv; s.x = c.x - s.w / 2; s.y = c.y - s.h / 2;
       } else {
@@ -982,6 +985,7 @@
   const COLORED = new Set(['pen', 'text', 'fill']);
   let styleRun = null;   // { key, action }: the last style change, so a picker drag can keep extending it
   function showStyleBar() {
+    refreshPlotBar();
     const items = selItems(), lines = items.some((s) => s.tool === 'pen'), colors = items.some((s) => COLORED.has(s.tool));
     const on = (lines || colors) && tools.tool === 'select' && !xf && !(selDrag && selDrag.moved);
     styleBar.classList.toggle('on', on);
@@ -991,7 +995,7 @@
     refreshStyleBar();
     placeStyleBar();
   }
-  function hideStyleBar() { styleBar.classList.remove('on'); }
+  function hideStyleBar() { styleBar.classList.remove('on'); hidePlotBar(); }
   function refreshStyleBar() {
     const items = selItems(), pen = items.find((s) => s.tool === 'pen'), col = items.find((s) => COLORED.has(s.tool));
     const c = col ? col.color : null, inPalette = PALETTE.includes(c);
@@ -1320,7 +1324,7 @@
     const cy = (b.y0 + b.y1) / 2;
     let best = null;
     for (const o of doc.strokes) {
-      if (o.tool !== 'text') continue;
+      if (o.tool !== 'text' || o.math) continue;      // typeset maths is not appended to by hand
       const L = WB.textLayout(o), size = o.size;
       if (cy < o.y - 0.15 * L.lh || cy > o.y + L.h + 0.15 * L.lh) continue;         // not level with this text
       const line = clamp(Math.floor((cy - o.y) / L.lh), 0, L.lines.length - 1);
@@ -1526,6 +1530,16 @@
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
     const now = performance.now();
+    if (plotPanelFor) closePlotPanel();
+    // A graph open for exploring: pointers inside it move and zoom its view (any tool); a press outside closes it.
+    if (plotActive && !doc.strokes.includes(plotActive)) exitPlot();
+    if (plotActive && !(e.pointerType === 'touch' && (penDown || now - lastPen < 400))) {
+      if (mode === 'plot' || (!mode && !(e.pointerType === 'mouse' && e.button !== 0) && inPlot(plotActive, e.clientX, e.clientY) && !handleAt(e.clientX, e.clientY, e.pointerType === 'touch'))) {
+        if (e.pointerType === 'pen') { penDown = true; lastPen = now; }
+        return beginPlotDrag(e);
+      }
+      if (!mode) exitPlot();
+    }
 
     // A snapped shape still in hand: another finger snaps its angle (see shapeAngle), it never pinches.
     if (e.pointerType === 'touch' && mode === 'draw' && live && live.snapped && e.pointerId !== live.id) { live.extra.add(e.pointerId); return resnap(); }
@@ -1586,7 +1600,8 @@
     const p = lastDown;
     lastDown = { t: now, x: e.clientX, y: e.clientY, type: e.pointerType };
     if (!p || now - p.t > 420 || p.type !== e.pointerType || hyp(e.clientX - p.x, e.clientY - p.y) > 26) return false;
-    if (!textUnder(e.clientX, e.clientY)) return false;
+    const txt = textUnder(e.clientX, e.clientY), graph = !txt && plotUnder(e.clientX, e.clientY);   // a graph opens for exploring instead
+    if (!txt && !graph) return false;
     lastDown = null;
     // The first click of the pair may have left a dot (pen) or a dab (eraser): take it back.
     const a = undoStack[undoStack.length - 1], s = a && a.type === 'add' && a.stroke;
@@ -1594,6 +1609,7 @@
       const b = WB.boundsOf(s);
       if ((Math.max(b.x1 - b.x0, b.y1 - b.y0) - s.width) * view.zoom < 12) { undoStack.pop(); doc.strokes.pop(); invalidate(); changed(); }
     }
+    if (graph) { enterPlot(graph); return true; }
     mode = 'text'; textDown = { id: e.pointerId, x: e.clientX, y: e.clientY };
     return true;
   }
@@ -1613,6 +1629,7 @@
   }
 
   canvas.addEventListener('pointermove', (e) => {
+    if (mode === 'plot') return movePlotDrag(e);
     if (mode === 'xform') {
       if (e.pointerId === xf.id) { xf.last = { x: e.clientX, y: e.clientY }; xf.keys = { alt: e.altKey, shift: e.shiftKey }; applyXform(); }
       return;
@@ -1657,6 +1674,7 @@
     const cancel = e.type === 'pointercancel', now = performance.now();
     if (e.pointerType === 'pen') { penDown = false; lastPen = now; }
     if (live && live.extra && live.extra.delete(e.pointerId)) return resnap();
+    if (mode === 'plot') return endPlotDrag(e);
     if (mode === 'xform') {
       if (e.pointerId === xf.id) endXform(cancel);
       else if (xf.extra.delete(e.pointerId)) applyXform();   // the other finger lifted: back to the normal way
@@ -1703,6 +1721,13 @@
     let dx = e.deltaX, dy = e.deltaY;
     if (e.deltaMode === 1) { dx *= 32; dy *= 32; }
     const notched = e.deltaMode === 1 || (dx === 0 && Math.abs(dy) >= 40);   // a mouse wheel, not a trackpad
+    if (plotActive && doc.strokes.includes(plotActive) && inPlot(plotActive, e.clientX, e.clientY)) {   // over a graph being explored: its own view moves
+      const L = plotLocal(plotActive, e.clientX, e.clientY);
+      if (e.ctrlKey || e.metaKey || notched) WB.plotZoom(plotActive, Math.exp(dy * (notched ? 0.0016 : 0.01)), L.x, L.y);
+      else { const d = plotVec(plotActive, -dx, -dy); WB.plotPan(plotActive, d.x, d.y); }
+      plotViewChanged();
+      return;
+    }
     if (e.ctrlKey || e.metaKey || notched) zoomAt(e.clientX, e.clientY, view.zoom * Math.exp(-dy * (notched ? 0.0016 : 0.01)));
     else { view.x -= dx; view.y -= dy; invalidate(); }
   }, { passive: false });
@@ -2231,10 +2256,10 @@
   }
   $('#toast-action').addEventListener('click', () => { $('#toast').classList.remove('on'); if (toastFn) toastFn(); });
 
-  const POPS = [['#menu', '#btn-menu'], ['#zoom-menu', '#btn-zoom'], ['#dash-menu', '#btn-dash']];
+  const POPS = [['#menu', '#btn-menu'], ['#zoom-menu', '#btn-zoom'], ['#dash-menu', '#btn-dash'], ['#ai-menu', '#sel-ai']];
   function closePopovers(except) {
     for (const [m, b] of POPS) if (m !== except) { $(m).classList.remove('open'); $(b).setAttribute('aria-expanded', 'false'); }
-    $('#font-menu').classList.remove('open'); $('#lang-menu').classList.remove('open');
+    $('#font-menu').classList.remove('open'); $('#lang-menu').classList.remove('open'); closeModelMenu();
   }
   /* The file menu shows "Save to “name.whtbd”" while the board has a device file; Ctrl S goes to whichever save was used last. */
   function refreshFileMenu() {
@@ -2253,7 +2278,7 @@
     });
   }
   document.addEventListener('pointerdown', (e) => {
-    if (!e.target.closest('.menu, #btn-menu, #btn-zoom, #tb-font, #lang-btn')) closePopovers();
+    if (!e.target.closest('.menu, #btn-menu, #btn-zoom, #tb-font, #lang-btn, #sel-ai, #ai-list, #ai-model')) closePopovers();
   }, true);
 
   function openSheet(id) { closePopovers(); closeSheets(); $(id).classList.add('open'); const f = $('[data-close]', $(id)); if (f) f.focus({ preventScroll: true }); }
@@ -2277,7 +2302,6 @@
     'save-to': saveBoardTo,
     export: () => { syncExport(); openSheet('#export'); },
     import: importFile,
-    clear: () => { if (doc.strokes.length) replaceBoard({ ...snapshot(), strokes: [] }, tr('tCleared')); },
     settings: () => openSheet('#settings'),
     'zoom-in': () => zoomStep(1.5),
     'zoom-out': () => zoomStep(1 / 1.5),
@@ -2657,16 +2681,362 @@
     applyTheme(); refreshTools(); applyLang();
   }
 
+  /* ---- Graphs --------------------------------------------------------------
+     A graph (js/plot.js) is selected, moved, resized and turned like a picture. Double-clicking or
+     double-tapping it (or "Explore" in its bar) opens it for exploring: then dragging inside it
+     moves its view, two fingers pinch-zoom it, and the wheel zooms it, whatever tool is chosen.
+     A press outside it, or Escape, closes it again. View changes are saved with the board but are
+     not undo steps (like scrolling the board itself). */
+  const plotBar = $('#plot-bar');
+  let plotPanelFor = null, plotPanelBefore = null;
+  const plotLocal = (s, cx, cy) => WB.toLocal(s, (cx - view.x) / view.zoom, (cy - view.y) / view.zoom);
+  /* A screen-space movement as a movement in the graph's own (turned) frame, in world units. */
+  function plotVec(s, dx, dy) {
+    const c = Math.cos(s.rot || 0), n = Math.sin(s.rot || 0), z = view.zoom;
+    return { x: (dx * c + dy * n) / z, y: (-dx * n + dy * c) / z };
+  }
+  function inPlot(s, cx, cy) { const L = plotLocal(s, cx, cy); return Math.abs(L.x) <= s.w / 2 && Math.abs(L.y) <= s.h / 2; }
+  function plotUnder(cx, cy) {
+    for (let i = doc.strokes.length - 1; i >= 0; i--) { const o = doc.strokes[i]; if (o.tool === 'plot' && inPlot(o, cx, cy)) return o; }
+    return null;
+  }
+  function enterPlot(s) { plotActive = s; textDown = null; mode = null; refreshPlotBar(); requestFrame(); }
+  function exitPlot() { if (!plotActive) return; plotActive = null; plotDrag = null; if (mode === 'plot') mode = null; refreshPlotBar(); requestFrame(); }
+  function plotViewChanged() { invalidate(); unsaved = true; updateChrome(); autosave(); }
+  function drawPlotActive() {
+    const s = plotActive, z = view.zoom, accent = getComputedStyle(root).getPropertyValue('--accent').trim() || '#007aff';
+    if (!doc.strokes.includes(s)) return;
+    worldTransform(ctx);
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    ctx.translate(s.x + s.w / 2, s.y + s.h / 2); if (s.rot) ctx.rotate(s.rot);
+    ctx.strokeStyle = accent; ctx.lineWidth = 3 / z;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-s.w / 2 - 2 / z, -s.h / 2 - 2 / z, s.w + 4 / z, s.h + 4 / z, Math.min(12, s.w / 12, s.h / 12) + 2 / z);
+    else ctx.rect(-s.w / 2, -s.h / 2, s.w, s.h);
+    ctx.stroke();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  /* Pointers dragging inside the graph: one moves its view, two (or more) also zoom it about their middle. */
+  function plotGrip() {
+    let x = 0, y = 0, n = 0;
+    for (const p of plotDrag.pts.values()) { x += p.x; y += p.y; n++; }
+    x /= n; y /= n;
+    let d = 0;
+    for (const p of plotDrag.pts.values()) d += hyp(p.x - x, p.y - y);
+    return { x, y, d: n > 1 ? d / n : 0 };
+  }
+  function beginPlotDrag(e) {
+    if (!plotDrag || mode !== 'plot') plotDrag = { pts: new Map() };
+    plotDrag.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    plotDrag.grip = plotGrip();
+    mode = 'plot'; tap = null;
+    canvas.classList.add('panning');
+  }
+  function movePlotDrag(e) {
+    const p = plotDrag && plotDrag.pts.get(e.pointerId), s = plotActive;
+    if (!p || !s) return;
+    p.x = e.clientX; p.y = e.clientY;
+    const g0 = plotDrag.grip, g1 = plotGrip(), d = plotVec(s, g1.x - g0.x, g1.y - g0.y);
+    WB.plotPan(s, d.x, d.y);
+    if (g0.d > 0 && g1.d > 0) { const L = plotLocal(s, g1.x, g1.y); WB.plotZoom(s, g0.d / g1.d, L.x, L.y); }
+    plotDrag.grip = g1;
+    plotViewChanged();
+  }
+  function endPlotDrag(e) {
+    if (!plotDrag) { mode = null; return; }
+    plotDrag.pts.delete(e.pointerId);
+    if (plotDrag.pts.size) { plotDrag.grip = plotGrip(); return; }
+    plotDrag = null; mode = null;
+    canvas.classList.remove('panning');
+  }
+
+  /* The graph the bar is for: the one being explored, or a graph selected on its own. */
+  function barPlot() {
+    if (plotActive && doc.strokes.includes(plotActive)) return plotActive;
+    const it = selItems();
+    return it.length === 1 && it[0].tool === 'plot' && tools.tool === 'select' ? it[0] : null;
+  }
+  function hidePlotBar() { plotBar.classList.remove('on'); }
+  function refreshPlotBar() {
+    const s = barPlot(), on = !!s && !xf && !(selDrag && selDrag.moved);
+    plotBar.classList.toggle('on', on);
+    if (plotPanelFor && plotPanelFor !== s) closePlotPanel();
+    if (!on) return;
+    $('#pb-explore').setAttribute('aria-pressed', String(plotActive === s));
+    placePlotBar();
+  }
+  function placePlotBar() {
+    if (!plotBar.classList.contains('on')) return;
+    const s = barPlot();
+    if (!s) return hidePlotBar();
+    const q = WB.corners(s), z = view.zoom;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < 8; i += 2) { const x = q[i] * z + view.x, y = q[i + 1] * z + view.y; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    const w = plotBar.offsetWidth, h = plotBar.offsetHeight;
+    let y = y1 + 16;
+    if (y + h > H - 96) y = y0 - (selection.has(s) ? ROT_GAP + 22 : 12) - h;
+    if (y < 8) y = Math.min(H - h - 96, Math.max(8, y0 + 12));     // a graph filling the screen: the bar rests inside it
+    plotBar.style.transform = `translate(${clamp((x0 + x1) / 2 - w / 2, 8, Math.max(8, W - w - 8))}px, ${clamp(y, 8, Math.max(8, H - h - 8))}px)`;
+  }
+  /* Editing the functions: one per line, drawn as they are typed; closing it is one undo step. */
+  const fnsOf = (s) => s.fns.map((f) => ({ src: f.src, color: f.color }));
+  function openPlotPanel(s) {
+    plotPanelFor = s; plotPanelBefore = fnsOf(s);
+    const t = $('#pb-fns');
+    t.value = s.fns.map((f) => f.src).join('\n');
+    t.rows = Math.min(8, Math.max(3, s.fns.length + 1));
+    $('#pb-panel').hidden = false; $('#pb-edit').setAttribute('aria-expanded', 'true');
+    placePlotBar();
+    t.focus({ preventScroll: true });
+  }
+  function closePlotPanel() {
+    const s = plotPanelFor;
+    if (!s) return;
+    plotPanelFor = null;
+    $('#pb-panel').hidden = true; $('#pb-edit').setAttribute('aria-expanded', 'false');
+    if (document.activeElement === $('#pb-fns')) $('#pb-fns').blur();
+    const after = fnsOf(s);
+    if (JSON.stringify(after) !== JSON.stringify(plotPanelBefore) && doc.strokes.includes(s)) record({ type: 'edit', s, before: { fns: plotPanelBefore }, after: { fns: after } });
+    placePlotBar();
+  }
+  function initPlotBar() {
+    plotBar.addEventListener('pointerdown', (e) => { if (e.target.id !== 'pb-fns') e.preventDefault(); });
+    const zoomBy = (k) => { const s = barPlot(); if (s) { WB.plotZoom(s, k); plotViewChanged(); } };
+    $('#pb-in').addEventListener('click', () => zoomBy(1 / 1.5));
+    $('#pb-out').addEventListener('click', () => zoomBy(1.5));
+    $('#pb-home').addEventListener('click', () => { const s = barPlot(); if (s) { s.cx = 0; s.cy = 0; s.span = WB.PLOT_SPAN; plotViewChanged(); } });
+    $('#pb-explore').addEventListener('click', () => { const s = barPlot(); if (!s) return; if (plotActive === s) exitPlot(); else enterPlot(s); });
+    $('#pb-edit').addEventListener('click', () => { const s = barPlot(); if (!s) return; if (plotPanelFor) closePlotPanel(); else openPlotPanel(s); });
+    $('#pb-fns').addEventListener('input', () => {
+      const s = plotPanelFor;
+      if (!s) return;
+      const old = s.fns, lines = $('#pb-fns').value.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 12);
+      s.fns = lines.map((src, i) => ({ src, color: (old[i] && old[i].color) || WB.PLOT_COLORS[i % WB.PLOT_COLORS.length] }));
+      invalidate();
+    });
+  }
+
+  /* ---- AI actions ------------------------------------------------------------
+     The AI button on the selection bar: tidy handwriting into typed text with typeset maths, solve
+     a written problem showing the working, or turn a written function into a graph. The model only
+     reads (js/ai.js); answers are checked and graphs drawn on the device. Each result is one undo step. */
+  const aiBtn = $('#sel-ai'), aiMenu = $('#ai-menu');
+  let aiJob = null;
+  function openAiSettings() {
+    openSheet('#settings');
+    setTimeout(() => { $('#ai-title').scrollIntoView({ block: 'start', behavior: reduceMotion.matches ? 'auto' : 'smooth' }); if (!WB.ai.key() && WB.ai.get().provider !== 'custom') $('#ai-key').focus({ preventScroll: true }); }, 60);
+  }
+  function aiError(e) {
+    if (e.status === 401 || e.status === 403) return tr('tAiKeyBad');
+    if (e.status === 429) return tr('tAiQuota');
+    if (e instanceof TypeError) return tr('tAiNetwork');       // offline, blocked, or the server refused the browser (CORS)
+    return tr('tAiFailed', { e: String(e.message || e).slice(0, 180) });
+  }
+  /* Where the handwriting is, how big it is written and in what colour. */
+  function inkInfo(items) {
+    const b = WB.contentBounds(items) || { x: 0, y: 0, w: 0, h: 0 }, hs = [], colors = new Map();
+    for (const s of items) {
+      if (s.tool === 'pen' && !s.hl) {
+        const q = WB.boundsOf(s), h = q.y1 - q.y0 - s.width;
+        if (h > 0) hs.push(h);
+        colors.set(s.color, (colors.get(s.color) || 0) + s.points.length);
+      } else if (s.tool === 'text') { hs.push(s.size * 0.72); colors.set(s.color, (colors.get(s.color) || 0) + 50 * s.text.length); }
+    }
+    hs.sort((a, c) => a - c);
+    const med = hs.length ? hs[hs.length >> 1] : 24 / view.zoom;
+    const size = clamp(med * 1.35, 10 / view.zoom, Math.max(10 / view.zoom, b.h || med * 1.35));
+    let color = tools.text.color, best = -1;
+    for (const [c, n] of colors) if (n > best) { best = n; color = c; }
+    return { b, size, color };
+  }
+  /* Take items off the board and put others on, as one undo step. */
+  function swapIn(items, adds) {
+    const removed = items.map((s) => ({ i: doc.strokes.indexOf(s), s })).filter((it) => it.i >= 0).sort((a, b) => a.i - b.i);
+    for (let k = removed.length - 1; k >= 0; k--) doc.strokes.splice(removed[k].i, 1);
+    for (const a of adds) doc.strokes.push(a);
+    const list = (removed.length ? [{ type: 'remove', items: removed }] : []).concat(adds.map((a) => ({ type: 'add', stroke: a })));
+    record({ type: 'batch', list });
+    selection.clear(); for (const a of adds) selection.add(a);
+    if (adds.length) setTool('select');
+    selectionChanged(); invalidate();
+  }
+  function makePlot(items, srcs) {
+    const { b } = inkInfo(items), z = view.zoom;
+    const w = Math.max(b.w * 1.15, 380 / z), h = Math.round(w * 0.68 * 100) / 100;
+    const s = { tool: 'plot', x: b.x, y: b.y, w, h, rot: 0, opacity: 1, width: 0, cx: 0, cy: 0, span: WB.PLOT_SPAN,
+      fns: srcs.map((src, i) => ({ src, color: WB.PLOT_COLORS[i % WB.PLOT_COLORS.length] })) };
+    swapIn(items, [s]);
+    toast(tr('tAiPlotted'), tr('undo'), undo, 6000);
+  }
+  async function aiAction(task) {
+    closePopovers();
+    if (task === 'settings') return openAiSettings();
+    if (aiJob) return;
+    const items = selItems().sort((a, b) => doc.strokes.indexOf(a) - doc.strokes.indexOf(b));
+    if (!items.length) return toast(tr('tAiNothing'));
+    // Typed functions need no AI: a graph straight away.
+    if (task === 'plot' && items.every((s) => s.tool === 'text')) {
+      const srcs = items.flatMap((s) => s.text.split('\n')).map((l) => WB.mx.plainOf(l).trim()).filter((l) => l && !WB.mx.plotFn(l).error);
+      if (srcs.length) return makePlot(items, srcs);
+    }
+    if (!WB.ai.ready()) return toast(tr('tAiNoKey'), tr('aiSettingsMenu'), openAiSettings, 6000);
+    const png = WB.ai.picture(items);
+    if (!png) return toast(tr('tAiNothing'));
+    const ctrl = new AbortController();
+    aiJob = ctrl; aiBtn.classList.add('busy');
+    toast(tr('tAiReading'), tr('cancel'), () => ctrl.abort(), 180000);
+    let res;
+    try { res = await WB.ai.run(task, png, ctrl.signal); }
+    catch (e) {
+      if (e.name === 'AbortError') $('#toast').classList.remove('on');
+      else { console.error('AI', task, e); toast(aiError(e), null, null, 8000); }
+      return;
+    } finally { aiJob = null; aiBtn.classList.remove('busy'); }
+    const still = items.filter((s) => doc.strokes.includes(s));      // the board may have changed while waiting
+    const { b, size, color } = inkInfo(still.length ? still : items);
+    if (task === 'tidy') {
+      const lines = (Array.isArray(res.lines) ? res.lines : []).map((l) => String(l).replace(/\s+$/, '')).filter((l) => l.trim());
+      if (!lines.length) return toast(tr('tAiEmpty'));
+      const t = { tool: 'text', x: b.x, y: b.y, text: lines.join('\n').slice(0, 20000), font: tools.text.font, size, color, opacity: 1, width: 0, math: true };
+      swapIn(still, [t]);
+      return toast(tr('tAiTidied'), tr('undo'), undo, 6000);
+    }
+    if (task === 'solve') {
+      const steps = (Array.isArray(res.steps) ? res.steps : []).map((l) => String(l).trim()).filter(Boolean).slice(0, 20);
+      const answer = res.answer ? String(res.answer).trim() : '';
+      const flat = (l) => l.replace(/\s|\\[,;:!]/g, '');
+      const lines = steps.map((l) => '$' + l + '$');
+      if (answer && (!steps.length || flat(steps[steps.length - 1]) !== flat(answer))) lines.push('$' + answer + '$');
+      if (!lines.length) return toast(tr('tAiEmpty'));
+      // The model wrote the working; whether its answer is right is checked here, by putting it back into the problem.
+      const sols = Array.isArray(res.solutions) ? res.solutions.filter((v) => v && typeof v === 'object') : [];
+      const verdicts = res.plain && sols.length ? sols.map((v) => WB.mx.check(res.plain, v)) : [];
+      const verdict = verdicts.includes(false) ? false : verdicts.length && verdicts.every((v) => v === true) ? true : null;
+      if (verdict === true) lines[lines.length - 1] += '  ✓';
+      if (verdict === false) lines.push('⚠ ' + tr('aiCheckFail'));
+      const t = { tool: 'text', x: b.x, y: b.y + b.h + size * 0.5, text: lines.join('\n').slice(0, 20000), font: 'hand', size, color, opacity: 1, width: 0, math: true };
+      swapIn([], [t]);
+      return toast(tr(verdict === true ? 'tAiChecked' : verdict === false ? 'tAiCheckFailed' : 'tAiSolved'), tr('undo'), undo, verdict === false ? 9000 : 6000);
+    }
+    if (task === 'plot') {
+      const srcs = (Array.isArray(res.functions) ? res.functions : []).filter((f) => f && f.plain)
+        .map((f) => (f.name ? String(f.name).trim() + ' = ' : 'y = ') + String(f.plain).trim()).filter((src) => !WB.mx.plotFn(src).error).slice(0, 12);
+      if (!srcs.length) return toast(tr('tAiNoFn'));
+      return makePlot(still, srcs);
+    }
+  }
+
+  /* The models a provider offers this key, as the app's own menu under the model field: everything
+     when opened from "Show available" (the current one ticked), narrowed down while typing. */
+  const models = {};          // provider -> model ids, fetched once per visit
+  const modelList = () => models[WB.ai.get().provider];
+  let modelMenuAt = 0;        // where the model field was when its list opened
+  function openModelMenu(filter) {
+    const menu = $('#ai-model-menu'), input = $('#ai-model'), list = modelList() || [], cur = input.value.trim();
+    const q = (filter || '').toLowerCase(), shown = q && !list.includes(filter) ? list.filter((m) => m.toLowerCase().includes(q)) : list;
+    menu.textContent = '';
+    for (const m of shown) {
+      const b = document.createElement('button');
+      b.className = 'mi'; b.dataset.model = m; b.setAttribute('role', 'option');
+      b.setAttribute('aria-selected', String(m === cur));
+      const t = document.createElement('span'); t.textContent = m; b.appendChild(t);
+      menu.appendChild(b);
+    }
+    if (!shown.length) return closeModelMenu();
+    const r = input.getBoundingClientRect();
+    modelMenuAt = r.top;
+    menu.style.minWidth = menu.style.width = r.width + 'px';
+    menu.style.left = clamp(r.left, 8, Math.max(8, W - r.width - 8)) + 'px';
+    const below = H - r.bottom - 16, above = r.top - 16;
+    const room = below >= 180 || below >= above ? below : above;
+    menu.style.maxHeight = Math.max(120, Math.min(320, room)) + 'px';
+    menu.classList.add('open');
+    const h = menu.offsetHeight;
+    menu.style.top = (room === below ? r.bottom + 6 : r.top - 6 - h) + 'px';
+    input.setAttribute('aria-expanded', 'true');
+    const sel = $('.mi[aria-selected="true"]', menu);
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
+  function closeModelMenu() {
+    const menu = $('#ai-model-menu');
+    if (!menu || !menu.classList.contains('open')) return;
+    menu.classList.remove('open');
+    $('#ai-model').setAttribute('aria-expanded', 'false');
+  }
+
+  /* Settings → AI: provider, key, model (and the server for an OpenAI-compatible one). */
+  function initAi() {
+    const ai = WB.ai;
+    aiMenu.addEventListener('click', (e) => { const b = e.target.closest('[data-ai]'); if (b) aiAction(b.dataset.ai); });
+    aiBtn.addEventListener('click', () => {       // after the popover toggle (POPS): place the menu under the button
+      const r = aiBtn.getBoundingClientRect(), w = aiMenu.offsetWidth || 220;
+      aiMenu.style.left = clamp(r.left + r.width / 2 - w / 2, 8, Math.max(8, W - w - 8)) + 'px';
+      aiMenu.style.top = r.bottom + 10 + 'px';
+    });
+    const sync = () => {
+      const c = ai.get(), p = c.provider, P = ai.PROVIDERS[p];
+      $$('#ai-provider [role="radio"]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.value === p)));
+      $('#ai-key').value = c.keys[p] || '';
+      $('#ai-model').value = c.models[p] || '';
+      $('#ai-model').placeholder = P.model || 'model name';
+      $('#ai-base-row').hidden = p !== 'custom';
+      $('#ai-base').value = c.baseUrl;
+      const link = $('#ai-key-link');
+      if (P.keyUrl) link.href = P.keyUrl; else link.removeAttribute('href');
+      closeModelMenu();
+    };
+    $('#ai-provider').addEventListener('click', (e) => { const b = e.target.closest('[data-value]'); if (b) { ai.set({ provider: b.dataset.value }); sync(); } });
+    $('#ai-key').addEventListener('input', (e) => ai.setKey(ai.get().provider, e.target.value.trim()));
+    $('#ai-model').addEventListener('input', (e) => { ai.setModel(ai.get().provider, e.target.value.trim()); if (modelList()) openModelMenu(e.target.value.trim()); });
+    $('#ai-model').addEventListener('focus', () => { if (modelList()) openModelMenu(); });
+    $('#ai-model').addEventListener('keydown', (e) => {
+      const menu = $('#ai-model-menu');
+      if (e.key === 'ArrowDown' && menu.classList.contains('open')) { e.preventDefault(); const b = $('.mi', menu); if (b) b.focus(); }
+      else if (e.key === 'Escape' && menu.classList.contains('open')) { e.stopPropagation(); closeModelMenu(); }
+    });
+    $('#ai-model-menu').addEventListener('keydown', (e) => {
+      const items = $$('#ai-model-menu .mi'), i = items.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const j = i + (e.key === 'ArrowDown' ? 1 : -1); if (j < 0) $('#ai-model').focus(); else if (items[j]) items[j].focus(); }
+      else if (e.key === 'Escape') { e.stopPropagation(); closeModelMenu(); $('#ai-model').focus(); }
+    });
+    $('#ai-model-menu').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-model]');
+      if (!b) return;
+      $('#ai-model').value = b.dataset.model; ai.setModel(ai.get().provider, b.dataset.model);
+      closeModelMenu();
+    });
+    // Scrolling the settings moves the field away from its list: close it (unless the field did not actually move).
+    $('#settings .sheet').addEventListener('scroll', () => { if (Math.abs($('#ai-model').getBoundingClientRect().top - modelMenuAt) > 2) closeModelMenu(); }, { passive: true });
+    $('#ai-base').addEventListener('input', (e) => ai.set({ baseUrl: e.target.value.trim() }));
+    $('#ai-list').addEventListener('click', async () => {
+      if ($('#ai-model-menu').classList.contains('open')) return closeModelMenu();
+      if (modelList()) return openModelMenu();
+      const btn = $('#ai-list'), p = ai.get().provider;
+      btn.disabled = true; btn.textContent = '…';
+      try {
+        models[p] = await ai.listModels();
+        if (ai.get().provider === p) openModelMenu();
+        if (!models[p].length) toast(tr('tAiModels', { n: 0 }));
+      } catch (e) { toast(aiError(e), null, null, 6000); }
+      finally { btn.disabled = false; btn.textContent = tr('aiListModels'); }
+    });
+    $('#ai-forget').addEventListener('click', () => { ai.forget(); sync(); toast(tr('tAiForgot')); });
+    sync();
+    initPlotBar();
+  }
+
+
   /* ---- Keyboard ------------------------------------------------------ */
   window.addEventListener('keydown', (e) => {
     const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+    if (e.target.id === 'pb-fns') { if (e.key === 'Escape') { closePlotPanel(); e.preventDefault(); } return; }   // typing a graph's functions
     if (e.target === ta) {                      // typing on the board: only Escape and file shortcuts get through
       if (e.key === 'Escape') { commitText(); return; }
       if (!(mod && 'soe'.includes(k))) return;
       commitText();
     }
     const typing = e.target instanceof HTMLInputElement && e.target.type !== 'range';
-    if (e.key === 'Escape') { closePopovers(); closeSheets(); clearSelection(); if (typing) e.target.blur(); return; }
+    if (e.key === 'Escape') { if (plotActive) exitPlot(); closePopovers(); closeSheets(); clearSelection(); if (typing) e.target.blur(); return; }
     if (typing) { if (e.key === 'Enter') e.target.blur(); return; }
     if (mod) {
       if (k === 'a' && !sheetOpen()) {          // select everything
@@ -2714,6 +3084,7 @@
   });
   initUI();
   initStyleBar();
+  initAi();
   WB.onImageReady = invalidate;                             // a picture finished decoding: draw it
   // iPhone and iPad only offer files whose type the system knows, and .whtbd is not one of them,
   // so there the chooser takes any file and the app checks it after choosing.

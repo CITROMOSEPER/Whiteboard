@@ -17,6 +17,8 @@
                                  [uv colour] f width · u8 opacity · [u8 dash] [str shape] · points · [u8 pressure per point]
        u8 kind 2 text:           f x, y, rot, size · u8 font · uv colour · u8 opacity · str text
        u8 kind 3 fill:           uv colour · u8 opacity · u8 under · uv rings, each: points
+       u8 kind 4 graph:          f x, y, w, h, rot · u8 opacity · f64 cx, cy, span · uv functions, each: uv colour · str source
+       u8 kind 5 maths text:     as kind 2 (the text holds $…$ maths)
      points = u8 (grid exponent + 8) · uv count · sv x0, y0 (in grid steps) · sv dx, dy ...
    Pictures (and the page pictures of an opened PDF) are left out: they would make links far too long. */
 (function () {
@@ -33,6 +35,7 @@
     uv(v) { v = Math.max(0, Math.floor(v)); while (v >= 128) { this.u8((v % 128) | 128); v = Math.floor(v / 128); } this.u8(v); }
     sv(v) { this.uv(v < 0 ? -2 * v - 1 : 2 * v); }
     f(v) { this.need(4); new DataView(this.b.buffer).setFloat32(this.n, v, true); this.n += 4; }
+    d(v) { this.need(8); new DataView(this.b.buffer).setFloat64(this.n, v, true); this.n += 8; }
     str(s) { const u = te.encode(s); this.uv(u.length); this.need(u.length); this.b.set(u, this.n); this.n += u.length; }
   }
   class In {
@@ -41,6 +44,7 @@
     uv() { let v = 0, m = 1, x; do { x = this.u8(); v += (x & 127) * m; m *= 128; } while (x & 128); return v; }
     sv() { const v = this.uv(); return v % 2 ? -(v + 1) / 2 : v / 2; }
     f() { if (this.n + 4 > this.b.length) throw new Error('the link ends too early'); const v = this.dv.getFloat32(this.n, true); this.n += 4; return v; }
+    d() { if (this.n + 8 > this.b.length) throw new Error('the link ends too early'); const v = this.dv.getFloat64(this.n, true); this.n += 8; return v; }
     str() { const l = this.uv(); if (this.n + l > this.b.length) throw new Error('the link ends too early'); const s = td.decode(this.b.subarray(this.n, this.n + l)); this.n += l; return s; }
   }
 
@@ -133,6 +137,7 @@
     const color = (c) => { if (!colors.has(c)) colors.set(c, colors.size); return colors.get(c); };
     const items = doc.strokes.filter((s) => s.tool !== 'image');
     for (const s of items) if (s.color && s.tool !== 'eraser') color(s.color);
+    for (const s of items) if (s.tool === 'plot') for (const q of s.fns) color(q.color);
     o.u8(1);
     o.str(doc.title || 'Untitled');
     o.uv(doc.pages.length);
@@ -142,8 +147,13 @@
     o.uv(items.length);
     for (const s of items) {
       if (s.tool === 'text') {
-        o.u8(2); o.f(s.x); o.f(s.y); o.f(s.rot || 0); o.f(s.size);
+        o.u8(s.math ? 5 : 2); o.f(s.x); o.f(s.y); o.f(s.rot || 0); o.f(s.size);
         o.u8(Math.max(0, FONTS.indexOf(s.font))); o.uv(color(s.color)); o.u8(opacityByte(s.opacity)); o.str(s.text);
+      } else if (s.tool === 'plot') {
+        o.u8(4); o.f(s.x); o.f(s.y); o.f(s.w); o.f(s.h); o.f(s.rot || 0); o.u8(opacityByte(s.opacity));
+        o.d(s.cx); o.d(s.cy); o.d(s.span);
+        o.uv(s.fns.length);
+        for (const q of s.fns) { o.uv(color(q.color)); o.str(q.src); }
       } else if (s.tool === 'fill') {
         o.u8(3); o.uv(color(s.color)); o.u8(opacityByte(s.opacity)); o.u8(s.under ? 1 : 0);
         const b = WB.boundsOf(s), e = gridExp(Math.min(0.5, Math.max(b.x1 - b.x0, b.y1 - b.y0) / 1500));
@@ -187,9 +197,14 @@
     const n = r.uv();
     for (let i = 0; i < n; i++) {
       const kind = r.u8();
-      if (kind === 2) {
+      if (kind === 2 || kind === 5) {
         const x = r.f(), y = r.f(), rot = r.f(), size = r.f(), font = FONTS[r.u8()] || 'sans', color = col(r.uv()), opacity = r.u8() / 255, t = r.str();
-        strokes.push({ tool: 'text', x, y, rot: (rot * 180) / Math.PI, text: t, font, size, color, opacity });
+        strokes.push({ tool: 'text', x, y, rot: (rot * 180) / Math.PI, text: t, font, size, color, opacity, math: kind === 5 });
+      } else if (kind === 4) {
+        const x = r.f(), y = r.f(), w = r.f(), h = r.f(), rot = r.f(), opacity = r.u8() / 255, cx = r.d(), cy = r.d(), span = r.d(), nf = r.uv(), fns = [];
+        if (nf > r.b.length - r.n) throw new Error('the link is damaged');
+        for (let j = 0; j < nf; j++) { const color = col(r.uv()); fns.push({ color, src: r.str() }); }
+        strokes.push({ tool: 'plot', x, y, w, h, rot: (rot * 180) / Math.PI, opacity, cx, cy, span, fns });
       } else if (kind === 3) {
         const color = col(r.uv()), opacity = r.u8() / 255, under = !!r.u8(), nr = r.uv(), rings = [];
         for (let j = 0; j < nr; j++) rings.push(getPoints(r));

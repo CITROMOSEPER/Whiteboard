@@ -130,7 +130,32 @@
     <svg viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9.5L21 14.5V5a2 2 0 0 0-2-2z"/><path d="M14.5 21v-4.5a2 2 0 0 1 2-2H21"/></svg>
     <span data-i18n="saveSticker"></span>
   </button>
+  <button class="sel-btn" id="sel-ai" data-i18n-label="aiActions" data-i18n-title="aiActions" aria-haspopup="menu" aria-expanded="false">
+    <svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
+    <span data-i18n="aiShort"></span>
+  </button>
   <button id="sel-delete" data-i18n="delete"></button>
+</div>
+<div class="glass menu" id="ai-menu" role="menu">
+  <button class="mi" role="menuitem" data-ai="tidy"><span data-i18n="aiTidy"></span></button>
+  <button class="mi" role="menuitem" data-ai="solve"><span data-i18n="aiSolve"></span></button>
+  <button class="mi" role="menuitem" data-ai="plot"><span data-i18n="aiPlot"></span></button>
+  <hr>
+  <button class="mi" role="menuitem" data-ai="settings"><span data-i18n="aiSettingsMenu"></span></button>
+</div>
+
+<!-- A graph's own controls (floats above it while it is selected or open for exploring) -->
+<div class="glass" id="plot-bar" role="toolbar">
+  <button class="ibtn" id="pb-out" data-i18n-label="zOut" data-i18n-title="zOut"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+  <button class="ibtn" id="pb-in" data-i18n-label="zIn" data-i18n-title="zIn"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
+  <button class="ibtn" id="pb-home" data-i18n-label="plotHome" data-i18n-title="plotHome"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg></button>
+  <span class="sep"></span>
+  <button class="tbtn" id="pb-edit" data-i18n="plotEdit" aria-expanded="false"></button>
+  <button class="tbtn" id="pb-explore" data-i18n="plotExplore"></button>
+  <div id="pb-panel" hidden>
+    <textarea id="pb-fns" rows="3" spellcheck="false" autocomplete="off" autocapitalize="off" data-i18n-label="plotEdit"></textarea>
+    <p class="note" data-i18n="plotEditNote"></p>
+  </div>
 </div>
 
 <!-- Style of the selected objects (floats under the selection) -->
@@ -173,8 +198,6 @@
   <button class="mi" role="menuitem" data-act="share"><span data-i18n="mShare"></span></button>
   <button class="mi" role="menuitem" data-act="open-link"><span data-i18n="mOpenLink"></span></button>
   <hr>
-  <button class="mi" role="menuitem" data-act="clear"><span data-i18n="mClear"></span></button>
-  <hr>
   <button class="mi" role="menuitem" data-act="settings"><span data-i18n="mSettings"></span></button>
 </div>
 
@@ -186,6 +209,7 @@
 </div>
 
 <div class="glass menu" id="lang-menu" role="menu"></div>
+<div class="glass menu" id="ai-model-menu" role="listbox"></div>
 
 <!-- Settings -->
 <div class="scrim" id="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
@@ -280,6 +304,34 @@
       </div>
     </div>
 
+    <h3 id="ai-title" data-i18n="aiTitle"></h3>
+    <div class="group" id="ai-group">
+      <div class="row col">
+        <span id="lbl-ai-provider" data-i18n="aiProvider"></span>
+        <div class="seg" id="ai-provider" role="radiogroup" aria-labelledby="lbl-ai-provider">
+          <button role="radio" data-value="gemini">Gemini</button>
+          <button role="radio" data-value="openai">OpenAI</button>
+          <button role="radio" data-value="anthropic">Claude</button>
+          <button role="radio" data-value="custom" data-i18n="aiOther"></button>
+        </div>
+      </div>
+      <div class="row col" id="ai-base-row" hidden>
+        <label for="ai-base" data-i18n="aiBaseUrl"></label>
+        <input class="field" id="ai-base" type="url" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="https://openrouter.ai/api/v1">
+      </div>
+      <div class="row col">
+        <div class="row-top"><label for="ai-key" data-i18n="aiKey"></label><a id="ai-key-link" target="_blank" rel="noopener" data-i18n="aiGetKey"></a></div>
+        <input class="field" id="ai-key" type="password" spellcheck="false" autocomplete="off" autocapitalize="off" data-lpignore="true">
+      </div>
+      <div class="row col">
+        <div class="row-top"><label for="ai-model" data-i18n="aiModel"></label><button class="pill-btn quiet" id="ai-list" data-i18n="aiListModels"></button></div>
+        <input class="field" id="ai-model" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" role="combobox" aria-autocomplete="list" aria-controls="ai-model-menu" aria-expanded="false">
+      </div>
+      <p class="note" data-i18n="aiPrivacy"></p>
+      <p class="note" data-i18n="aiCost"></p>
+      <div class="row"><span></span><button class="pill-btn quiet" id="ai-forget" data-i18n="aiForget"></button></div>
+    </div>
+
     <h3 data-i18n="canvas"></h3>
     <div class="group">
       <div class="seg" data-seg="grid" role="radiogroup">
@@ -293,7 +345,7 @@
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.15.04.</p>
+      <p id="app-version">version: 2026.11.16.01.</p>
       <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
@@ -454,6 +506,10 @@
 
 <script src="js/i18n.js"></script>
 <script src="js/geometry.js"></script>
+<script src="js/mathexpr.js"></script>
+<script src="js/mathtype.js"></script>
+<script src="js/plot.js"></script>
+<script src="js/ai.js"></script>
 <script src="js/io.js"></script>
 <script src="js/fill.js"></script>
 <script src="js/picker.js"></script>

@@ -9,7 +9,7 @@
      trace() walks it into any sink with the canvas path interface, so the same
      geometry feeds the screen, SVG and PDF. */
   WB.trace = function (s, k) {
-    if (s.tool === 'text' || s.tool === 'image') return;
+    if (s.tool === 'text' || s.tool === 'image' || s.tool === 'plot') return;
     if (s.rings) {                      // a fill: closed outlines, holes included (even-odd)
       for (const r of s.rings) {
         k.moveTo(r[0], r[1]);
@@ -145,6 +145,7 @@
   /* Measured at 100px and scaled, so very small or very large sizes stay exact. */
   WB.textLayout = function (s) {
     if (s._t) return s._t;
+    if (s.math && WB.mathLayout) return (s._t = WB.mathLayout(s));   // typeset maths (js/mathtype.js)
     mctx.font = '100px ' + family(s);
     const m = mctx.measureText('Mg'), k = s.size / 100;
     const asc = (m.fontBoundingBoxAscent || 80) * k, desc = (m.fontBoundingBoxDescent || 20) * k;
@@ -211,6 +212,7 @@
 
   /* over: paint a highlighter normally instead of beneath (the live stroke is drawn under the ink layer instead). */
   WB.paint = function (c, s, path, over) {
+    if (s.tool === 'plot') { WB.paintPlot(c, s); return; }
     if (s.tool === 'image') {
       const img = WB.imageOf(s);
       if (!img.complete || !img.naturalWidth) return;
@@ -230,7 +232,9 @@
       c.globalCompositeOperation = 'source-over';
       c.globalAlpha = s.opacity;
       c.fillStyle = s.color;
-      c.translate(s.x, s.y); if (s.rot) c.rotate(s.rot); c.scale(k, k);
+      c.translate(s.x, s.y); if (s.rot) c.rotate(s.rot);
+      if (s.math) { WB.paintMath(c, s, L); c.restore(); return; }
+      c.scale(k, k);
       c.font = '100px ' + family(s); c.textBaseline = 'alphabetic';
       for (let i = 0; i < L.lines.length; i++) if (L.lines[i]) c.fillText(L.lines[i], 0, (i * L.lh + L.base) / k);
       c.restore();
@@ -297,7 +301,7 @@
 
   WB.boundsOf = function (s) {
     if (s._b) return s._b;
-    if (s.tool === 'text' || s.tool === 'image') {
+    if (s.tool === 'text' || s.tool === 'image' || s.tool === 'plot') {
       const q = WB.corners(s);
       return (s._b = { x0: Math.min(q[0], q[2], q[4], q[6]), y0: Math.min(q[1], q[3], q[5], q[7]), x1: Math.max(q[0], q[2], q[4], q[6]), y1: Math.max(q[1], q[3], q[5], q[7]) });
     }
@@ -330,7 +334,7 @@
     if (s.tool === 'eraser') return false;
     const b = WB.boundsOf(s);
     if (x < b.x0 - tol || x > b.x1 + tol || y < b.y0 - tol || y > b.y1 + tol) return false;
-    if (s.tool === 'text' || s.tool === 'image') { const F = WB.frameOf(s), p = WB.toLocal(F, x, y); return Math.abs(p.x) <= F.w / 2 + tol && Math.abs(p.y) <= F.h / 2 + tol; }
+    if (s.tool === 'text' || s.tool === 'image' || s.tool === 'plot') { const F = WB.frameOf(s), p = WB.toLocal(F, x, y); return Math.abs(p.x) <= F.w / 2 + tol && Math.abs(p.y) <= F.h / 2 + tol; }
     mctx.setTransform(1, 0, 0, 1, 0, 0);
     if (s.tool === 'fill') return mctx.isPointInPath(WB.pathOf(s), x, y, 'evenodd');
     mctx.lineWidth = s.width + 2 * tol; mctx.lineCap = 'round'; mctx.lineJoin = 'round';
@@ -341,7 +345,7 @@
   WB.inLasso = function (s, poly) {
     if (s.tool === 'eraser') return false;
     let pts;
-    if (s.tool === 'image' || s.tool === 'text') { const q = WB.corners(s); pts = [...q, (q[0] + q[4]) / 2, (q[1] + q[5]) / 2]; }
+    if (s.tool === 'image' || s.tool === 'text' || s.tool === 'plot') { const q = WB.corners(s); pts = [...q, (q[0] + q[4]) / 2, (q[1] + q[5]) / 2]; }
     else pts = s.rings ? s.rings[0] : s.points;
     const n = pts.length >> 1, step = Math.max(1, Math.floor(n / 64)), m = poly.length;
     let inside = 0, total = 0;
