@@ -138,6 +138,13 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
   user-select: text; -webkit-user-select: text; text-overflow: ellipsis;
 }
 #doc-title:hover { background: var(--fill); }
+/* The live board badge: a green dot and how many are here (or "Live" while alone). */
+.live-pill { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; margin-right: 2px; border-radius: 15px; background: var(--fill); font-weight: 600; font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+.live-pill[hidden] { display: none; }
+.live-pill i, .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #34c759; box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.22); flex: none; }
+.live-pill.alone i, #live-box.alone .live-dot { background: #ff9f0a; box-shadow: 0 0 0 3px rgba(255, 159, 10, 0.22); }
+.live-dot { display: inline-block; margin-right: 8px; vertical-align: 1px; }
+#live-state { font-weight: 600; }
 #doc-title:focus { background: var(--fill); outline: 2px solid var(--accent); outline-offset: 0; }
 
 /* ---------- Buttons ---------- */
@@ -596,13 +603,13 @@ body.pipetting #canvas { cursor: crosshair; }
 #brush-cursor.hl { border-radius: 3px; }
 #preview-dot.highlighter { border-radius: 4px; }
 #canvas.t-laser, #canvas.t-laser.panning { cursor: none; }
-#laser {
+#laser, .laser {
   position: fixed; left: 0; top: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%;
   pointer-events: none; z-index: 5; opacity: 0; will-change: transform; transition: opacity 120ms ease;
-  background: radial-gradient(circle, #fff 0 16%, #ff4040 42%, #ff1a1a 72%);
-  box-shadow: 0 0 6px 2px rgba(255, 40, 40, 0.95), 0 0 18px 8px rgba(255, 0, 0, 0.45), 0 0 42px 16px rgba(255, 0, 0, 0.18);
+  background: radial-gradient(circle, #fff 0 16%, var(--lc, #ff4040) 42%, var(--lc, #ff1a1a) 72%);
+  box-shadow: 0 0 6px 2px color-mix(in srgb, var(--lc, #ff2828) 95%, transparent), 0 0 18px 8px color-mix(in srgb, var(--lc, #ff0000) 45%, transparent), 0 0 42px 16px color-mix(in srgb, var(--lc, #ff0000) 18%, transparent);
 }
-#laser.on { opacity: 1; }
+#laser.on, .laser.on { opacity: 1; }
 
 /* ---------- New sheet ---------- */
 #sheets .sheet { width: min(36rem, 100%); }
@@ -705,6 +712,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
   </button>
   <input id="doc-title" type="text" value="" data-i18n-label="boardName" spellcheck="false" autocomplete="off" maxlength="80">
+  <button class="live-pill" id="live-pill" hidden><i></i><span></span></button>
 </header>
 
 <!-- Top right: history + zoom -->
@@ -1000,6 +1008,23 @@ body.pipetting #canvas { cursor: crosshair; }
       <div class="row"><span></span><button class="pill-btn quiet" id="ai-forget" data-i18n="aiForget"></button></div>
     </div>
 
+    <h3 data-i18n="liveSettings"></h3>
+    <div class="group">
+      <div class="row col">
+        <label for="turn-url" data-i18n="turnUrl"></label>
+        <input class="field" id="turn-url" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="turn:turn.example.com:3478">
+      </div>
+      <div class="row col">
+        <label for="turn-user" data-i18n="turnUser"></label>
+        <input class="field" id="turn-user" type="text" spellcheck="false" autocomplete="off" autocapitalize="off">
+      </div>
+      <div class="row col">
+        <label for="turn-pass" data-i18n="turnPass"></label>
+        <input class="field" id="turn-pass" type="password" spellcheck="false" autocomplete="off" autocapitalize="off" data-lpignore="true">
+        <p class="note" data-i18n="turnNote"></p>
+      </div>
+    </div>
+
     <h3 data-i18n="canvas"></h3>
     <div class="group">
       <div class="seg" data-seg="grid" role="radiogroup">
@@ -1013,7 +1038,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.17.01.</p>
+      <p id="app-version">version: 2026.11.17.02.</p>
       <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
@@ -1124,7 +1149,13 @@ body.pipetting #canvas { cursor: crosshair; }
       <h2 id="share-title" data-i18n="shareTitle"></h2>
       <button class="pill-btn" data-close data-i18n="done"></button>
     </div>
-    <p class="note" data-i18n="shareNote"></p>
+    <p class="note" data-i18n="shareNoteLive"></p>
+    <div class="group" id="live-box" hidden>
+      <div class="row">
+        <div><span class="live-dot"></span><span id="live-state"></span><p class="note" data-i18n="liveNote"></p></div>
+        <button class="pill-btn quiet" id="live-stop" data-i18n="liveStop"></button>
+      </div>
+    </div>
     <h3 data-i18n="shareLinkLabel"></h3>
     <div class="group">
       <input id="share-link" type="text" readonly spellcheck="false" autocomplete="off" data-i18n-label="shareLinkLabel">
@@ -2377,6 +2408,50 @@ body.pipetting #canvas { cursor: crosshair; }
   });
   Object.assign(D.en, { plotEditNote: 'One per line, e.g. f(x) = sin(x) or y = x^2 − 1. While exploring, drag to move around and scroll or pinch to zoom. Tap a dot on a curve to see its coordinates.' });
   Object.assign(D.hu, { plotEditNote: 'Soronként egy, pl. f(x) = sin(x) vagy y = x^2 − 1. Felfedezés közben húzással mozoghatsz, görgetéssel vagy csippentéssel nagyíthatsz. Egy görbe pontjára koppintva látod a koordinátáit.' });
+
+  /* Live boards (share links people draw on together) and the TURN setting. Other languages fall back to English. */
+  Object.assign(D.en, {
+    shareNoteLive: 'Anyone with this link gets a copy of the board, and while the board is open here, they draw on it live with you. The copy travels inside the link; live changes go straight between your browsers. Nothing is uploaded or stored anywhere.',
+    liveNote: 'Others can draw while this board is open here, and each person’s laser pointer shows in their own colour (red is yours if you started it). When everyone has closed it, each keeps their own copy.',
+    liveStop: 'Stop', livePill: 'Live', liveConnected: 'Live: {n} more here', liveConnecting: 'Connecting…',
+    liveWaiting: 'Live: waiting for others to open the link',
+    liveBlocked: 'Couldn’t connect directly. Try another network, add a TURN server in Settings, or the link still opens a copy.',
+    liveNoTrackers: 'Can’t reach the meeting points for live boards. Check the internet connection.',
+    shareNoPicsLive: 'Pictures and PDF pages aren’t in the link itself; they reach the others over the live connection.',
+    tLiveJoined: 'Someone joined the board', tLiveLeft: 'Someone left the board', tLiveLeftBoard: 'Left the live board; the others keep it',
+    tLiveStopped: 'Live sharing stopped. The board stays here.', tLiveUnsupported: 'This browser can’t share boards live. The link opens a copy.',
+    tLiveFail: 'Couldn’t start the live board',
+    liveSettings: 'Live boards', turnUrl: 'TURN server (optional)', turnUser: 'TURN username', turnPass: 'TURN password',
+    turnNote: 'Only needed on networks that block direct connections (some schools, universities and mobile networks). Use your own TURN server; it is used only for live boards and stays on this device.',
+  });
+  Object.assign(D.hu, {
+    shareNoteLive: 'Aki megkapja ezt a linket, megkapja a tábla másolatát, és amíg a tábla itt nyitva van, élőben rajzolhat rá veled. A másolat magában a linkben utazik, az élő változások pedig közvetlenül a böngészőitek között. Semmi nem töltődik fel és nem tárolódik sehol.',
+    liveNote: 'Mások rajzolhatnak, amíg a tábla itt nyitva van, és mindenki lézermutatója a saját színében látszik (a piros a tiéd, ha te indítottad). Ha mindenki bezárta, mindenkinél megmarad a saját példánya.',
+    liveStop: 'Leállítás', livePill: 'Élő', liveConnected: 'Élő: még {n} fő van itt', liveConnecting: 'Kapcsolódás…',
+    liveWaiting: 'Élő: várakozás, hogy mások megnyissák a linket',
+    liveBlocked: 'Nem sikerült közvetlenül kapcsolódni. Próbálj másik hálózatot, adj meg TURN szervert a Beállításokban, vagy a link így is megnyit egy másolatot.',
+    liveNoTrackers: 'Nem érhetők el az élő táblák találkozási pontjai. Ellenőrizd az internetkapcsolatot.',
+    shareNoPicsLive: 'A képek és a PDF-oldalak nincsenek benne magában a linkben; az élő kapcsolaton jutnak el a többiekhez.',
+    tLiveJoined: 'Valaki csatlakozott a táblához', tLiveLeft: 'Valaki kilépett a tábláról', tLiveLeftBoard: 'Kiléptél az élő tábláról; a többieknél megmarad',
+    tLiveStopped: 'Az élő megosztás leállt. A tábla itt marad.', tLiveUnsupported: 'Ez a böngésző nem tud élőben megosztani. A link egy másolatot nyit meg.',
+    tLiveFail: 'Nem sikerült elindítani az élő táblát',
+    liveSettings: 'Élő táblák', turnUrl: 'TURN szerver (nem kötelező)', turnUser: 'TURN felhasználónév', turnPass: 'TURN jelszó',
+    turnNote: 'Csak olyan hálózatokon kell, amelyek tiltják a közvetlen kapcsolatot (egyes iskolák, egyetemek, mobilhálózatok). Saját TURN szervert adj meg; csak az élő táblákhoz használjuk, és ezen az eszközön marad.',
+  });
+
+  /* The same added strings in the other languages. */
+  Object.assign(D.de, {"aiActions": "KI-Aktionen", "aiShort": "KI", "aiTidy": "Handschrift aufräumen", "aiSolve": "Lösen, mit Rechenweg", "aiPlot": "Als Graph zeichnen", "aiSettingsMenu": "KI-Einstellungen…", "plotHome": "Zurück zur Startansicht", "plotEdit": "Funktionen", "plotExplore": "Erkunden", "plotEditNote": "Eine pro Zeile, z. B. f(x) = sin(x) oder y = x^2 − 1. Beim Erkunden ziehen, um dich zu bewegen, und scrollen oder mit zwei Fingern zoomen. Tippe auf einen Punkt einer Kurve, um seine Koordinaten zu sehen.", "aiTitle": "KI (eigener Schlüssel)", "aiProvider": "Anbieter", "aiOther": "Andere", "aiBaseUrl": "Serveradresse (OpenAI-kompatibel)", "aiKey": "API-Schlüssel", "aiGetKey": "Schlüssel holen ↗", "aiModel": "Modell", "aiListModels": "Verfügbare zeigen", "aiPrivacy": "Dein Schlüssel bleibt nur in diesem Browser auf diesem Gerät. Es gibt keinen Whiteboard-Server: Bei einer KI-Aktion schickt dein Browser ein Bild des ausgewählten Teils der Tafel direkt an den gewählten Anbieter. Dein Schlüssel landet nie in Tafeln, Dateien oder Freigabelinks.", "aiCost": "Der Anbieter kann jede Nutzung über deinen Schlüssel abrechnen. Gemini hat ein kostenloses Kontingent. Graphen und Ergebnisprüfungen werden auf deinem Gerät berechnet.", "aiForget": "Schlüssel entfernen", "tAiReading": "Handschrift wird gelesen…", "tAiNoKey": "Füge zuerst unter Einstellungen → KI einen API-Schlüssel hinzu", "tAiNothing": "Wähle zuerst etwas Handschrift aus", "tAiFailed": "KI-Anfrage fehlgeschlagen: {e}", "tAiKeyBad": "Der Anbieter hat den API-Schlüssel nicht akzeptiert", "tAiQuota": "Der Anbieter meldet, dass das Limit erreicht ist. Versuche es später erneut", "tAiNetwork": "Anbieter nicht erreichbar", "tAiTidied": "Handschrift aufgeräumt", "tAiSolved": "Gelöst", "tAiChecked": "Gelöst, und das Ergebnis stimmt", "tAiCheckFailed": "Gelöst, aber das Ergebnis stimmt nicht: prüfe die Schritte", "tAiPlotted": "Graph hinzugefügt. Doppelklicke oder tippe zweimal darauf, um ihn zu erkunden", "tAiNoFn": "Keine Funktion von x zum Zeichnen gefunden", "tAiEmpty": "Keine Schrift gefunden", "tAiModels": "{n} Modelle verfügbar", "tAiForgot": "API-Schlüssel entfernt", "aiCheckFail": "Probe: dieses Ergebnis erfüllt die Aufgabe nicht", "sBuiltIn": "Eingebaute Sticker", "sBuiltInNote": "Teil der App: immer da, passend zur Farbe deiner Arbeitsfläche.", "sBuiltInNoSave": "In den eingebauten Ordner können keine Sticker gespeichert werden. Wähle einen anderen Ordner.", "bGraphs": "Graphen", "bAxes": "Koordinatensysteme", "bVenn": "Venn-Diagramme", "bKarnaugh": "Karnaugh-Diagramme", "bVeitch": "Veitch-Diagramme", "bTruth": "Wahrheitstabellen", "bGraphEmpty": "Leerer Graph", "bGraphOf": "Graph von {f}", "bAllQuadrants": "Alle vier Quadranten", "bQuadrant": "Quadrant {q}", "bQuadrants": "Quadranten {q}", "bVennTwo": "Zwei Mengen", "bVennThree": "Drei Mengen", "bVennFour": "Vier Mengen", "bVennTwoU": "Zwei Mengen in einer Grundmenge", "bVennThreeU": "Drei Mengen in einer Grundmenge", "bVennSubset": "Teilmenge", "bVennDisjoint": "Disjunkte Mengen", "bDisj": "disjunktiv", "bConj": "konjunktiv", "bTruthVars": "{n} Variablen", "shareNoteLive": "Wer diesen Link hat, bekommt eine Kopie der Tafel, und solange die Tafel hier geöffnet ist, zeichnet er live mit dir darauf. Die Kopie steckt im Link selbst; Live-Änderungen gehen direkt zwischen euren Browsern hin und her. Nichts wird hochgeladen oder irgendwo gespeichert.", "liveNote": "Andere können zeichnen, solange diese Tafel hier geöffnet ist, und der Laserpointer jeder Person erscheint in ihrer eigenen Farbe (Rot ist deiner, wenn du sie gestartet hast). Wenn alle sie geschlossen haben, behält jeder seine eigene Kopie.", "liveStop": "Beenden", "livePill": "Live", "liveConnected": "Live: {n} weitere hier", "liveConnecting": "Verbinden…", "liveWaiting": "Live: warte, bis andere den Link öffnen", "liveBlocked": "Keine direkte Verbindung möglich. Versuche ein anderes Netz, trage in den Einstellungen einen TURN-Server ein, oder nutze den Link einfach als Kopie.", "liveNoTrackers": "Die Treffpunkte für Live-Tafeln sind nicht erreichbar. Prüfe die Internetverbindung.", "shareNoPicsLive": "Bilder und PDF-Seiten stecken nicht im Link selbst; sie erreichen die anderen über die Live-Verbindung.", "tLiveJoined": "Jemand ist der Tafel beigetreten", "tLiveLeft": "Jemand hat die Tafel verlassen", "tLiveLeftBoard": "Live-Tafel verlassen; die anderen behalten sie", "tLiveStopped": "Live-Freigabe beendet. Die Tafel bleibt hier.", "tLiveUnsupported": "Dieser Browser kann Tafeln nicht live teilen. Der Link öffnet eine Kopie.", "tLiveFail": "Die Live-Tafel konnte nicht gestartet werden", "liveSettings": "Live-Tafeln", "turnUrl": "TURN-Server (optional)", "turnUser": "TURN-Benutzername", "turnPass": "TURN-Passwort", "turnNote": "Nur in Netzen nötig, die direkte Verbindungen sperren (manche Schulen, Universitäten und Mobilfunknetze). Nutze deinen eigenen TURN-Server; er wird nur für Live-Tafeln verwendet und bleibt auf diesem Gerät."});
+  Object.assign(D.fr, {"aiActions": "Actions IA", "aiShort": "IA", "aiTidy": "Mettre au propre l’écriture", "aiSolve": "Résoudre, étape par étape", "aiPlot": "Tracer un graphique", "aiSettingsMenu": "Réglages IA…", "plotHome": "Revenir à la vue de départ", "plotEdit": "Fonctions", "plotExplore": "Explorer", "plotEditNote": "Une par ligne, p. ex. f(x) = sin(x) ou y = x^2 − 1. En exploration, faites glisser pour vous déplacer et faites défiler ou pincez pour zoomer. Touchez un point d’une courbe pour voir ses coordonnées.", "aiTitle": "IA (votre propre clé)", "aiProvider": "Fournisseur", "aiOther": "Autre", "aiBaseUrl": "Adresse du serveur (compatible OpenAI)", "aiKey": "Clé API", "aiGetKey": "Obtenir une clé ↗", "aiModel": "Modèle", "aiListModels": "Voir les disponibles", "aiPrivacy": "Votre clé reste uniquement dans ce navigateur, sur cet appareil. Il n’y a pas de serveur Whiteboard : lors d’une action IA, votre navigateur envoie une image de la partie sélectionnée du tableau directement au fournisseur choisi. Votre clé n’est jamais placée dans les tableaux, fichiers ou liens de partage.", "aiCost": "Le fournisseur peut facturer chaque utilisation sur votre clé. Gemini propose une offre gratuite. Les graphiques et la vérification des réponses sont calculés sur votre appareil.", "aiForget": "Supprimer les clés", "tAiReading": "Lecture de l’écriture…", "tAiNoKey": "Ajoutez d’abord une clé API dans Réglages → IA", "tAiNothing": "Sélectionnez d’abord de l’écriture", "tAiFailed": "La requête IA a échoué : {e}", "tAiKeyBad": "Le fournisseur n’a pas accepté la clé API", "tAiQuota": "Le fournisseur indique que la limite est atteinte. Réessayez plus tard", "tAiNetwork": "Impossible de joindre le fournisseur", "tAiTidied": "Écriture mise au propre", "tAiSolved": "Résolu", "tAiChecked": "Résolu, et la réponse est vérifiée", "tAiCheckFailed": "Résolu, mais la réponse ne se vérifie pas : relisez les étapes", "tAiPlotted": "Graphique ajouté. Double-cliquez ou touchez-le deux fois pour l’explorer", "tAiNoFn": "Aucune fonction de x à tracer n’a été trouvée", "tAiEmpty": "Aucune écriture trouvée", "tAiModels": "{n} modèles disponibles", "tAiForgot": "Clés API supprimées", "aiCheckFail": "vérification : cette réponse ne satisfait pas le problème", "sBuiltIn": "Autocollants intégrés", "sBuiltInNote": "Fait partie de l’app : toujours là, adapté à la couleur de votre fond.", "sBuiltInNoSave": "Impossible d’enregistrer des autocollants dans le dossier intégré. Choisissez un autre dossier.", "bGraphs": "Graphiques", "bAxes": "Repères", "bVenn": "Diagrammes de Venn", "bKarnaugh": "Tableaux de Karnaugh", "bVeitch": "Diagrammes de Veitch", "bTruth": "Tables de vérité", "bGraphEmpty": "Graphique vide", "bGraphOf": "Graphique de {f}", "bAllQuadrants": "Les quatre quadrants", "bQuadrant": "Quadrant {q}", "bQuadrants": "Quadrants {q}", "bVennTwo": "Deux ensembles", "bVennThree": "Trois ensembles", "bVennFour": "Quatre ensembles", "bVennTwoU": "Deux ensembles dans un univers", "bVennThreeU": "Trois ensembles dans un univers", "bVennSubset": "Sous-ensemble", "bVennDisjoint": "Ensembles disjoints", "bDisj": "disjonctif", "bConj": "conjonctif", "bTruthVars": "{n} variables", "shareNoteLive": "Toute personne ayant ce lien reçoit une copie du tableau et, tant que le tableau est ouvert ici, dessine dessus en direct avec vous. La copie voyage dans le lien lui-même ; les changements en direct passent directement entre vos navigateurs. Rien n’est envoyé ni stocké nulle part.", "liveNote": "Les autres peuvent dessiner tant que ce tableau est ouvert ici, et le pointeur laser de chacun s’affiche dans sa propre couleur (le rouge est le vôtre si vous l’avez lancé). Quand tout le monde l’a fermé, chacun garde sa propre copie.", "liveStop": "Arrêter", "livePill": "En direct", "liveConnected": "En direct : {n} autre(s) ici", "liveConnecting": "Connexion…", "liveWaiting": "En direct : en attente que d’autres ouvrent le lien", "liveBlocked": "Connexion directe impossible. Essayez un autre réseau, ajoutez un serveur TURN dans les Réglages, ou le lien ouvre quand même une copie.", "liveNoTrackers": "Impossible de joindre les points de rencontre des tableaux en direct. Vérifiez la connexion Internet.", "shareNoPicsLive": "Les images et les pages PDF ne sont pas dans le lien lui-même ; elles parviennent aux autres par la connexion en direct.", "tLiveJoined": "Quelqu’un a rejoint le tableau", "tLiveLeft": "Quelqu’un a quitté le tableau", "tLiveLeftBoard": "Vous avez quitté le tableau en direct ; les autres le gardent", "tLiveStopped": "Partage en direct arrêté. Le tableau reste ici.", "tLiveUnsupported": "Ce navigateur ne peut pas partager de tableaux en direct. Le lien ouvre une copie.", "tLiveFail": "Impossible de lancer le tableau en direct", "liveSettings": "Tableaux en direct", "turnUrl": "Serveur TURN (facultatif)", "turnUser": "Nom d’utilisateur TURN", "turnPass": "Mot de passe TURN", "turnNote": "Utile seulement sur les réseaux qui bloquent les connexions directes (certaines écoles, universités et réseaux mobiles). Utilisez votre propre serveur TURN ; il ne sert qu’aux tableaux en direct et reste sur cet appareil."});
+  Object.assign(D.it, {"aiActions": "Azioni IA", "aiShort": "IA", "aiTidy": "Riordina la scrittura", "aiSolve": "Risolvi, mostrando i passaggi", "aiPlot": "Traccia come grafico", "aiSettingsMenu": "Impostazioni IA…", "plotHome": "Torna alla vista iniziale", "plotEdit": "Funzioni", "plotExplore": "Esplora", "plotEditNote": "Una per riga, ad es. f(x) = sin(x) o y = x^2 − 1. Durante l’esplorazione trascina per spostarti e scorri o pizzica per lo zoom. Tocca un punto su una curva per vederne le coordinate.", "aiTitle": "IA (la tua chiave)", "aiProvider": "Fornitore", "aiOther": "Altro", "aiBaseUrl": "Indirizzo del server (compatibile OpenAI)", "aiKey": "Chiave API", "aiGetKey": "Ottieni una chiave ↗", "aiModel": "Modello", "aiListModels": "Mostra disponibili", "aiPrivacy": "La tua chiave resta solo in questo browser, su questo dispositivo. Non esiste un server di Whiteboard: quando usi un’azione IA, il browser invia un’immagine della parte selezionata della lavagna direttamente al fornitore scelto. La chiave non finisce mai in lavagne, file o link di condivisione.", "aiCost": "Il fornitore può addebitare ogni uso alla tua chiave. Gemini ha un piano gratuito. Grafici e verifiche delle risposte vengono calcolati sul tuo dispositivo.", "aiForget": "Rimuovi le chiavi", "tAiReading": "Lettura della scrittura…", "tAiNoKey": "Aggiungi prima una chiave API in Impostazioni → IA", "tAiNothing": "Seleziona prima un po’ di scrittura", "tAiFailed": "Richiesta IA non riuscita: {e}", "tAiKeyBad": "Il fornitore non ha accettato la chiave API", "tAiQuota": "Il fornitore dice che il limite è stato raggiunto. Riprova più tardi", "tAiNetwork": "Impossibile raggiungere il fornitore", "tAiTidied": "Scrittura riordinata", "tAiSolved": "Risolto", "tAiChecked": "Risolto, e la risposta è verificata", "tAiCheckFailed": "Risolto, ma la risposta non torna: ricontrolla i passaggi", "tAiPlotted": "Grafico aggiunto. Fai doppio clic o doppio tocco per esplorarlo", "tAiNoFn": "Nessuna funzione di x da tracciare", "tAiEmpty": "Nessuna scrittura trovata", "tAiModels": "{n} modelli disponibili", "tAiForgot": "Chiavi API rimosse", "aiCheckFail": "verifica: questa risposta non soddisfa il problema", "sBuiltIn": "Adesivi integrati", "sBuiltInNote": "Parte dell’app: sempre qui, adatti al colore della tua area di disegno.", "sBuiltInNoSave": "Non si possono salvare adesivi nella cartella integrata. Scegli un’altra cartella.", "bGraphs": "Grafici", "bAxes": "Sistemi di coordinate", "bVenn": "Diagrammi di Venn", "bKarnaugh": "Mappe di Karnaugh", "bVeitch": "Mappe di Veitch", "bTruth": "Tabelle di verità", "bGraphEmpty": "Grafico vuoto", "bGraphOf": "Grafico di {f}", "bAllQuadrants": "Tutti e quattro i quadranti", "bQuadrant": "Quadrante {q}", "bQuadrants": "Quadranti {q}", "bVennTwo": "Due insiemi", "bVennThree": "Tre insiemi", "bVennFour": "Quattro insiemi", "bVennTwoU": "Due insiemi in un universo", "bVennThreeU": "Tre insiemi in un universo", "bVennSubset": "Sottoinsieme", "bVennDisjoint": "Insiemi disgiunti", "bDisj": "disgiuntiva", "bConj": "congiuntiva", "bTruthVars": "{n} variabili", "shareNoteLive": "Chi ha questo link riceve una copia della lavagna e, finché la lavagna è aperta qui, ci disegna in diretta con te. La copia viaggia dentro il link; le modifiche in diretta passano direttamente tra i vostri browser. Niente viene caricato o salvato da nessuna parte.", "liveNote": "Gli altri possono disegnare finché questa lavagna è aperta qui, e il puntatore laser di ognuno appare nel suo colore (il rosso è il tuo se l’hai avviata tu). Quando tutti l’hanno chiusa, ognuno tiene la propria copia.", "liveStop": "Ferma", "livePill": "Live", "liveConnected": "Live: altri {n} qui", "liveConnecting": "Connessione…", "liveWaiting": "Live: in attesa che altri aprano il link", "liveBlocked": "Impossibile collegarsi direttamente. Prova un’altra rete, aggiungi un server TURN nelle Impostazioni, oppure il link apre comunque una copia.", "liveNoTrackers": "Impossibile raggiungere i punti d’incontro delle lavagne live. Controlla la connessione a Internet.", "shareNoPicsLive": "Immagini e pagine PDF non sono nel link stesso; arrivano agli altri tramite la connessione in diretta.", "tLiveJoined": "Qualcuno si è unito alla lavagna", "tLiveLeft": "Qualcuno ha lasciato la lavagna", "tLiveLeftBoard": "Hai lasciato la lavagna live; gli altri la tengono", "tLiveStopped": "Condivisione live interrotta. La lavagna resta qui.", "tLiveUnsupported": "Questo browser non può condividere lavagne in diretta. Il link apre una copia.", "tLiveFail": "Impossibile avviare la lavagna live", "liveSettings": "Lavagne live", "turnUrl": "Server TURN (facoltativo)", "turnUser": "Nome utente TURN", "turnPass": "Password TURN", "turnNote": "Serve solo sulle reti che bloccano le connessioni dirette (alcune scuole, università e reti mobili). Usa un tuo server TURN; viene usato solo per le lavagne live e resta su questo dispositivo."});
+  Object.assign(D.es, {"aiActions": "Acciones de IA", "aiShort": "IA", "aiTidy": "Pasar a limpio la escritura", "aiSolve": "Resolver, mostrando los pasos", "aiPlot": "Dibujar como gráfica", "aiSettingsMenu": "Ajustes de IA…", "plotHome": "Volver a la vista inicial", "plotEdit": "Funciones", "plotExplore": "Explorar", "plotEditNote": "Una por línea, p. ej. f(x) = sin(x) o y = x^2 − 1. Al explorar, arrastra para moverte y desplázate o pellizca para hacer zoom. Toca un punto de una curva para ver sus coordenadas.", "aiTitle": "IA (tu propia clave)", "aiProvider": "Proveedor", "aiOther": "Otro", "aiBaseUrl": "Dirección del servidor (compatible con OpenAI)", "aiKey": "Clave de API", "aiGetKey": "Obtener una clave ↗", "aiModel": "Modelo", "aiListModels": "Ver disponibles", "aiPrivacy": "Tu clave se guarda solo en este navegador, en este dispositivo. No hay servidor de Whiteboard: al usar una acción de IA, tu navegador envía una imagen de la parte seleccionada de la pizarra directamente al proveedor elegido. Tu clave nunca se incluye en pizarras, archivos ni enlaces compartidos.", "aiCost": "El proveedor puede cobrar cada uso a tu clave. Gemini tiene un nivel gratuito. Las gráficas y la comprobación de respuestas se calculan en tu dispositivo.", "aiForget": "Quitar claves", "tAiReading": "Leyendo la escritura…", "tAiNoKey": "Primero añade una clave de API en Ajustes → IA", "tAiNothing": "Primero selecciona algo escrito a mano", "tAiFailed": "Falló la solicitud de IA: {e}", "tAiKeyBad": "El proveedor no aceptó la clave de API", "tAiQuota": "El proveedor indica que se alcanzó el límite. Inténtalo más tarde", "tAiNetwork": "No se pudo contactar con el proveedor", "tAiTidied": "Escritura pasada a limpio", "tAiSolved": "Resuelto", "tAiChecked": "Resuelto, y la respuesta es correcta", "tAiCheckFailed": "Resuelto, pero la respuesta no cuadra: revisa los pasos", "tAiPlotted": "Gráfica añadida. Haz doble clic o toca dos veces para explorarla", "tAiNoFn": "No se encontró ninguna función de x para dibujar", "tAiEmpty": "No se encontró escritura", "tAiModels": "{n} modelos disponibles", "tAiForgot": "Claves de API eliminadas", "aiCheckFail": "comprobación: esta respuesta no cumple el problema", "sBuiltIn": "Pegatinas integradas", "sBuiltInNote": "Parte de la app: siempre aquí, adaptadas al color de tu lienzo.", "sBuiltInNoSave": "No se pueden guardar pegatinas en la carpeta integrada. Elige otra carpeta.", "bGraphs": "Gráficas", "bAxes": "Sistemas de coordenadas", "bVenn": "Diagramas de Venn", "bKarnaugh": "Mapas de Karnaugh", "bVeitch": "Mapas de Veitch", "bTruth": "Tablas de verdad", "bGraphEmpty": "Gráfica vacía", "bGraphOf": "Gráfica de {f}", "bAllQuadrants": "Los cuatro cuadrantes", "bQuadrant": "Cuadrante {q}", "bQuadrants": "Cuadrantes {q}", "bVennTwo": "Dos conjuntos", "bVennThree": "Tres conjuntos", "bVennFour": "Cuatro conjuntos", "bVennTwoU": "Dos conjuntos en un universo", "bVennThreeU": "Tres conjuntos en un universo", "bVennSubset": "Subconjunto", "bVennDisjoint": "Conjuntos disjuntos", "bDisj": "disyuntiva", "bConj": "conjuntiva", "bTruthVars": "{n} variables", "shareNoteLive": "Quien tenga este enlace recibe una copia de la pizarra y, mientras la pizarra esté abierta aquí, dibuja en ella en directo contigo. La copia viaja dentro del propio enlace; los cambios en directo van directamente entre vuestros navegadores. Nada se sube ni se guarda en ningún sitio.", "liveNote": "Los demás pueden dibujar mientras esta pizarra esté abierta aquí, y el puntero láser de cada persona se ve en su propio color (el rojo es el tuyo si la iniciaste tú). Cuando todos la hayan cerrado, cada uno conserva su copia.", "liveStop": "Detener", "livePill": "En directo", "liveConnected": "En directo: {n} más aquí", "liveConnecting": "Conectando…", "liveWaiting": "En directo: esperando a que otros abran el enlace", "liveBlocked": "No se pudo conectar directamente. Prueba otra red, añade un servidor TURN en Ajustes, o el enlace igualmente abre una copia.", "liveNoTrackers": "No se puede contactar con los puntos de encuentro de las pizarras en directo. Comprueba la conexión a Internet.", "shareNoPicsLive": "Las imágenes y las páginas PDF no van en el propio enlace; llegan a los demás por la conexión en directo.", "tLiveJoined": "Alguien se unió a la pizarra", "tLiveLeft": "Alguien salió de la pizarra", "tLiveLeftBoard": "Saliste de la pizarra en directo; los demás la conservan", "tLiveStopped": "Se detuvo el uso compartido en directo. La pizarra se queda aquí.", "tLiveUnsupported": "Este navegador no puede compartir pizarras en directo. El enlace abre una copia.", "tLiveFail": "No se pudo iniciar la pizarra en directo", "liveSettings": "Pizarras en directo", "turnUrl": "Servidor TURN (opcional)", "turnUser": "Usuario TURN", "turnPass": "Contraseña TURN", "turnNote": "Solo hace falta en redes que bloquean las conexiones directas (algunas escuelas, universidades y redes móviles). Usa tu propio servidor TURN; solo se usa para las pizarras en directo y se queda en este dispositivo."});
+  Object.assign(D.pt, {"aiActions": "Ações de IA", "aiShort": "IA", "aiTidy": "Passar a limpo a escrita", "aiSolve": "Resolver, mostrando os passos", "aiPlot": "Traçar como gráfico", "aiSettingsMenu": "Ajustes de IA…", "plotHome": "Voltar à vista inicial", "plotEdit": "Funções", "plotExplore": "Explorar", "plotEditNote": "Uma por linha, p. ex. f(x) = sin(x) ou y = x^2 − 1. Ao explorar, arraste para se mover e role ou belisque para ampliar. Toque num ponto de uma curva para ver as coordenadas.", "aiTitle": "IA (sua própria chave)", "aiProvider": "Fornecedor", "aiOther": "Outro", "aiBaseUrl": "Endereço do servidor (compatível com OpenAI)", "aiKey": "Chave de API", "aiGetKey": "Obter uma chave ↗", "aiModel": "Modelo", "aiListModels": "Mostrar disponíveis", "aiPrivacy": "Sua chave fica apenas neste navegador, neste dispositivo. Não existe servidor do Whiteboard: ao usar uma ação de IA, o navegador envia uma imagem da parte selecionada do quadro diretamente ao fornecedor escolhido. A chave nunca é colocada em quadros, arquivos ou links de compartilhamento.", "aiCost": "O fornecedor pode cobrar cada utilização na sua chave. O Gemini tem um nível gratuito. Os gráficos e a verificação das respostas são calculados no seu dispositivo.", "aiForget": "Remover chaves", "tAiReading": "Lendo a escrita…", "tAiNoKey": "Primeiro adicione uma chave de API em Ajustes → IA", "tAiNothing": "Selecione alguma escrita primeiro", "tAiFailed": "O pedido de IA falhou: {e}", "tAiKeyBad": "O fornecedor não aceitou a chave de API", "tAiQuota": "O fornecedor diz que o limite foi atingido. Tente de novo mais tarde", "tAiNetwork": "Não foi possível contactar o fornecedor", "tAiTidied": "Escrita passada a limpo", "tAiSolved": "Resolvido", "tAiChecked": "Resolvido, e a resposta confere", "tAiCheckFailed": "Resolvido, mas a resposta não confere: reveja os passos", "tAiPlotted": "Gráfico adicionado. Clique ou toque duas vezes para explorá-lo", "tAiNoFn": "Não foi encontrada nenhuma função de x para traçar", "tAiEmpty": "Não foi encontrada escrita", "tAiModels": "{n} modelos disponíveis", "tAiForgot": "Chaves de API removidas", "aiCheckFail": "verificação: esta resposta não satisfaz o problema", "sBuiltIn": "Adesivos integrados", "sBuiltInNote": "Parte da app: sempre aqui, combinando com a cor da sua tela.", "sBuiltInNoSave": "Não é possível guardar adesivos na pasta incorporada. Escolha outra pasta.", "bGraphs": "Gráficos", "bAxes": "Sistemas de coordenadas", "bVenn": "Diagramas de Venn", "bKarnaugh": "Mapas de Karnaugh", "bVeitch": "Mapas de Veitch", "bTruth": "Tabelas de verdade", "bGraphEmpty": "Gráfico vazio", "bGraphOf": "Gráfico de {f}", "bAllQuadrants": "Os quatro quadrantes", "bQuadrant": "Quadrante {q}", "bQuadrants": "Quadrantes {q}", "bVennTwo": "Dois conjuntos", "bVennThree": "Três conjuntos", "bVennFour": "Quatro conjuntos", "bVennTwoU": "Dois conjuntos num universo", "bVennThreeU": "Três conjuntos num universo", "bVennSubset": "Subconjunto", "bVennDisjoint": "Conjuntos disjuntos", "bDisj": "disjuntiva", "bConj": "conjuntiva", "bTruthVars": "{n} variáveis", "shareNoteLive": "Quem tiver este link recebe uma cópia do quadro e, enquanto o quadro estiver aberto aqui, desenha nele ao vivo consigo. A cópia viaja dentro do próprio link; as alterações ao vivo passam diretamente entre os vossos navegadores. Nada é enviado nem guardado em lugar nenhum.", "liveNote": "Os outros podem desenhar enquanto este quadro estiver aberto aqui, e o ponteiro laser de cada pessoa aparece na sua própria cor (o vermelho é o seu, se foi você quem o iniciou). Quando todos o fecharem, cada um fica com sua cópia.", "liveStop": "Parar", "livePill": "Ao vivo", "liveConnected": "Ao vivo: mais {n} aqui", "liveConnecting": "Conectando…", "liveWaiting": "Ao vivo: esperando outros abrirem o link", "liveBlocked": "Não foi possível conectar diretamente. Tente outra rede, adicione um servidor TURN nas Ajustes, ou o link abre na mesma uma cópia.", "liveNoTrackers": "Não é possível contactar os pontos de encontro dos quadros ao vivo. Verifique a conexão com a internet.", "shareNoPicsLive": "As imagens e as páginas PDF não vão no próprio link; chegam aos outros pela conexão ao vivo.", "tLiveJoined": "Alguém entrou no quadro", "tLiveLeft": "Alguém saiu do quadro", "tLiveLeftBoard": "Você saiu do quadro ao vivo; os outros ficam com ele", "tLiveStopped": "Compartilhamento ao vivo parado. O quadro fica aqui.", "tLiveUnsupported": "Este navegador não consegue compartilhar quadros ao vivo. O link abre uma cópia.", "tLiveFail": "Não foi possível iniciar o quadro ao vivo", "liveSettings": "Quadros ao vivo", "turnUrl": "Servidor TURN (opcional)", "turnUser": "Usuário TURN", "turnPass": "Senha TURN", "turnNote": "Só é preciso em redes que bloqueiam conexões diretas (algumas escolas, universidades e redes móveis). Use seu próprio servidor TURN; só é usado para quadros ao vivo e fica neste dispositivo."});
+  Object.assign(D.ru, {"aiActions": "Действия ИИ", "aiShort": "ИИ", "aiTidy": "Привести почерк в порядок", "aiSolve": "Решить с ходом решения", "aiPlot": "Построить график", "aiSettingsMenu": "Настройки ИИ…", "plotHome": "Вернуться к начальному виду", "plotEdit": "Функции", "plotExplore": "Исследовать", "plotEditNote": "По одной в строке, например f(x) = sin(x) или y = x^2 − 1. При исследовании перетаскивайте, чтобы двигаться, и прокручивайте или сводите пальцы для масштаба. Коснитесь точки на кривой, чтобы увидеть её координаты.", "aiTitle": "ИИ (ваш собственный ключ)", "aiProvider": "Поставщик", "aiOther": "Другой", "aiBaseUrl": "Адрес сервера (совместимый с OpenAI)", "aiKey": "API-ключ", "aiGetKey": "Получить ключ ↗", "aiModel": "Модель", "aiListModels": "Показать доступные", "aiPrivacy": "Ключ хранится только в этом браузере на этом устройстве. Сервера Whiteboard нет: при действии ИИ браузер отправляет изображение выбранной части доски напрямую выбранному поставщику. Ключ никогда не попадает в доски, файлы или ссылки.", "aiCost": "Поставщик может взимать плату за каждое использование ключа. У Gemini есть бесплатный уровень. Графики и проверка ответов вычисляются на вашем устройстве.", "aiForget": "Удалить ключи", "tAiReading": "Распознаю почерк…", "tAiNoKey": "Сначала добавьте API-ключ в Настройки → ИИ", "tAiNothing": "Сначала выделите рукописный текст", "tAiFailed": "Запрос к ИИ не удался: {e}", "tAiKeyBad": "Поставщик не принял API-ключ", "tAiQuota": "Поставщик сообщает, что лимит исчерпан. Попробуйте позже", "tAiNetwork": "Не удалось связаться с поставщиком", "tAiTidied": "Почерк приведён в порядок", "tAiSolved": "Решено", "tAiChecked": "Решено, ответ проверен", "tAiCheckFailed": "Решено, но ответ не сходится: проверьте шаги", "tAiPlotted": "График добавлен. Дважды щёлкните или коснитесь, чтобы исследовать его", "tAiNoFn": "Не найдена функция от x для построения", "tAiEmpty": "Текст не найден", "tAiModels": "Доступно моделей: {n}", "tAiForgot": "API-ключи удалены", "aiCheckFail": "проверка: этот ответ не удовлетворяет условию", "sBuiltIn": "Встроенные стикеры", "sBuiltInNote": "Часть приложения: всегда здесь и подходят к цвету холста.", "sBuiltInNoSave": "Во встроенную папку нельзя сохранять стикеры. Выберите другую папку.", "bGraphs": "Графики", "bAxes": "Системы координат", "bVenn": "Диаграммы Венна", "bKarnaugh": "Карты Карно", "bVeitch": "Диаграммы Вейча", "bTruth": "Таблицы истинности", "bGraphEmpty": "Пустой график", "bGraphOf": "График {f}", "bAllQuadrants": "Все четыре четверти", "bQuadrant": "Четверть {q}", "bQuadrants": "Четверти {q}", "bVennTwo": "Два множества", "bVennThree": "Три множества", "bVennFour": "Четыре множества", "bVennTwoU": "Два множества в универсуме", "bVennThreeU": "Три множества в универсуме", "bVennSubset": "Подмножество", "bVennDisjoint": "Непересекающиеся множества", "bDisj": "дизъюнктивная", "bConj": "конъюнктивная", "bTruthVars": "Переменных: {n}", "shareNoteLive": "Каждый, у кого есть эта ссылка, получает копию доски и, пока доска открыта здесь, рисует на ней вместе с вами в реальном времени. Копия передаётся в самой ссылке, а изменения идут напрямую между вашими браузерами. Ничего никуда не загружается и нигде не хранится.", "liveNote": "Другие могут рисовать, пока эта доска открыта здесь, а лазерная указка каждого видна в его собственном цвете (красная — ваша, если доску запустили вы). Когда все её закроют, у каждого останется своя копия.", "liveStop": "Остановить", "livePill": "Live", "liveConnected": "Live: здесь ещё {n}", "liveConnecting": "Подключение…", "liveWaiting": "Live: ждём, пока другие откроют ссылку", "liveBlocked": "Не удалось подключиться напрямую. Попробуйте другую сеть, добавьте TURN-сервер в Настройках, или ссылка всё равно откроет копию.", "liveNoTrackers": "Нет связи с точками встречи для совместных досок. Проверьте подключение к интернету.", "shareNoPicsLive": "Изображений и страниц PDF нет в самой ссылке; они доходят до остальных через живое соединение.", "tLiveJoined": "Кто-то присоединился к доске", "tLiveLeft": "Кто-то покинул доску", "tLiveLeftBoard": "Вы покинули совместную доску; у остальных она осталась", "tLiveStopped": "Совместный доступ остановлен. Доска остаётся здесь.", "tLiveUnsupported": "Этот браузер не поддерживает совместные доски. Ссылка откроет копию.", "tLiveFail": "Не удалось запустить совместную доску", "liveSettings": "Совместные доски", "turnUrl": "TURN-сервер (необязательно)", "turnUser": "Имя пользователя TURN", "turnPass": "Пароль TURN", "turnNote": "Нужен только в сетях, блокирующих прямые соединения (некоторые школы, университеты и мобильные сети). Укажите свой TURN-сервер; он используется только для совместных досок и остаётся на этом устройстве."});
+  Object.assign(D.uk, {"aiActions": "Дії ШІ", "aiShort": "ШІ", "aiTidy": "Охайно переписати почерк", "aiSolve": "Розв’язати з поясненням", "aiPlot": "Побудувати графік", "aiSettingsMenu": "Налаштування ШІ…", "plotHome": "Повернутися до початкового вигляду", "plotEdit": "Функції", "plotExplore": "Досліджувати", "plotEditNote": "По одній у рядку, напр. f(x) = sin(x) або y = x^2 − 1. Під час дослідження перетягуйте, щоб рухатися, і прокручуйте або зводьте пальці для масштабу. Торкніться точки на кривій, щоб побачити її координати.", "aiTitle": "ШІ (власний ключ)", "aiProvider": "Постачальник", "aiOther": "Інший", "aiBaseUrl": "Адреса сервера (сумісна з OpenAI)", "aiKey": "API-ключ", "aiGetKey": "Отримати ключ ↗", "aiModel": "Модель", "aiListModels": "Показати доступні", "aiPrivacy": "Ключ зберігається лише в цьому браузері на цьому пристрої. Сервера Whiteboard немає: під час дії ШІ браузер надсилає зображення вибраної частини дошки безпосередньо обраному постачальнику. Ключ ніколи не потрапляє в дошки, файли чи посилання.", "aiCost": "Постачальник може стягувати плату за кожне використання ключа. Gemini має безкоштовний рівень. Графіки й перевірка відповідей обчислюються на вашому пристрої.", "aiForget": "Видалити ключі", "tAiReading": "Розпізнаю почерк…", "tAiNoKey": "Спершу додайте API-ключ у Налаштування → ШІ", "tAiNothing": "Спершу виділіть рукописний текст", "tAiFailed": "Запит до ШІ не вдався: {e}", "tAiKeyBad": "Постачальник не прийняв API-ключ", "tAiQuota": "Постачальник повідомляє, що ліміт вичерпано. Спробуйте пізніше", "tAiNetwork": "Не вдалося зв’язатися з постачальником", "tAiTidied": "Почерк охайно переписано", "tAiSolved": "Розв’язано", "tAiChecked": "Розв’язано, відповідь перевірено", "tAiCheckFailed": "Розв’язано, але відповідь не сходиться: перевірте кроки", "tAiPlotted": "Графік додано. Двічі клацніть або торкніться, щоб дослідити його", "tAiNoFn": "Не знайдено функції від x для побудови", "tAiEmpty": "Текст не знайдено", "tAiModels": "Доступно моделей: {n}", "tAiForgot": "API-ключі видалено", "aiCheckFail": "перевірка: ця відповідь не задовольняє умову", "sBuiltIn": "Вбудовані наліпки", "sBuiltInNote": "Частина застосунку: завжди тут і пасують до кольору полотна.", "sBuiltInNoSave": "У вбудовану теку не можна зберігати наліпки. Виберіть іншу теку.", "bGraphs": "Графіки", "bAxes": "Системи координат", "bVenn": "Діаграми Венна", "bKarnaugh": "Карти Карно", "bVeitch": "Діаграми Вейча", "bTruth": "Таблиці істинності", "bGraphEmpty": "Порожній графік", "bGraphOf": "Графік {f}", "bAllQuadrants": "Усі чотири чверті", "bQuadrant": "Чверть {q}", "bQuadrants": "Чверті {q}", "bVennTwo": "Дві множини", "bVennThree": "Три множини", "bVennFour": "Чотири множини", "bVennTwoU": "Дві множини в універсумі", "bVennThreeU": "Три множини в універсумі", "bVennSubset": "Підмножина", "bVennDisjoint": "Множини, що не перетинаються", "bDisj": "диз’юнктивна", "bConj": "кон’юнктивна", "bTruthVars": "Змінних: {n}", "shareNoteLive": "Кожен, хто має це посилання, отримує копію дошки і, поки дошка відкрита тут, малює на ній разом із вами наживо. Копія передається в самому посиланні, а зміни йдуть безпосередньо між вашими браузерами. Нічого нікуди не завантажується і ніде не зберігається.", "liveNote": "Інші можуть малювати, поки ця дошка відкрита тут, а лазерна указка кожного видна в його власному кольорі (червона — ваша, якщо дошку запустили ви). Коли всі її закриють, у кожного залишиться своя копія.", "liveStop": "Зупинити", "livePill": "Наживо", "liveConnected": "Наживо: тут ще {n}", "liveConnecting": "Підключення…", "liveWaiting": "Наживо: чекаємо, поки інші відкриють посилання", "liveBlocked": "Не вдалося підключитися напряму. Спробуйте іншу мережу, додайте TURN-сервер у Налаштуваннях, або посилання все одно відкриє копію.", "liveNoTrackers": "Немає зв’язку з точками зустрічі для спільних дошок. Перевірте підключення до інтернету.", "shareNoPicsLive": "Зображень і сторінок PDF немає в самому посиланні; вони доходять до інших через живе з’єднання.", "tLiveJoined": "Хтось приєднався до дошки", "tLiveLeft": "Хтось покинув дошку", "tLiveLeftBoard": "Ви покинули спільну дошку; в інших вона залишилася", "tLiveStopped": "Спільний доступ зупинено. Дошка залишається тут.", "tLiveUnsupported": "Цей браузер не підтримує спільні дошки. Посилання відкриє копію.", "tLiveFail": "Не вдалося запустити спільну дошку", "liveSettings": "Спільні дошки", "turnUrl": "TURN-сервер (необов’язково)", "turnUser": "Ім’я користувача TURN", "turnPass": "Пароль TURN", "turnNote": "Потрібен лише в мережах, що блокують прямі з’єднання (деякі школи, університети й мобільні мережі). Вкажіть власний TURN-сервер; він використовується лише для спільних дощок і залишається на цьому пристрої."});
+  Object.assign(D.tr, {"aiActions": "Yapay zekâ işlemleri", "aiShort": "YZ", "aiTidy": "El yazısını temize çek", "aiSolve": "Adımlarıyla çöz", "aiPlot": "Grafik olarak çiz", "aiSettingsMenu": "Yapay zekâ ayarları…", "plotHome": "Başlangıç görünümüne dön", "plotEdit": "Fonksiyonlar", "plotExplore": "Keşfet", "plotEditNote": "Her satıra bir tane, ör. f(x) = sin(x) veya y = x^2 − 1. Keşfederken sürükleyerek gezin, kaydırarak veya iki parmakla yakınlaştırın. Koordinatlarını görmek için eğri üzerindeki bir noktaya dokunun.", "aiTitle": "Yapay zekâ (kendi anahtarınız)", "aiProvider": "Sağlayıcı", "aiOther": "Diğer", "aiBaseUrl": "Sunucu adresi (OpenAI uyumlu)", "aiKey": "API anahtarı", "aiGetKey": "Anahtar al ↗", "aiModel": "Model", "aiListModels": "Mevcut olanları göster", "aiPrivacy": "Anahtarınız yalnızca bu tarayıcıda, bu cihazda tutulur. Whiteboard sunucusu yoktur: bir yapay zekâ işlemi kullandığınızda tarayıcınız tahtanın seçili kısmının görüntüsünü doğrudan seçtiğiniz sağlayıcıya gönderir. Anahtarınız hiçbir zaman tahtalara, dosyalara veya paylaşım bağlantılarına konmaz.", "aiCost": "Sağlayıcı her kullanımı anahtarınıza faturalayabilir. Gemini’nin ücretsiz katmanı vardır. Grafikler ve cevap kontrolleri cihazınızda hesaplanır.", "aiForget": "Anahtarları kaldır", "tAiReading": "El yazısı okunuyor…", "tAiNoKey": "Önce Ayarlar → Yapay zekâ bölümüne bir API anahtarı ekleyin", "tAiNothing": "Önce biraz el yazısı seçin", "tAiFailed": "Yapay zekâ isteği başarısız: {e}", "tAiKeyBad": "Sağlayıcı API anahtarını kabul etmedi", "tAiQuota": "Sağlayıcı sınıra ulaşıldığını söylüyor. Daha sonra tekrar deneyin", "tAiNetwork": "Sağlayıcıya ulaşılamadı", "tAiTidied": "El yazısı temize çekildi", "tAiSolved": "Çözüldü", "tAiChecked": "Çözüldü ve cevap doğrulandı", "tAiCheckFailed": "Çözüldü, ancak cevap tutmuyor: adımları gözden geçirin", "tAiPlotted": "Grafik eklendi. Keşfetmek için çift tıklayın veya çift dokunun", "tAiNoFn": "Çizilecek bir x fonksiyonu bulunamadı", "tAiEmpty": "Yazı bulunamadı", "tAiModels": "{n} model mevcut", "tAiForgot": "API anahtarları kaldırıldı", "aiCheckFail": "kontrol: bu cevap problemi sağlamıyor", "sBuiltIn": "Yerleşik çıkartmalar", "sBuiltInNote": "Uygulamanın parçası: hep burada, tuval renginize uygun.", "sBuiltInNoSave": "Yerleşik klasöre çıkartma kaydedilemez. Başka bir klasör seçin.", "bGraphs": "Grafikler", "bAxes": "Koordinat sistemleri", "bVenn": "Venn şemaları", "bKarnaugh": "Karnaugh haritaları", "bVeitch": "Veitch haritaları", "bTruth": "Doğruluk tabloları", "bGraphEmpty": "Boş grafik", "bGraphOf": "{f} grafiği", "bAllQuadrants": "Dört bölgenin tümü", "bQuadrant": "{q}. bölge", "bQuadrants": "{q}. bölgeler", "bVennTwo": "İki küme", "bVennThree": "Üç küme", "bVennFour": "Dört küme", "bVennTwoU": "Evrensel kümede iki küme", "bVennThreeU": "Evrensel kümede üç küme", "bVennSubset": "Alt küme", "bVennDisjoint": "Ayrık kümeler", "bDisj": "ayrık (VEYA)", "bConj": "birleşik (VE)", "bTruthVars": "{n} değişken", "shareNoteLive": "Bu bağlantıya sahip olan herkes tahtanın bir kopyasını alır ve tahta burada açık olduğu sürece sizinle birlikte canlı olarak üzerine çizer. Kopya bağlantının içinde taşınır; canlı değişiklikler doğrudan tarayıcılarınız arasında gider. Hiçbir şey yüklenmez ya da bir yerde saklanmaz.", "liveNote": "Bu tahta burada açık olduğu sürece başkaları çizebilir ve herkesin lazer işaretçisi kendi renginde görünür (tahtayı siz başlattıysanız kırmızı sizindir). Herkes kapattığında, herkes kendi kopyasını saklar.", "liveStop": "Durdur", "livePill": "Canlı", "liveConnected": "Canlı: burada {n} kişi daha", "liveConnecting": "Bağlanıyor…", "liveWaiting": "Canlı: başkalarının bağlantıyı açması bekleniyor", "liveBlocked": "Doğrudan bağlanılamadı. Başka bir ağ deneyin, Ayarlar’a bir TURN sunucusu ekleyin ya da bağlantı yine de bir kopya açar.", "liveNoTrackers": "Canlı tahtaların buluşma noktalarına ulaşılamıyor. İnternet bağlantısını kontrol edin.", "shareNoPicsLive": "Resimler ve PDF sayfaları bağlantının içinde değildir; diğerlerine canlı bağlantı üzerinden ulaşır.", "tLiveJoined": "Biri tahtaya katıldı", "tLiveLeft": "Biri tahtadan ayrıldı", "tLiveLeftBoard": "Canlı tahtadan ayrıldınız; diğerlerinde kalıyor", "tLiveStopped": "Canlı paylaşım durduruldu. Tahta burada kalıyor.", "tLiveUnsupported": "Bu tarayıcı tahtaları canlı paylaşamıyor. Bağlantı bir kopya açar.", "tLiveFail": "Canlı tahta başlatılamadı", "liveSettings": "Canlı tahtalar", "turnUrl": "TURN sunucusu (isteğe bağlı)", "turnUser": "TURN kullanıcı adı", "turnPass": "TURN parolası", "turnNote": "Yalnızca doğrudan bağlantıları engelleyen ağlarda gerekir (bazı okullar, üniversiteler ve mobil ağlar). Kendi TURN sunucunuzu kullanın; yalnızca canlı tahtalar için kullanılır ve bu cihazda kalır."});
+  Object.assign(D.zh, {"aiActions": "AI 操作", "aiShort": "AI", "aiTidy": "整理手写", "aiSolve": "求解并显示步骤", "aiPlot": "绘制为函数图像", "aiSettingsMenu": "AI 设置…", "plotHome": "回到初始视图", "plotEdit": "函数", "plotExplore": "探索", "plotEditNote": "每行一个，例如 f(x) = sin(x) 或 y = x^2 − 1。探索时拖动可移动，滚动或双指捏合可缩放。点按曲线上的点可查看其坐标。", "aiTitle": "AI（使用你自己的密钥）", "aiProvider": "提供商", "aiOther": "其他", "aiBaseUrl": "服务器地址（兼容 OpenAI）", "aiKey": "API 密钥", "aiGetKey": "获取密钥 ↗", "aiModel": "模型", "aiListModels": "显示可用模型", "aiPrivacy": "你的密钥只保存在本设备的这个浏览器中。Whiteboard 没有服务器：使用 AI 操作时，浏览器会把白板所选部分的图片直接发送给你选择的提供商。密钥绝不会写入白板、文件或分享链接。", "aiCost": "提供商可能按每次使用向你的密钥计费。Gemini 有免费额度。函数图像和答案验算都在你的设备上完成。", "aiForget": "删除密钥", "tAiReading": "正在识别手写…", "tAiNoKey": "请先在 设置 → AI 中添加 API 密钥", "tAiNothing": "请先选择一些手写内容", "tAiFailed": "AI 请求失败：{e}", "tAiKeyBad": "提供商不接受此 API 密钥", "tAiQuota": "提供商表示已达到限额，请稍后再试", "tAiNetwork": "无法连接到提供商", "tAiTidied": "手写已整理", "tAiSolved": "已求解", "tAiChecked": "已求解，答案经验算正确", "tAiCheckFailed": "已求解，但答案验算不通过：请检查步骤", "tAiPlotted": "已添加函数图像。双击或轻点两下即可探索", "tAiNoFn": "未找到可绘制的 x 的函数", "tAiEmpty": "未找到书写内容", "tAiModels": "有 {n} 个可用模型", "tAiForgot": "API 密钥已删除", "aiCheckFail": "验算：此答案不满足题目", "sBuiltIn": "内置贴纸", "sBuiltInNote": "应用的一部分：始终存在，并与画布颜色相配。", "sBuiltInNoSave": "无法将贴纸保存到内置文件夹，请选择其他文件夹。", "bGraphs": "函数图像", "bAxes": "坐标系", "bVenn": "韦恩图", "bKarnaugh": "卡诺图", "bVeitch": "维奇图", "bTruth": "真值表", "bGraphEmpty": "空白函数图像", "bGraphOf": "{f} 的图像", "bAllQuadrants": "全部四个象限", "bQuadrant": "第 {q} 象限", "bQuadrants": "第 {q} 象限", "bVennTwo": "两个集合", "bVennThree": "三个集合", "bVennFour": "四个集合", "bVennTwoU": "全集中的两个集合", "bVennThreeU": "全集中的三个集合", "bVennSubset": "子集", "bVennDisjoint": "不相交集合", "bDisj": "析取", "bConj": "合取", "bTruthVars": "{n} 个变量", "shareNoteLive": "拿到此链接的人会得到白板的副本；只要白板在这里开着，他们就能和你实时一起在上面画。副本就在链接里，实时更改直接在你们的浏览器之间传送。不会上传或存储到任何地方。", "liveNote": "只要白板在这里开着，其他人就能一起画，每个人的激光笔都以自己的颜色显示（如果是你发起的，红色就是你的）。所有人都关闭后，每人各自保留一份副本。", "liveStop": "停止", "livePill": "实时", "liveConnected": "实时：另有 {n} 人在此", "liveConnecting": "正在连接…", "liveWaiting": "实时：等待其他人打开链接", "liveBlocked": "无法直接连接。请换个网络，或在设置中添加 TURN 服务器；链接仍可打开副本。", "liveNoTrackers": "无法连接实时白板的会合点。请检查网络连接。", "shareNoPicsLive": "图片和 PDF 页面不在链接里，而是通过实时连接传给其他人。", "tLiveJoined": "有人加入了白板", "tLiveLeft": "有人离开了白板", "tLiveLeftBoard": "已离开实时白板，其他人仍保留它", "tLiveStopped": "已停止实时共享。白板保留在这里。", "tLiveUnsupported": "此浏览器无法实时共享白板。链接会打开一份副本。", "tLiveFail": "无法启动实时白板", "liveSettings": "实时白板", "turnUrl": "TURN 服务器（可选）", "turnUser": "TURN 用户名", "turnPass": "TURN 密码", "turnNote": "仅在阻止直接连接的网络中需要（部分学校、大学和移动网络）。请使用你自己的 TURN 服务器；它只用于实时白板，并保存在本设备上。"});
+  Object.assign(D.ja, {"aiActions": "AI アクション", "aiShort": "AI", "aiTidy": "手書きを清書", "aiSolve": "途中式つきで解く", "aiPlot": "グラフにする", "aiSettingsMenu": "AI の設定…", "plotHome": "最初の表示に戻る", "plotEdit": "関数", "plotExplore": "探索", "plotEditNote": "1 行に 1 つ、例: f(x) = sin(x) や y = x^2 − 1。探索中はドラッグで移動、スクロールやピンチで拡大縮小できます。曲線上の点をタップすると座標が表示されます。", "aiTitle": "AI（自分のキー）", "aiProvider": "プロバイダー", "aiOther": "その他", "aiBaseUrl": "サーバーのアドレス（OpenAI 互換）", "aiKey": "API キー", "aiGetKey": "キーを取得 ↗", "aiModel": "モデル", "aiListModels": "利用可能なものを表示", "aiPrivacy": "キーはこのデバイスのこのブラウザーにだけ保存されます。Whiteboard のサーバーはありません。AI アクションを使うと、ブラウザーがボードの選択部分の画像を、選んだプロバイダーへ直接送ります。キーがボード、ファイル、共有リンクに入ることはありません。", "aiCost": "プロバイダーが利用ごとにキーへ課金する場合があります。Gemini には無料枠があります。グラフと答えの検算はデバイス上で計算されます。", "aiForget": "キーを削除", "tAiReading": "手書きを読み取り中…", "tAiNoKey": "先に 設定 → AI で API キーを追加してください", "tAiNothing": "先に手書きを選択してください", "tAiFailed": "AI リクエストに失敗しました: {e}", "tAiKeyBad": "プロバイダーが API キーを受け付けませんでした", "tAiQuota": "上限に達したとプロバイダーが応答しました。後でもう一度お試しください", "tAiNetwork": "プロバイダーに接続できません", "tAiTidied": "手書きを清書しました", "tAiSolved": "解きました", "tAiChecked": "解きました。答えは検算で確認済みです", "tAiCheckFailed": "解きましたが、答えが検算で合いません。途中式を確認してください", "tAiPlotted": "グラフを追加しました。ダブルクリックまたはダブルタップで探索できます", "tAiNoFn": "グラフにできる x の関数が見つかりません", "tAiEmpty": "文字が見つかりません", "tAiModels": "{n} 個のモデルが利用可能", "tAiForgot": "API キーを削除しました", "aiCheckFail": "検算: この答えは問題を満たしません", "sBuiltIn": "組み込みステッカー", "sBuiltInNote": "アプリの一部: いつでもここにあり、キャンバスの色に合わせて描かれます。", "sBuiltInNoSave": "組み込みフォルダーにはステッカーを保存できません。別のフォルダーを選んでください。", "bGraphs": "グラフ", "bAxes": "座標系", "bVenn": "ベン図", "bKarnaugh": "カルノー図", "bVeitch": "ファイチ図", "bTruth": "真理値表", "bGraphEmpty": "空のグラフ", "bGraphOf": "{f} のグラフ", "bAllQuadrants": "4 つの象限すべて", "bQuadrant": "第 {q} 象限", "bQuadrants": "第 {q} 象限", "bVennTwo": "2 つの集合", "bVennThree": "3 つの集合", "bVennFour": "4 つの集合", "bVennTwoU": "全体集合の中の 2 つの集合", "bVennThreeU": "全体集合の中の 3 つの集合", "bVennSubset": "部分集合", "bVennDisjoint": "互いに素な集合", "bDisj": "加法標準形", "bConj": "乗法標準形", "bTruthVars": "{n} 変数", "shareNoteLive": "このリンクを持つ人はボードのコピーを受け取り、ここでボードが開いている間は、あなたと一緒にライブで描けます。コピーはリンク自体に入っていて、ライブの変更はブラウザー同士で直接やり取りされます。どこにもアップロードも保存もされません。", "liveNote": "このボードがここで開いている間は他の人も描けます。各人のレーザーポインターはその人の色で表示されます（あなたが始めた場合は赤があなたの色）。全員が閉じると、各自が自分のコピーを持ち続けます。", "liveStop": "停止", "livePill": "ライブ", "liveConnected": "ライブ: ほかに {n} 人", "liveConnecting": "接続中…", "liveWaiting": "ライブ: ほかの人がリンクを開くのを待っています", "liveBlocked": "直接接続できませんでした。別のネットワークを試すか、設定で TURN サーバーを追加してください。リンクからはコピーを開けます。", "liveNoTrackers": "ライブボードの待ち合わせ場所に接続できません。インターネット接続を確認してください。", "shareNoPicsLive": "画像と PDF ページはリンク自体には入りません。ライブ接続で他の人に届きます。", "tLiveJoined": "誰かがボードに参加しました", "tLiveLeft": "誰かがボードを離れました", "tLiveLeftBoard": "ライブボードを離れました。他の人の手元には残ります", "tLiveStopped": "ライブ共有を停止しました。ボードはここに残ります。", "tLiveUnsupported": "このブラウザーはボードのライブ共有に対応していません。リンクはコピーを開きます。", "tLiveFail": "ライブボードを開始できませんでした", "liveSettings": "ライブボード", "turnUrl": "TURN サーバー（任意）", "turnUser": "TURN ユーザー名", "turnPass": "TURN パスワード", "turnNote": "直接接続をブロックするネットワーク（一部の学校、大学、モバイル回線）でのみ必要です。自分の TURN サーバーを使ってください。ライブボードにだけ使われ、このデバイスに保存されます。"});
+  Object.assign(D.ar, {"aiActions": "إجراءات الذكاء الاصطناعي", "aiShort": "ذكاء", "aiTidy": "ترتيب الكتابة اليدوية", "aiSolve": "الحل مع عرض الخطوات", "aiPlot": "رسم كمنحنى بياني", "aiSettingsMenu": "إعدادات الذكاء الاصطناعي…", "plotHome": "العودة إلى العرض الأول", "plotEdit": "الدوال", "plotExplore": "استكشاف", "plotEditNote": "دالة في كل سطر، مثل f(x) = sin(x) أو y = x^2 − 1. أثناء الاستكشاف اسحب للتنقل، ومرّر أو اقرص للتكبير. المس نقطة على المنحنى لترى إحداثياتها.", "aiTitle": "الذكاء الاصطناعي (مفتاحك الخاص)", "aiProvider": "المزوّد", "aiOther": "آخر", "aiBaseUrl": "عنوان الخادم (متوافق مع OpenAI)", "aiKey": "مفتاح API", "aiGetKey": "احصل على مفتاح ↗", "aiModel": "النموذج", "aiListModels": "عرض المتاح", "aiPrivacy": "يُحفظ مفتاحك في هذا المتصفح على هذا الجهاز فقط. لا يوجد خادم لـ Whiteboard: عند استخدام إجراء ذكاء اصطناعي يرسل متصفحك صورة للجزء المحدد من اللوح مباشرةً إلى المزوّد الذي اخترته. لا يُوضع مفتاحك أبدًا في الألواح أو الملفات أو روابط المشاركة.", "aiCost": "قد يحاسب المزوّد مفتاحك على كل استخدام. لدى Gemini فئة مجانية. تُحسب المنحنيات والتحقق من الإجابات على جهازك.", "aiForget": "إزالة المفاتيح", "tAiReading": "جارٍ قراءة الكتابة اليدوية…", "tAiNoKey": "أضف أولًا مفتاح API في الإعدادات ← الذكاء الاصطناعي", "tAiNothing": "حدّد بعض الكتابة اليدوية أولًا", "tAiFailed": "فشل طلب الذكاء الاصطناعي: {e}", "tAiKeyBad": "لم يقبل المزوّد مفتاح API", "tAiQuota": "يقول المزوّد إن الحد قد بُلغ. حاول لاحقًا", "tAiNetwork": "تعذّر الوصول إلى المزوّد", "tAiTidied": "تم ترتيب الكتابة اليدوية", "tAiSolved": "تم الحل", "tAiChecked": "تم الحل، والإجابة صحيحة عند التحقق", "tAiCheckFailed": "تم الحل، لكن الإجابة لم تصح عند التحقق: راجع الخطوات", "tAiPlotted": "أُضيف المنحنى. انقر أو المس مرتين لاستكشافه", "tAiNoFn": "لم يُعثر على دالة في x لرسمها", "tAiEmpty": "لم يُعثر على كتابة", "tAiModels": "{n} نماذج متاحة", "tAiForgot": "أُزيلت مفاتيح API", "aiCheckFail": "تحقق: هذه الإجابة لا تحقق المسألة", "sBuiltIn": "ملصقات مدمجة", "sBuiltInNote": "جزء من التطبيق: موجودة دائمًا وتناسب لون لوحتك.", "sBuiltInNoSave": "لا يمكن حفظ ملصقات في المجلد المدمج. اختر مجلدًا آخر.", "bGraphs": "منحنيات بيانية", "bAxes": "أنظمة إحداثيات", "bVenn": "مخططات فن", "bKarnaugh": "خرائط كارنو", "bVeitch": "خرائط فايتش", "bTruth": "جداول الحقيقة", "bGraphEmpty": "منحنى فارغ", "bGraphOf": "منحنى {f}", "bAllQuadrants": "الأرباع الأربعة كلها", "bQuadrant": "الربع {q}", "bQuadrants": "الأرباع {q}", "bVennTwo": "مجموعتان", "bVennThree": "ثلاث مجموعات", "bVennFour": "أربع مجموعات", "bVennTwoU": "مجموعتان داخل مجموعة شاملة", "bVennThreeU": "ثلاث مجموعات داخل مجموعة شاملة", "bVennSubset": "مجموعة جزئية", "bVennDisjoint": "مجموعات منفصلة", "bDisj": "فصلي", "bConj": "وصلي", "bTruthVars": "{n} متغيرات", "shareNoteLive": "يحصل كل من لديه هذا الرابط على نسخة من اللوح، وما دام اللوح مفتوحًا هنا يرسم عليه معك مباشرةً. تنتقل النسخة داخل الرابط نفسه، وتنتقل التغييرات المباشرة بين متصفحاتكم مباشرةً. لا يُرفع شيء ولا يُخزَّن في أي مكان.", "liveNote": "يمكن للآخرين الرسم ما دام هذا اللوح مفتوحًا هنا، ويظهر مؤشر الليزر لكل شخص بلونه الخاص (الأحمر لك إن كنت من بدأه). عندما يغلقه الجميع، يحتفظ كل واحد بنسخته.", "liveStop": "إيقاف", "livePill": "مباشر", "liveConnected": "مباشر: {n} آخرون هنا", "liveConnecting": "جارٍ الاتصال…", "liveWaiting": "مباشر: بانتظار أن يفتح الآخرون الرابط", "liveBlocked": "تعذّر الاتصال المباشر. جرّب شبكة أخرى، أو أضف خادم TURN في الإعدادات، أو سيفتح الرابط نسخة على أي حال.", "liveNoTrackers": "تعذّر الوصول إلى نقاط الالتقاء للألواح المباشرة. تحقق من الاتصال بالإنترنت.", "shareNoPicsLive": "الصور وصفحات PDF ليست في الرابط نفسه؛ تصل إلى الآخرين عبر الاتصال المباشر.", "tLiveJoined": "انضم شخص إلى اللوح", "tLiveLeft": "غادر شخص اللوح", "tLiveLeftBoard": "غادرت اللوح المباشر؛ يبقى لدى الآخرين", "tLiveStopped": "توقفت المشاركة المباشرة. يبقى اللوح هنا.", "tLiveUnsupported": "لا يستطيع هذا المتصفح مشاركة الألواح مباشرةً. يفتح الرابط نسخة.", "tLiveFail": "تعذّر بدء اللوح المباشر", "liveSettings": "الألواح المباشرة", "turnUrl": "خادم TURN (اختياري)", "turnUser": "اسم مستخدم TURN", "turnPass": "كلمة مرور TURN", "turnNote": "لا يلزم إلا على الشبكات التي تحجب الاتصالات المباشرة (بعض المدارس والجامعات وشبكات الجوال). استخدم خادم TURN الخاص بك؛ يُستخدم للألواح المباشرة فقط ويبقى على هذا الجهاز."});
+  Object.assign(D.hi, {"aiActions": "AI क्रियाएँ", "aiShort": "AI", "aiTidy": "लिखावट को साफ़ करें", "aiSolve": "चरणों के साथ हल करें", "aiPlot": "ग्राफ़ के रूप में बनाएँ", "aiSettingsMenu": "AI सेटिंग्स…", "plotHome": "शुरुआती दृश्य पर लौटें", "plotEdit": "फलन", "plotExplore": "खोजें", "plotEditNote": "हर पंक्ति में एक, जैसे f(x) = sin(x) या y = x^2 − 1। खोजते समय घूमने के लिए खींचें, और ज़ूम के लिए स्क्रॉल या पिंच करें। निर्देशांक देखने के लिए वक्र पर किसी बिंदु को टैप करें।", "aiTitle": "AI (आपकी अपनी कुंजी)", "aiProvider": "प्रदाता", "aiOther": "अन्य", "aiBaseUrl": "सर्वर का पता (OpenAI-संगत)", "aiKey": "API कुंजी", "aiGetKey": "कुंजी पाएँ ↗", "aiModel": "मॉडल", "aiListModels": "उपलब्ध दिखाएँ", "aiPrivacy": "आपकी कुंजी केवल इसी डिवाइस के इसी ब्राउज़र में रहती है। Whiteboard का कोई सर्वर नहीं है: AI क्रिया उपयोग करने पर आपका ब्राउज़र बोर्ड के चुने हुए हिस्से की तस्वीर सीधे आपके चुने प्रदाता को भेजता है। आपकी कुंजी कभी बोर्ड, फ़ाइलों या शेयर लिंक में नहीं डाली जाती।", "aiCost": "प्रदाता हर उपयोग का शुल्क आपकी कुंजी पर ले सकता है। Gemini का मुफ़्त स्तर है। ग्राफ़ और उत्तर की जाँच आपके डिवाइस पर ही की जाती है।", "aiForget": "कुंजियाँ हटाएँ", "tAiReading": "लिखावट पढ़ी जा रही है…", "tAiNoKey": "पहले सेटिंग्स → AI में API कुंजी जोड़ें", "tAiNothing": "पहले कुछ लिखावट चुनें", "tAiFailed": "AI अनुरोध विफल: {e}", "tAiKeyBad": "प्रदाता ने API कुंजी स्वीकार नहीं की", "tAiQuota": "प्रदाता के अनुसार सीमा पूरी हो गई है। बाद में फिर कोशिश करें", "tAiNetwork": "प्रदाता तक नहीं पहुँच सके", "tAiTidied": "लिखावट साफ़ कर दी गई", "tAiSolved": "हल हो गया", "tAiChecked": "हल हो गया, और उत्तर जाँच में सही है", "tAiCheckFailed": "हल हो गया, पर उत्तर जाँच में सही नहीं निकला: चरण देखें", "tAiPlotted": "ग्राफ़ जोड़ा गया। खोजने के लिए डबल-क्लिक या डबल-टैप करें", "tAiNoFn": "बनाने के लिए x का कोई फलन नहीं मिला", "tAiEmpty": "कोई लिखावट नहीं मिली", "tAiModels": "{n} मॉडल उपलब्ध", "tAiForgot": "API कुंजियाँ हटा दी गईं", "aiCheckFail": "जाँच: यह उत्तर प्रश्न को संतुष्ट नहीं करता", "sBuiltIn": "अंतर्निहित स्टिकर", "sBuiltInNote": "ऐप का हिस्सा: हमेशा यहाँ, आपके कैनवास के रंग के अनुसार।", "sBuiltInNoSave": "अंतर्निहित फ़ोल्डर में स्टिकर सहेजे नहीं जा सकते। कोई दूसरा फ़ोल्डर चुनें।", "bGraphs": "ग्राफ़", "bAxes": "निर्देशांक पद्धतियाँ", "bVenn": "वेन आरेख", "bKarnaugh": "कार्नो मानचित्र", "bVeitch": "वाइच मानचित्र", "bTruth": "सत्य सारणियाँ", "bGraphEmpty": "खाली ग्राफ़", "bGraphOf": "{f} का ग्राफ़", "bAllQuadrants": "चारों चतुर्थांश", "bQuadrant": "चतुर्थांश {q}", "bQuadrants": "चतुर्थांश {q}", "bVennTwo": "दो समुच्चय", "bVennThree": "तीन समुच्चय", "bVennFour": "चार समुच्चय", "bVennTwoU": "सार्वत्रिक समुच्चय में दो समुच्चय", "bVennThreeU": "सार्वत्रिक समुच्चय में तीन समुच्चय", "bVennSubset": "उपसमुच्चय", "bVennDisjoint": "असंयुक्त समुच्चय", "bDisj": "वियोजक", "bConj": "संयोजक", "bTruthVars": "{n} चर", "shareNoteLive": "इस लिंक वाला हर व्यक्ति बोर्ड की एक प्रति पाता है, और जब तक बोर्ड यहाँ खुला है, वह आपके साथ लाइव उस पर बना सकता है। प्रति लिंक के अंदर ही जाती है; लाइव बदलाव सीधे आपके ब्राउज़रों के बीच जाते हैं। कुछ भी कहीं अपलोड या संग्रहीत नहीं होता।", "liveNote": "जब तक यह बोर्ड यहाँ खुला है, दूसरे भी बना सकते हैं, और हर व्यक्ति का लेज़र पॉइंटर उसके अपने रंग में दिखता है (अगर आपने शुरू किया तो लाल आपका है)। सबके बंद करने पर हर किसी के पास अपनी प्रति रहती है।", "liveStop": "रोकें", "livePill": "लाइव", "liveConnected": "लाइव: यहाँ {n} और", "liveConnecting": "जुड़ रहा है…", "liveWaiting": "लाइव: दूसरों के लिंक खोलने की प्रतीक्षा", "liveBlocked": "सीधे नहीं जुड़ सके। दूसरा नेटवर्क आज़माएँ, सेटिंग्स में TURN सर्वर जोड़ें, या लिंक फिर भी एक प्रति खोलेगा।", "liveNoTrackers": "लाइव बोर्ड के मिलन-बिंदुओं तक नहीं पहुँच सके। इंटरनेट कनेक्शन जाँचें।", "shareNoPicsLive": "चित्र और PDF पेज लिंक में नहीं होते; वे लाइव कनेक्शन से दूसरों तक पहुँचते हैं।", "tLiveJoined": "कोई बोर्ड से जुड़ा", "tLiveLeft": "कोई बोर्ड छोड़ गया", "tLiveLeftBoard": "आपने लाइव बोर्ड छोड़ दिया; दूसरों के पास यह बना रहेगा", "tLiveStopped": "लाइव साझा करना रुका। बोर्ड यहीं रहेगा।", "tLiveUnsupported": "यह ब्राउज़र बोर्ड लाइव साझा नहीं कर सकता। लिंक एक प्रति खोलता है।", "tLiveFail": "लाइव बोर्ड शुरू नहीं हो सका", "liveSettings": "लाइव बोर्ड", "turnUrl": "TURN सर्वर (वैकल्पिक)", "turnUser": "TURN उपयोगकर्ता नाम", "turnPass": "TURN पासवर्ड", "turnNote": "केवल उन नेटवर्क पर ज़रूरी जो सीधे कनेक्शन रोकते हैं (कुछ स्कूल, विश्वविद्यालय और मोबाइल नेटवर्क)। अपना TURN सर्वर इस्तेमाल करें; यह केवल लाइव बोर्ड के लिए है और इसी डिवाइस पर रहता है।"});
 
   /* The best supported language for this device's preferences. */
   WB.systemLang = function () {
@@ -7623,6 +7698,642 @@ body.pipetting #canvas { cursor: crosshair; }
 
 </script>
 <script>
+/* Whiteboard: browsers talking straight to each other (WebRTC), for live boards.
+
+   Finding each other ("signalling") goes through public WebTorrent trackers: free, no account,
+   and several at once, so one being down doesn't matter. A tracker only ever sees
+     - a hash of the room (SHA-1 of the room code), never the code itself, and
+     - the connection offers and answers, encrypted with a key made from the room code (AES-GCM),
+       so it can't read the network addresses inside them either.
+   STUN servers (Google, Cloudflare) tell each browser its public address so they can reach each
+   other through home routers. After that, everything goes over an encrypted (DTLS) data channel
+   directly between the browsers; the trackers aren't needed any more. With more than two people,
+   everyone connects to everyone (fine for a handful of people).
+   Some networks block direct connections; a TURN relay of the user's own (in Settings) gets
+   through those. None is built in: a password in public code would be anyone's to use up.
+
+   WB.p2p.join(room, { ice, onPeer(id), onLeave(id), onMessage(id, msg), onStatus(st) }) -> room
+     room.send(msg, to?)   a JSON-able message to one peer, or to all of them
+     room.leave()
+   Messages of any size: long ones are cut into pieces and put together again on arrival. */
+(function () {
+  const WB = window.WB;
+  const TRACKERS = ['wss://tracker.openwebtorrent.com', 'wss://tracker.webtorrent.dev', 'wss://tracker.files.fm:7073/announce'];
+  const STUN = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+  const OFFERS = 5;            // ready-made offers handed to each tracker, for that many newcomers
+  const ANNOUNCE_MS = 30000;   // re-announce (with fresh offers) this often
+  const CONNECT_MS = 15000;    // give a connection this long to open
+  const MAX_PEERS = 12;
+  const PIECE = 16000;         // characters per data channel message (safe in every browser)
+
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  const rand = (n) => crypto.getRandomValues(new Uint8Array(n));
+  const bin = (bytes) => { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return s; };
+  const hex = (s) => [...s].map((c) => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+  const b64 = (bytes) => btoa(bin(bytes));
+  const unb64 = (t) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
+
+  async function roomKeys(room) {
+    const hash = new Uint8Array(await crypto.subtle.digest('SHA-1', enc.encode('whiteboard-room:' + room)));
+    const raw = await crypto.subtle.digest('SHA-256', enc.encode('whiteboard-key:' + room));
+    const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+    return { infoHash: bin(hash), key };
+  }
+  async function seal(key, text) {
+    const iv = rand(12), ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text)));
+    const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
+    return b64(out);
+  }
+  async function unseal(key, t) {
+    const all = unb64(t);
+    return dec.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: all.subarray(0, 12) }, key, all.subarray(12)));
+  }
+  /* Wait until the connection knows all its addresses (the trackers carry one offer, no updates). */
+  const gathered = (pc) => new Promise((res) => {
+    if (pc.iceGatheringState === 'complete') return res();
+    const t = setTimeout(res, 4000);
+    pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } });
+  });
+
+  async function join(room, h) {
+    const { infoHash, key } = await roomKeys(room);
+    const myId = bin(rand(20)), me = hex(myId);
+    const ice = { iceServers: STUN.concat(h.ice || []) };
+    const peers = new Map();        // peer id (hex) -> { pc, dc, offerer, open, timer, parts }
+    let offers = new Map();         // offer id -> { pc, dc }  (this round's, not yet answered)
+    let left = false, others = false, failed = 0;
+    const sockets = [];
+
+    const status = () => {
+      if (left) return;
+      let open = 0, connecting = 0;
+      for (const p of peers.values()) if (p.open) open++; else connecting++;
+      h.onStatus({ me, peers: open, connecting, trackers: sockets.filter((s) => s.ws && s.ws.readyState === 1).length, others, failed });
+    };
+
+    /* ---- One peer ---- */
+    function bindChannel(id, p, dc) {
+      p.dc = dc;
+      dc.bufferedAmountLowThreshold = 256 * 1024;
+      dc.onopen = () => {
+        if (peers.get(id) !== p || left) return dc.close();
+        p.open = true; clearTimeout(p.timer); failed = 0;
+        h.onPeer(id); status();
+      };
+      dc.onclose = () => drop(id, p);
+      dc.onmessage = (e) => receive(id, p, e.data);
+      dc.onbufferedamountlow = () => pump(p);
+    }
+    /* Keep at most one connection per peer. When two appear at once (each answered the other's
+       offer), both sides keep the one offered by the smaller id, so they keep the same one. */
+    function register(id, pc, offerer) {
+      const old = peers.get(id);
+      if (old) {
+        if (old.offerer <= offerer) { pc.close(); return null; }
+        drop(id, old, true);
+      }
+      if (peers.size >= MAX_PEERS) { pc.close(); return null; }
+      const p = { pc, dc: null, offerer, open: false, queue: [], parts: new Map() };
+      p.timer = setTimeout(() => { if (!p.open) { failed++; drop(id, p); } }, CONNECT_MS);
+      pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed' || pc.connectionState === 'closed') { if (!p.open) failed++; drop(id, p); } };
+      peers.set(id, p);
+      status();
+      return p;
+    }
+    function drop(id, p, quiet) {
+      if (peers.get(id) !== p) return;
+      peers.delete(id);
+      clearTimeout(p.timer);
+      try { p.dc && p.dc.close(); } catch (e) {}
+      try { p.pc.close(); } catch (e) {}
+      if (p.open && !quiet) h.onLeave(id);
+      status();
+    }
+
+    /* ---- Messages ---- */
+    let msgNo = 0;
+    function send(msg, to) {
+      const text = JSON.stringify(msg);
+      const chunks = [];
+      if (text.length <= PIECE) chunks.push(text);
+      else {
+        const n = Math.ceil(text.length / PIECE), tag = (++msgNo).toString(36);
+        for (let i = 0; i < n; i++) chunks.push('\u0001' + tag + ':' + i + ':' + n + ':' + text.slice(i * PIECE, (i + 1) * PIECE));
+      }
+      for (const [id, p] of peers) {
+        if (!p.open || (to && to !== id)) continue;
+        p.queue.push(...chunks);
+        pump(p);
+      }
+    }
+    function pump(p) {
+      const dc = p.dc;
+      while (p.queue.length && dc && dc.readyState === 'open' && dc.bufferedAmount < 1024 * 1024) {
+        try { dc.send(p.queue.shift()); } catch (e) { return; }
+      }
+    }
+    function receive(id, p, data) {
+      if (typeof data !== 'string') return;
+      if (data.charCodeAt(0) === 1) {
+        const a = data.indexOf(':'), b = data.indexOf(':', a + 1), c = data.indexOf(':', b + 1);
+        const tag = data.slice(1, a), i = +data.slice(a + 1, b), n = +data.slice(b + 1, c);
+        if (!(n > 0 && n < 100000 && i >= 0 && i < n)) return;
+        let m = p.parts.get(tag);
+        if (!m) { if (p.parts.size > 8) return; m = { n, got: 0, list: new Array(n) }; p.parts.set(tag, m); }
+        if (m.list[i] == null) { m.list[i] = data.slice(c + 1); m.got++; }
+        if (m.got < m.n) return;
+        p.parts.delete(tag);
+        data = m.list.join('');
+      }
+      let msg;
+      try { msg = JSON.parse(data); } catch (e) { return; }
+      if (msg && typeof msg === 'object') { try { h.onMessage(id, msg); } catch (e) { console.error('live message', e); } }
+    }
+
+    /* ---- Trackers ---- */
+    async function makeOffers() {
+      for (const o of offers.values()) if (!o.taken) try { o.pc.close(); } catch (e) {}
+      const round = new Map();
+      offers = round;
+      await Promise.all(Array.from({ length: OFFERS }, async () => {
+        const pc = new RTCPeerConnection(ice), dc = pc.createDataChannel('wb', { ordered: true });
+        await pc.setLocalDescription(await pc.createOffer());
+        await gathered(pc);
+        round.set(bin(rand(20)), { pc, dc, sdp: await seal(key, pc.localDescription.sdp) });
+      }));
+      return round;
+    }
+    let round = null;
+    async function announce(s, first) {
+      if (left || !s.ws || s.ws.readyState !== 1) return;
+      const list = [...(await round).entries()].filter(([, o]) => !o.taken);
+      if (left || s.ws.readyState !== 1) return;
+      s.ws.send(JSON.stringify({ action: 'announce', info_hash: infoHash, peer_id: myId, numwant: OFFERS, uploaded: 0, downloaded: 0, left: 1,
+        event: first ? 'started' : undefined, offers: list.map(([offer_id, o]) => ({ offer_id, offer: { type: 'offer', sdp: o.sdp } })) }));
+    }
+    async function onOffer(s, m) {
+      const id = hex(m.peer_id);
+      if (id === me || (peers.get(id) && peers.get(id).offerer <= id)) return;   // already have (or are making) a connection with them
+      let sdp;
+      try { sdp = await unseal(key, m.offer.sdp); } catch (e) { return; }
+      const pc = new RTCPeerConnection(ice), p = register(id, pc, id);
+      if (!p) return;
+      pc.ondatachannel = (e) => bindChannel(id, p, e.channel);
+      try {
+        await pc.setRemoteDescription({ type: 'offer', sdp });
+        await pc.setLocalDescription(await pc.createAnswer());
+        await gathered(pc);
+        if (left || peers.get(id) !== p || s.ws.readyState !== 1) return;
+        s.ws.send(JSON.stringify({ action: 'announce', info_hash: infoHash, peer_id: myId, to_peer_id: m.peer_id, offer_id: m.offer_id,
+          answer: { type: 'answer', sdp: await seal(key, pc.localDescription.sdp) } }));
+      } catch (e) { drop(id, p, true); }
+    }
+    async function onAnswer(m) {
+      const o = offers.get(m.offer_id), id = hex(m.peer_id);
+      if (!o || o.taken || id === me) return;
+      let sdp;
+      try { sdp = await unseal(key, m.answer.sdp); } catch (e) { return; }
+      if (o.taken) return;
+      o.taken = true;
+      const p = register(id, o.pc, me);
+      if (!p) return;
+      bindChannel(id, p, o.dc);
+      try { await o.pc.setRemoteDescription({ type: 'answer', sdp }); } catch (e) { drop(id, p, true); }
+    }
+    function tracker(url) {
+      const s = { url, ws: null, retry: 0 };
+      const connect = () => {
+        if (left) return;
+        try { s.ws = new WebSocket(url); } catch (e) { return; }
+        s.ws.onopen = () => { s.retry = 0; status(); announce(s, true); };
+        s.ws.onmessage = (e) => {
+          let m;
+          try { m = JSON.parse(e.data); } catch (err) { return; }
+          if (!m || m.info_hash !== infoHash || m.peer_id === myId) return;
+          if ((m.complete || 0) + (m.incomplete || 0) > 1 && !others) { others = true; status(); }
+          if (m.offer && m.offer_id && typeof m.offer.sdp === 'string') onOffer(s, m);
+          else if (m.answer && m.offer_id && typeof m.answer.sdp === 'string') onAnswer(m);
+        };
+        s.ws.onclose = () => { status(); if (!left) setTimeout(connect, Math.min(60000, 3000 * 2 ** s.retry++)); };
+        s.ws.onerror = () => {};
+      };
+      connect();
+      return s;
+    }
+
+    round = makeOffers();
+    for (const url of TRACKERS) sockets.push(tracker(url));
+    const tick = setInterval(() => { round = makeOffers(); for (const s of sockets) announce(s, false); }, ANNOUNCE_MS);
+    status();
+
+    return {
+      me,
+      send,
+      leave() {
+        if (left) return;
+        clearInterval(tick);
+        for (const s of sockets) {
+          try {
+            if (s.ws.readyState === 1) s.ws.send(JSON.stringify({ action: 'announce', info_hash: infoHash, peer_id: myId, numwant: 0, uploaded: 0, downloaded: 0, left: 1, event: 'stopped' }));
+            s.ws.close();
+          } catch (e) {}
+        }
+        left = true;
+        for (const [id, p] of [...peers]) drop(id, p, true);
+        Promise.resolve(round).then((r) => { for (const o of r.values()) if (!o.taken) try { o.pc.close(); } catch (e) {} });
+      },
+    };
+  }
+
+  /* A new room code: 16 characters, about 96 random bits. */
+  const newRoom = () => b64(rand(12)).replace(/\+/g, '-').replace(/\//g, '_');
+
+  WB.p2p = { join, newRoom, supported: typeof RTCPeerConnection === 'function' && !!(window.crypto && crypto.subtle) };
+})();
+
+</script>
+<script>
+/* Whiteboard: live boards. Everyone who opened the same share link draws on the same board,
+   with the changes going straight between the browsers (js/p2p.js).
+
+   Every object gets an id ("<session>.<n>") and a version: a Lamport clock with the session as
+   tie-breaker. A change sends the whole object as it is now (in the .whtbd file form, so what
+   arrives goes through the same checks as an opened file); the newer version wins, and a deleted
+   object leaves a tombstone so an older copy of it can't come back. A newcomer and the people
+   already there swap everything they have, and both end up with the newest of each object.
+   Pictures travel once each, by fingerprint, when someone is missing one.
+
+   The app tells this module what changed (touch, changed) and gets changes from others through
+   its host functions. Undo only ever undoes your own steps: others' changes never enter your
+   undo history. Ink in progress is streamed too, so others see a line while it is drawn. */
+(function () {
+  const WB = window.WB;
+  const TINY = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+  const IMG_RE = /^data:image\/(png|jpeg|webp|gif|bmp);base64,[A-Za-z0-9+/=]+$/;
+  const HEX = /^#[0-9a-f]{6}$/i;
+  let host = null, room = null, code = '', sid = '', n = 0, clock = 0;
+  let vers = new Map();          // id -> { t, p, dead }
+  let objs = new Map();          // id -> the object (also ones no longer on the board, so undo can bring them back)
+  let known = new Set();         // the objects on the board as last synced
+  let seeds = null;              // objects from the share link itself, until the live board arrives
+  let metaV = { t: 0, p: '' }, metaSig = '';
+  let dirty = new Map(), flushTimer = 0;
+  const images = new Map();      // fingerprint -> picture data, for pictures others ask for
+  const waiting = new Map();     // fingerprint -> [ops] that wait for that picture
+  const asked = new Set();
+  const ghosts = new Map();      // peer -> { s, seq, t }: their line in progress
+  let ink = null;                // { L, seq, sent }: my line in progress, as streamed
+  let inkSeq = 0, inkTime = 0;
+  let st = { peers: 0, connecting: 0, trackers: 0, others: false, failed: 0 };
+  /* Laser pointer colours: red for whoever started the live board, a different one for each person
+     who joined. Each person says their colour when connecting; a newcomer takes the first one nobody
+     has, and if two picked the same at once, the one with the larger id picks again. So everyone
+     sees each pointer, their own too, in the same colour. */
+  const COLORS = ['#ff3b30', '#34c759', '#007aff', '#ff9500', '#af52de', '#ff2d55', '#30b0c7', '#ffcc00', '#5856d6', '#a2845e', '#00c7be', '#8e8e93', '#ff6482'];
+  let myColor = null, me = '';
+  const colors = new Map();      // peer -> colour number
+  let ptr = null, ptrSent = 0, ptrTimer = 0;
+
+  const newer = (a, b) => !b || a.t > b.t || (a.t === b.t && a.p > b.p);
+  const doc = () => host.doc;
+  function fingerprint(t) { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return 'i' + (h >>> 0).toString(36) + t.length.toString(36); }
+  const keyOf = (o) => (o._lkey && o._lsrc === o.src ? o._lkey : ((o._lsrc = o.src), (o._lkey = fingerprint(o.src))));
+
+  function ensureId(s) {
+    if (!s.id || typeof s.id !== 'string') s.id = sid + '.' + (++n).toString(36);
+    objs.set(s.id, s);
+    return s.id;
+  }
+
+  /* ---- Joining and leaving ---- */
+  async function start(r, opt) {
+    stop();
+    code = r;
+    sid = Math.random().toString(36).slice(2, 10);
+    n = 0; clock = 0; vers = new Map(); objs = new Map(); dirty = new Map(); ghosts.clear(); asked.clear(); waiting.clear();
+    seeds = opt && opt.seeded ? new Set(doc().strokes) : null;
+    myColor = opt && Number.isInteger(opt.color) && opt.color >= 0 && opt.color < COLORS.length ? opt.color : null;
+    colors.clear(); ptr = null;
+    for (const s of doc().strokes) if (!seeds) { ensureId(s); vers.set(s.id, { t: 0, p: '' }); }
+    known = new Set(doc().strokes);
+    metaV = { t: 0, p: '' }; metaSig = sig();
+    st = { peers: 0, connecting: 0, trackers: 0, others: false, failed: 0 };
+    const ice = [];
+    const t = host.turn();
+    if (t && t.url) ice.push({ urls: t.url.split(/[\s,]+/).filter(Boolean), username: t.username || undefined, credential: t.credential || undefined });
+    const my = room = { pending: true };
+    let rm;
+    try {
+      rm = await WB.p2p.join(r, {
+        ice,
+        onPeer: (id) => { send({ k: 'hello', c: myColor }, id); if (ptr) send({ k: 'ptr', x: ptr.x, y: ptr.y }, id); sendState(id); host.peerJoined(); },
+        onLeave: (id) => { ghosts.delete(id); colors.delete(id); host.pointer(id, null); host.peerLeft(); host.requestFrame(); },
+        onMessage: (id, m) => { if (room === rm) handle(id, m); },
+        onStatus: (s) => { if (room === rm) { st = s; host.status(st); } },
+      });
+    } catch (e) { if (room === my) room = null; throw e; }
+    if (room !== my) { rm.leave(); return; }
+    room = rm;
+    me = rm.me;
+    host.status(st);
+  }
+  function stop() {
+    if (room && room.leave) room.leave();
+    room = null; code = ''; seeds = null;
+    clearTimeout(flushTimer); dirty.clear(); ghosts.clear(); ink = null;
+  }
+  const on = () => !!room;
+
+  /* ---- What I changed ---- */
+  function touch(list) {
+    if (!room) return;
+    for (const s of list) {
+      if (!s || (seeds && seeds.has(s))) continue;
+      const inDoc = doc().strokes.includes(s);
+      if (!inDoc && !(s.id && vers.has(s.id) && !vers.get(s.id).dead)) continue;   // never was part of the live board
+      ensureId(s);
+      dirty.set(s.id, s);
+    }
+    schedule();
+  }
+  /* After any change: what was added or taken away, and the board's name and pages. */
+  function changed() {
+    if (!room) return;
+    const now = new Set(doc().strokes), list = [];
+    for (const s of now) if (!known.has(s)) list.push(s);
+    for (const s of known) if (!now.has(s)) list.push(s);
+    known = now;
+    touch(list);
+    const g = sig();
+    if (g !== metaSig) { metaSig = g; metaV = { t: ++clock, p: sid }; send({ k: 'meta', ...metaMsg() }); }
+  }
+  function schedule() { if (!flushTimer && dirty.size) flushTimer = setTimeout(flush, 40); }
+  function flush() {
+    flushTimer = 0;
+    if (!room || !dirty.size) return;
+    const strokes = doc().strokes, ops = [];
+    const at = new Map(strokes.map((s, i) => [s, i]));
+    for (const [id, s] of dirty) {
+      const v = { t: ++clock, p: sid };
+      const i = at.get(s);
+      if (i == null) { vers.set(id, { ...v, dead: true }); ops.push({ id, t: v.t, p: v.p, dead: 1 }); }
+      else {
+        vers.set(id, v);
+        const prev = i > 0 ? strokes[i - 1] : null;
+        ops.push({ id, t: v.t, p: v.p, after: prev && !(seeds && seeds.has(prev)) ? ensureId(prev) : null, s });
+      }
+    }
+    dirty.clear();
+    wireAll(ops);
+    send({ k: 'ops', ops });
+  }
+  /* Objects into their file form (pictures by fingerprint), in place on the ops. */
+  function wireAll(ops) {
+    const live = ops.filter((o) => o.s);
+    if (!live.length) return;
+    const copies = live.map((o) => (o.s.tool === 'image' ? Object.assign({}, o.s, { src: TINY }) : o.s));
+    const file = JSON.parse(WB.serialize({ title: '', created: 0, strokes: copies, pages: [] }, { x: 0, y: 0, zoom: 1 }));
+    live.forEach((o, i) => {
+      o.o = file.strokes[i];
+      if (o.s.tool === 'image') { const k = keyOf(o.s); images.set(k, o.s.src); o.o.img = k; }
+      delete o.s;
+    });
+  }
+  function sig() {
+    const d = doc();
+    return JSON.stringify([d.title, d.pages.map((p) => [p.x, p.y, p.w, p.h, p.src ? keyOf(p) : 0])]);
+  }
+  function metaMsg() {
+    const d = doc();
+    return { t: metaV.t, p: metaV.p, title: d.title, pages: d.pages.map((p) => {
+      const q = { x: p.x, y: p.y, w: p.w, h: p.h };
+      if (p.src) { q.img = keyOf(p); images.set(q.img, p.src); }
+      return q;
+    }) };
+  }
+  function send(m, to) { if (room && room.send) room.send(m, to); }
+
+  /* Everything I have, for someone who just connected. */
+  function sendState(to) {
+    flush();
+    const strokes = doc().strokes, items = [];
+    strokes.forEach((s, i) => {
+      if (seeds && seeds.has(s)) return;
+      const id = ensureId(s), v = vers.get(id) || { t: 0, p: '' };
+      const prev = i > 0 ? strokes[i - 1] : null;
+      items.push({ id, t: v.t, p: v.p, after: prev && !(seeds && seeds.has(prev)) ? ensureId(prev) : null, s });
+    });
+    for (const [id, v] of vers) if (v.dead) items.push({ id, t: v.t, p: v.p, dead: 1 });
+    wireAll(items);
+    send({ k: 'state', sid, seeded: !!(seeds && seeds.size), items, meta: metaMsg() }, to);
+  }
+
+  /* ---- What others changed ---- */
+  function handle(from, m) {
+    if (m.k === 'ops' && Array.isArray(m.ops)) { ghosts.delete(from); applyOps(from, m.ops); }
+    else if (m.k === 'state' && Array.isArray(m.items)) {
+      if (seeds) settleSeeds(m);
+      applyOps(from, m.items);
+      if (m.meta) applyMeta(from, m.meta);
+    } else if (m.k === 'meta') applyMeta(from, m);
+    else if (m.k === 'need' && Array.isArray(m.keys)) {
+      for (const k of m.keys.slice(0, 500)) { const src = findImage(k); if (src) send({ k: 'img', key: k, src }, from); }
+    } else if (m.k === 'img' && typeof m.key === 'string' && typeof m.src === 'string') gotImage(m.key, m.src);
+    else if (m.k === 'ink') gotInk(from, m);
+    else if (m.k === 'inkEnd') { const g = ghosts.get(from); if (g) g.end = Date.now(); host.requestFrame(); }
+    else if (m.k === 'hello') gotColor(from, m.c);
+    else if (m.k === 'ptr') {
+      if (m.off) host.pointer(from, null);
+      else if (isFinite(m.x) && isFinite(m.y) && Math.abs(m.x) < 1e9 && Math.abs(m.y) < 1e9) host.pointer(from, { x: +m.x, y: +m.y, color: colorOf(from) });
+    }
+  }
+  /* The share link's own copy of the board was only there to show something at once. When the
+     live board arrives it takes over; if nobody has a live board yet, the copy becomes it (only
+     one of two people who both opened the link with nobody else there brings theirs in). */
+  function settleSeeds(m) {
+    const theirs = m.items.some((it) => it && !it.dead);
+    const s = seeds;
+    seeds = null;
+    if (theirs || (m.seeded && String(m.sid) < sid)) {
+      const strokes = doc().strokes;
+      for (let i = strokes.length - 1; i >= 0; i--) if (s.has(strokes[i])) { host.unselect(strokes[i]); strokes.splice(i, 1); }
+      known = new Set(strokes);
+      host.remoteChanged();
+    } else {
+      for (const o of s) { ensureId(o); vers.set(o.id, { t: 0, p: '' }); }
+      touch([...s]);
+    }
+  }
+  function applyOps(from, ops) {
+    const strokes = doc().strokes;
+    let index = null, touched = false, loads = [];
+    const indexOf = (s) => { if (!index) index = new Map(strokes.map((o, i) => [o, i])); return index.get(s); };
+    for (const op of ops.slice(0, 100000)) {
+      if (!op || typeof op.id !== 'string' || op.id.length > 40 || !(op.t >= 0) || typeof op.p !== 'string') continue;
+      const v = { t: +op.t, p: op.p.slice(0, 16) }, cur = vers.get(op.id);
+      if (cur && !newer(v, cur)) continue;
+      clock = Math.max(clock, v.t);
+      const s = objs.get(op.id), at = s ? indexOf(s) : undefined;
+      if (op.dead) {
+        vers.set(op.id, { ...v, dead: true });
+        if (at != null) { strokes.splice(at, 1); host.unselect(s); index = null; touched = true; }
+        continue;
+      }
+      if (!op.o || typeof op.o !== 'object') continue;
+      let obj;
+      try { obj = WB.normalize({ strokes: [op.o] }).strokes[0]; } catch (e) { obj = null; }
+      if (!obj) continue;
+      if (obj.tool === 'image') {
+        const k = typeof op.o.img === 'string' ? op.o.img : '', src = images.get(k);
+        if (!src) { wait(from, k, op); continue; }
+        obj.src = src;
+        loads.push(obj);
+      }
+      vers.set(op.id, v);
+      obj.id = op.id;
+      if (s) { for (const key of Object.keys(s)) delete s[key]; Object.assign(s, obj); if (obj.tool === 'image') loads[loads.length - 1] = s; }
+      const target = s || obj;
+      objs.set(op.id, target);
+      if (at == null) {
+        const after = op.after && objs.get(op.after), ai = after ? indexOf(after) : undefined;
+        strokes.splice(ai != null ? ai + 1 : strokes.length, 0, target);
+        index = null;
+      }
+      touched = true;
+    }
+    if (loads.length) WB.loadImages(loads);
+    if (touched) { known = new Set(strokes); host.remoteChanged(); }
+  }
+  function applyMeta(from, m) {
+    const v = { t: +m.t || 0, p: String(m.p || '').slice(0, 16) };
+    if (!newer(v, metaV) || !Array.isArray(m.pages)) return;
+    const pages = [];
+    for (const p of m.pages.slice(0, 2000)) {
+      if (!p || !(p.w > 0 && p.h > 0) || !isFinite(p.x) || !isFinite(p.y)) continue;
+      const q = { x: +p.x, y: +p.y, w: +p.w, h: +p.h };
+      if (typeof p.img === 'string') { const src = images.get(p.img); if (!src) { wait(from, p.img, { meta: m }); return; } q.src = src; }
+      pages.push(q);
+    }
+    clock = Math.max(clock, v.t);
+    metaV = v;
+    const d = doc();
+    if (typeof m.title === 'string' && m.title.trim()) d.title = m.title.slice(0, 80);
+    d.pages = pages;
+    metaSig = sig();
+    host.metaChanged();
+  }
+  /* ---- Pictures ---- */
+  function wait(from, k, op) {
+    if (!k) return;
+    if (!waiting.has(k)) waiting.set(k, []);
+    waiting.get(k).push({ from, op });
+    if (!asked.has(k)) { asked.add(k); send({ k: 'need', keys: [k] }, from); setTimeout(() => asked.delete(k), 20000); }
+  }
+  function gotImage(k, src) {
+    if (!waiting.has(k) || !IMG_RE.test(src) || src.length > 60e6 || fingerprint(src) !== k) return;
+    images.set(k, src);
+    const list = waiting.get(k);
+    waiting.delete(k);
+    for (const w of list) { if (w.op.meta) applyMeta(w.from, w.op.meta); else applyOps(w.from, [w.op]); }
+  }
+  function findImage(k) {
+    if (images.has(k)) return images.get(k);
+    const d = doc();
+    for (const o of d.strokes.concat(d.pages)) if (o.src && (o.tool === 'image' || !o.tool) && keyOf(o) === k) { images.set(k, o.src); return o.src; }
+    return null;
+  }
+
+  /* ---- Lines in progress ---- */
+  const r2 = (v) => Math.round(v * 100) / 100;
+  /* Called every frame with the line being drawn (or null): sends what is new, ~25 times a second. */
+  function streamInk(L) {
+    if (!room || !st.peers) { ink = null; return; }
+    if (!L || L.tool !== 'pen') {
+      if (ink) { send({ k: 'inkEnd', n: ink.seq }); ink = null; }
+      return;
+    }
+    const now = performance.now();
+    if (ink && ink.L === L && now - inkTime < 40) return;
+    inkTime = now;
+    const p = L.points;
+    if (!ink || ink.L !== L) ink = { L, seq: ++inkSeq, sent: 0 };
+    let from = ink.sent;
+    if (from > p.length || (from >= 2 && (p[from - 2] !== ink.lx || p[from - 1] !== ink.ly))) from = 0;   // reshaped (snapped): send it all again
+    if (from === p.length && from) return;
+    const m = { k: 'ink', n: ink.seq, from, pts: Array.from(p.slice(from), r2) };
+    if (!from) Object.assign(m, { color: L.color, width: L.width, opacity: L.opacity, hl: !!L.hl, dash: L.dash || null, smooth: !!L.smooth });
+    send(m);
+    ink.sent = p.length; ink.lx = p[p.length - 2]; ink.ly = p[p.length - 1];
+  }
+  function gotInk(from, m) {
+    if (!Array.isArray(m.pts) || m.pts.length > 200000) return;
+    let g = ghosts.get(from);
+    if (!m.from) {
+      if (!HEX.test(m.color) || !(m.width > 0 && m.width < 5000)) return;
+      g = { seq: m.n, s: { tool: 'pen', color: m.color.toLowerCase(), width: +m.width, opacity: Math.min(1, Math.max(0.01, +m.opacity || 1)), hl: !!m.hl, dash: WB.DASHES[m.dash] ? m.dash : undefined, smooth: !!m.smooth, points: [] } };
+      ghosts.set(from, g);
+    } else if (!g || g.seq !== m.n || g.s.points.length !== m.from) return;
+    for (const v of m.pts) if (!isFinite(v)) return;
+    g.s.points.push(...m.pts);
+    delete g.s._path;
+    g.t = Date.now(); g.end = 0;
+    host.requestFrame();
+  }
+  /* Others' lines in progress, to draw over the board. */
+  function inkGhosts() {
+    const now = Date.now(), out = [];
+    for (const [id, g] of ghosts) {
+      if ((g.end && now - g.end > 600) || now - g.t > 8000) { ghosts.delete(id); continue; }
+      if (g.s.points.length >= 2) out.push(g.s);
+    }
+    if (ghosts.size) setTimeout(host.requestFrame, 200);
+    return out;
+  }
+
+  /* ---- Pointer colours ---- */
+  function gotColor(from, c) {
+    colors.set(from, Number.isInteger(c) && c >= 0 && c < COLORS.length ? c : null);
+    const clash = myColor != null && myColor !== 0 && colors.get(from) === myColor && from < me;
+    if (myColor == null || clash) pickColor();
+  }
+  function pickColor() {
+    const used = new Set(colors.values());
+    let c = 1;
+    while (used.has(c) && c < COLORS.length - 1) c++;
+    myColor = c;
+    send({ k: 'hello', c });
+    host.colorChanged(c);
+  }
+  const colorOf = (id) => { const c = colors.get(id); return COLORS[c == null ? 0 : c]; };
+  /* My laser pointer, in board coordinates (null when I'm not pointing), ~30 times a second at most. */
+  function pointer(p) {
+    if (!room) return;
+    if (!p) {
+      if (ptr) { ptr = null; clearTimeout(ptrTimer); ptrTimer = 0; send({ k: 'ptr', off: 1 }); }
+      return;
+    }
+    ptr = { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
+    if (ptrTimer) return;
+    const go = () => { ptrTimer = 0; if (ptr) { ptrSent = performance.now(); send({ k: 'ptr', x: ptr.x, y: ptr.y }); } };
+    const wait = 33 - (performance.now() - ptrSent);
+    if (wait <= 0) go(); else ptrTimer = setTimeout(go, wait);
+  }
+
+  WB.live = {
+    init(h) { host = h; },
+    start, stop, on, touch, changed, streamInk, inkGhosts, pointer,
+    /* My pointer colour on the live board (red until I have one). */
+    myColor: () => COLORS[myColor == null ? 0 : myColor],
+    colorIndex: () => myColor,
+    room: () => code,
+    status: () => st,
+    /* A group number nobody else is likely to pick at the same moment. */
+    groupId: () => 1 + Math.floor(Math.random() * 2e9),
+  };
+})();
+
+</script>
+<script>
 /* Reading PDFs from other programs, with Mozilla's pdf.js (Apache 2.0, js/vendor/pdfjs/).
 
    pdf.js is large, so it is loaded only when a PDF is actually opened: from this site's own copy,
@@ -7838,7 +8549,9 @@ body.pipetting #canvas { cursor: crosshair; }
     if (plotActive) drawPlotActive();
     placePlotBar();
     if (live && !live.hl) paintLive();
+    if (WB.live.on()) paintGhosts();
     if (laser.trail.length) drawLaser(now);
+    if (pointers.size) drawPointers(now);
     syncView();
     placePageButtons();
   }
@@ -7911,6 +8624,15 @@ body.pipetting #canvas { cursor: crosshair; }
   pageBtns.top.addEventListener('click', () => addPage('top'));
   pageBtns.bottom.addEventListener('click', () => addPage('bottom'));
 
+  /* On a live board: send my line in progress, and draw the others' lines in progress. */
+  function paintGhosts() {
+    WB.live.streamInk(live);
+    const gs = WB.live.inkGhosts();
+    if (!gs.length) return;
+    worldTransform(ctx);
+    for (const g of gs) { const p = new Path2D(); WB.trace(g, p); WB.paint(ctx, g, p, true); }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
   function paintLive() {
     worldTransform(ctx);
     const p = new Path2D(); (WB.hasPress(live) ? WB.traceVar : WB.trace)(live, p);
@@ -7924,20 +8646,50 @@ body.pipetting #canvas { cursor: crosshair; }
   function laserAt(x, y) {
     laser.el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     laser.el.classList.add('on');
+    if (WB.live.on()) {
+      laser.el.style.setProperty('--lc', WB.live.myColor());
+      WB.live.pointer({ x: (x - view.x) / view.zoom, y: (y - view.y) / view.zoom });
+    }
     // Dragging the board: the dot is held still over the board, so it leaves no streak.
     if (mode === 'pan') { laser.trail.length = 0; requestFrame(); return; }
     const t = performance.now(), l = laser.trail[laser.trail.length - 1];
     if (!l || l.x !== x || l.y !== y) laser.trail.push({ x, y, t });
     requestFrame();
   }
-  function laserOff() { laser.el.classList.remove('on'); }
+  function laserOff() { laser.el.classList.remove('on'); WB.live.pointer(null); }
+  /* Others' laser pointers on a live board: a dot each, in their colour, with its streak. They are
+     kept in board coordinates, so they stay on the right spot while the board is moved or zoomed. */
+  const pointers = new Map();     // peer -> { el, trail: [{ x, y, t }], color, x, y }
+  function remotePointer(id, p) {
+    let q = pointers.get(id);
+    if (!p) { if (q) { q.el.remove(); pointers.delete(id); requestFrame(); } return; }
+    if (!q) {
+      q = { el: document.createElement('div'), trail: [] };
+      q.el.className = 'laser on'; q.el.setAttribute('aria-hidden', 'true');
+      laser.el.after(q.el);
+      pointers.set(id, q);
+    }
+    q.color = p.color; q.x = p.x; q.y = p.y;
+    q.el.style.setProperty('--lc', p.color);
+    const l = q.trail[q.trail.length - 1];
+    if (!l || l.x !== p.x || l.y !== p.y) q.trail.push({ x: p.x, y: p.y, t: performance.now() });
+    requestFrame();
+  }
+  function drawPointers(now) {
+    for (const q of pointers.values()) {
+      q.el.style.transform = `translate3d(${q.x * view.zoom + view.x}px, ${q.y * view.zoom + view.y}px, 0)`;
+      if (q.trail.length) drawTrail(q.trail, q.color, now, (p) => ({ x: p.x * view.zoom + view.x, y: p.y * view.zoom + view.y, t: p.t }));
+    }
+  }
+  function clearPointers() { for (const id of [...pointers.keys()]) remotePointer(id, null); }
   /* The streak is one tapered ribbon, filled once: narrow and old at the tail, widest at the dot.
      (Drawn as separate overlapping pieces it showed brighter dots wherever the pieces met.) */
-  function drawLaser(now) {
-    const T = 175, tr0 = laser.trail;
+  function drawLaser(now) { drawTrail(laser.trail, WB.live.on() ? WB.live.myColor() : '#ff2a2a', now, null); }
+  function drawTrail(tr0, color, now, toScreen) {
+    const T = 175;
     while (tr0.length && now - tr0[0].t > T) tr0.shift();
     const P = [];
-    for (const p of tr0) { const l = P[P.length - 1]; if (!l || Math.hypot(p.x - l.x, p.y - l.y) > 0.75) P.push(p); }
+    for (const p0 of tr0) { const p = toScreen ? toScreen(p0) : p0, l = P[P.length - 1]; if (!l || Math.hypot(p.x - l.x, p.y - l.y) > 0.75) P.push(p); }
     if (P.length < 2) { if (tr0.length) requestFrame(); return; }
     const n = P.length, L = [], Rt = [];
     for (let i = 0; i < n; i++) {
@@ -7948,8 +8700,9 @@ body.pipetting #canvas { cursor: crosshair; }
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.7;
-    ctx.shadowColor = 'rgba(255, 30, 30, 0.75)'; ctx.shadowBlur = 6;
-    ctx.fillStyle = '#ff2a2a';
+    const c = parseInt(color.slice(1), 16);
+    ctx.shadowColor = `rgba(${c >> 16}, ${(c >> 8) & 255}, ${c & 255}, 0.75)`; ctx.shadowBlur = 6;
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(L[0], L[1]);
     for (let i = 2; i < L.length; i += 2) ctx.lineTo(L[i], L[i + 1]);
@@ -8782,7 +9535,7 @@ body.pipetting #canvas { cursor: crosshair; }
       list.push({ type: 'edit', s, before, after });
     }
     if (!extend && list.length) { const action = { type: 'batch', list }; record(action); styleRun = { key, action }; }
-    else if (extend) changed();
+    else if (extend) { WB.live.touch(list.map((a) => a.s)); changed(); }
     invalidate(); refreshStyleBar();
   }
   const recolor = (c, key) => restyle((s) => (COLORED.has(s.tool) ? { color: c } : null), key);
@@ -8843,7 +9596,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (units(items).length === 1) return outer(items[0]) ? 'ungroup' : null;
     return 'group';
   }
-  const nextGroupId = () => { let m = 0; for (const s of doc.strokes) if (s.group) for (const g of s.group) m = Math.max(m, g); return m + 1; };
+  const nextGroupId = () => { if (WB.live.on()) return WB.live.groupId(); let m = 0; for (const s of doc.strokes) if (s.group) for (const g of s.group) m = Math.max(m, g); return m + 1; };
   function groupSelection() {
     const id = nextGroupId();
     styleRun = null;
@@ -8901,7 +9654,7 @@ body.pipetting #canvas { cursor: crosshair; }
 
   /* ---- Duplicate --------------------------------------------------------
      Copies of the selection, a little down and to the right, on top of everything, selected. */
-  const cloneObject = (s) => JSON.parse(JSON.stringify(s, (k, v) => (k && k[0] === '_' ? undefined : v)));
+  const cloneObject = (s) => { const c = JSON.parse(JSON.stringify(s, (k, v) => (k && k[0] === '_' ? undefined : v))); delete c.id; return c; };   // (a copy is a new object on a live board)
   function duplicateSelection() {
     const items = selItems().sort((a, b) => doc.strokes.indexOf(a) - doc.strokes.indexOf(b));
     if (!items.length) return;
@@ -9590,7 +10343,18 @@ body.pipetting #canvas { cursor: crosshair; }
   function record(a) {
     undoStack.push(a); redoStack.length = 0;
     if (undoStack.length > 2000) undoStack.shift();
+    WB.live.touch(touchedBy(a));
     changed();
+  }
+  /* The objects an undo step is about (for the live board, which sends them as they are now). */
+  function touchedBy(a, out = []) {
+    if (!a) return out;
+    if (a.type === 'add') out.push(a.stroke);
+    else if (a.type === 'remove') for (const it of a.items) out.push(it.s);
+    else if (a.type === 'move') for (const s of a.items) out.push(s);
+    else if (a.type === 'edit') out.push(a.s);
+    else if (a.type === 'batch') for (const x of a.list) touchedBy(x, out);
+    return out;
   }
   /* Actions: add (a new object on top), remove (objects taken out, with their positions
      in the drawing order), edit (a text changed in place), replace (the whole board). */
@@ -9601,7 +10365,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (!a) return;
     fillAnim = null; clearSelection(); inkDrop();
     applyUndo(a);
-    redoStack.push(a); invalidate(); changed();
+    redoStack.push(a); invalidate(); WB.live.touch(touchedBy(a)); changed();
   }
   function redo() {
     if (live || xf) return;
@@ -9610,26 +10374,29 @@ body.pipetting #canvas { cursor: crosshair; }
     if (!a) return;
     clearSelection(); inkDrop();
     applyRedo(a);
-    undoStack.push(a); invalidate(); changed();
+    undoStack.push(a); invalidate(); WB.live.touch(touchedBy(a)); changed();
   }
   function applyUndo(a) {
-    if (a.type === 'add') doc.strokes.pop();
-    else if (a.type === 'remove') for (const it of a.items) doc.strokes.splice(it.i, 0, it.s);
+    if (a.type === 'add') { const i = doc.strokes.lastIndexOf(a.stroke); if (i >= 0) doc.strokes.splice(i, 1); }   // (on a live board, others may have added things since)
+    else if (a.type === 'remove') for (const it of a.items) { if (!doc.strokes.includes(it.s)) doc.strokes.splice(Math.min(it.i, doc.strokes.length), 0, it.s); }
     else if (a.type === 'edit') retext(a.s, a.before);
     else if (a.type === 'move') translate(a.items, -a.dx, -a.dy);
     else if (a.type === 'batch') for (let k = a.list.length - 1; k >= 0; k--) applyUndo(a.list[k]);   // several steps undone as one
-    else applySnapshot(a.before);
+    else { leaveIfReplaced(a.before); applySnapshot(a.before); }
   }
   function applyRedo(a) {
     if (a.type === 'add') doc.strokes.push(a.stroke);
-    else if (a.type === 'remove') for (let k = a.items.length - 1; k >= 0; k--) doc.strokes.splice(a.items[k].i, 1);
+    else if (a.type === 'remove') for (let k = a.items.length - 1; k >= 0; k--) { const i = doc.strokes.indexOf(a.items[k].s); if (i >= 0) doc.strokes.splice(i, 1); }
     else if (a.type === 'edit') retext(a.s, a.after);
     else if (a.type === 'move') translate(a.items, a.dx, a.dy);
     else if (a.type === 'batch') for (const sub of a.list) applyRedo(sub);
-    else applySnapshot(a.after);
+    else { leaveIfReplaced(a.after); applySnapshot(a.after); }
   }
+  /* Bringing back another board (not just other pages of this one) leaves the live board first. */
+  function leaveIfReplaced(snap) { if (WB.live.on() && snap.strokes !== doc.strokes) stopLive(tr('tLiveLeftBoard')); }
   /* Replace the whole board (new, open, clear) as one undoable step. */
   function replaceBoard(next, message) {
+    if (WB.live.on()) stopLive(tr('tLiveLeftBoard'));          // another board: the live one stays with the others
     if (live) endStroke(true);
     if (edit) commitText();
     fillAnim = null; clearSelection(); inkDrop();
@@ -9642,7 +10409,7 @@ body.pipetting #canvas { cursor: crosshair; }
   /* unsaved: the board has changes that are in no file or gallery entry (it only lives in the
      browser's autosave). Then something that would replace it, like a share link, asks first. */
   let unsaved = false;
-  function changed() { docRev++; unsaved = true; updateChrome(); autosave(); }
+  function changed() { docRev++; unsaved = true; updateChrome(); autosave(); WB.live.changed(); }
   const markSaved = () => { unsaved = false; autosave(); };
   function updateChrome() {
     $('#btn-undo').disabled = !undoStack.length;
@@ -9708,7 +10475,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const pages = doc.pages.map((p) => ({ x: p.x, y: p.y, w: p.w, h: p.h, img: p.src ? imgKey(p) : undefined }));
     const used = new Map();
     for (const p of doc.pages.concat(doc.strokes.filter((s) => s.tool === 'image'))) if (p.src) used.set(imgKey(p), p.src);
-    const record = { title: doc.title, created: doc.created, view: { ...view }, strokes, pages, unsaved };
+    const record = { title: doc.title, created: doc.created, view: { ...view }, strokes, pages, unsaved, room: WB.live.room() || undefined, roomColor: WB.live.on() ? WB.live.colorIndex() : undefined };
     try {
       const tx = d.transaction('kv', 'readwrite'), st = tx.objectStore('kv'), now = Date.now();
       tx.onabort = () => storageFailed(tx.error);
@@ -10193,19 +10960,97 @@ body.pipetting #canvas { cursor: crosshair; }
     let r;
     try { r = await WB.share.encode(doc); } catch (e) { return report(tr('tShareFail'), 'making the link', e); }
     const site = location.protocol.startsWith('http') ? location.origin + location.pathname : 'https://citromoseper.github.io/Whiteboard/';
-    shareLink = site + '#b=' + r.text;
+    // Sharing makes the board live (when the browser can): the same link both carries a copy of
+    // the board and lets whoever opens it draw on this one with you while it is open here.
+    if (WB.p2p.supported && !WB.live.on()) await startLive(WB.p2p.newRoom(), { seeded: false, color: 0 });   // the one who starts it points in red
+    const room = WB.live.room();
+    shareLink = site + '#b=' + r.text + (room ? '&r=' + room : '');
     $('#share-link').value = shareLink;
     $('#share-stats').textContent = tr('shareChars', { n: shareLink.length.toLocaleString(WB.lang()) });
     const warn = [];
     if (shareLink.length > 8000) warn.push(tr('shareLong'));
-    if (r.images) warn.push(tr('shareNoPics', { n: r.images }));
-    if (r.pdf) warn.push(tr('shareNoPdf'));
+    if (room && (r.images || r.pdf)) warn.push(tr('shareNoPicsLive'));
+    else {
+      if (r.images) warn.push(tr('shareNoPics', { n: r.images }));
+      if (r.pdf) warn.push(tr('shareNoPdf'));
+    }
     const ul = $('#share-warn'); ul.textContent = '';
     for (const w of warn) { const li = document.createElement('li'); li.textContent = w; ul.appendChild(li); }
     ul.hidden = !warn.length;
     $('#share-send').hidden = !navigator.share;
+    refreshLive();
     openSheet('#share');
   }
+
+  /* ---- Live boards ---------------------------------------------------------
+     See js/live.js and js/p2p.js. While a board is live, the address ends in #r=<room>, so a
+     reload joins again (with the board from the autosave, which remembers its room). */
+  let savedRoom = null, savedColor = null, liveBlockedSaid = false;
+  const turnStore = { get: () => store.get('wb.turn', {}), set: (v) => store.set('wb.turn', v) };
+  WB.live.init({
+    doc,
+    turn: () => turnStore.get(),
+    requestFrame,
+    unselect: (s) => selection.delete(s),
+    remoteChanged() { docRev++; unsaved = true; updateChrome(); autosave(); invalidate(); if (selection.size) selectionChanged(); },
+    metaChanged() { docRev++; unsaved = true; titleEl.value = shownTitle(); updateChrome(); autosave(); invalidate(); },
+    peerJoined() { toast(tr('tLiveJoined')); refreshLive(); },
+    pointer: remotePointer,
+    colorChanged(c) { savedColor = c; autosave(); if (laser.el.classList.contains('on')) laser.el.style.setProperty('--lc', WB.live.myColor()); },
+    peerLeft() { toast(tr('tLiveLeft')); refreshLive(); },
+    status(st) {
+      refreshLive();
+      if (st.failed && !st.peers && !liveBlockedSaid) { liveBlockedSaid = true; toast(tr('liveBlocked'), null, null, 9000); }
+    },
+  });
+  async function startLive(room, opt) {
+    if (!WB.p2p.supported) { toast(tr('tLiveUnsupported'), null, null, 6000); return false; }
+    liveBlockedSaid = false;
+    savedColor = opt.color != null ? opt.color : null;
+    try { await WB.live.start(room, opt); }
+    catch (e) { report(tr('tLiveFail'), 'joining the live board', e); return false; }
+    history.replaceState(null, '', location.pathname + location.search + '#r=' + room);
+    savedRoom = room;
+    autosave(); refreshLive();
+    return true;
+  }
+  function stopLive(message) {
+    if (!WB.live.on()) return;
+    WB.live.stop();
+    savedRoom = null; savedColor = null;
+    clearPointers(); laser.el.style.removeProperty('--lc');
+    if (location.hash.startsWith('#r=')) history.replaceState(null, '', location.pathname + location.search);
+    autosave(); refreshLive(); requestFrame();
+    if (message) toast(message, null, null, 5000);
+  }
+  /* The top bar's "Live" badge and the share window's status line. */
+  function refreshLive() {
+    const on = WB.live.on(), st = WB.live.status(), pill = $('#live-pill');
+    pill.hidden = !on;
+    $('#live-box').hidden = !on;
+    if (!on) return;
+    let text;
+    if (st.peers) text = tr('liveConnected', { n: st.peers });
+    else if (st.failed && st.others) text = tr('liveBlocked');
+    else if (st.connecting) text = tr('liveConnecting');
+    else if (!st.trackers) text = tr('liveNoTrackers');
+    else text = tr('liveWaiting');
+    $('#live-state').textContent = text;
+    pill.querySelector('span').textContent = st.peers ? String(st.peers + 1) : tr('livePill');
+    pill.classList.toggle('alone', !st.peers);
+    $('#live-box').classList.toggle('alone', !st.peers);
+    pill.title = text;
+  }
+  $('#live-pill').addEventListener('click', () => openShare());
+  $('#live-stop').addEventListener('click', () => { stopLive(tr('tLiveStopped')); });
+  function initTurn() {
+    const t = turnStore.get(), f = { url: $('#turn-url'), username: $('#turn-user'), credential: $('#turn-pass') };
+    for (const k in f) {
+      f[k].value = t[k] || '';
+      f[k].addEventListener('change', () => { const v = turnStore.get(); v[k] = f[k].value.trim(); turnStore.set(v); });
+    }
+  }
+  initTurn();
   $('#share-copy').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(shareLink); }
     catch (e) { const i = $('#share-link'); i.focus(); i.select(); try { document.execCommand('copy'); } catch (e2) { return; } }
@@ -10216,14 +11061,34 @@ body.pipetting #canvas { cursor: crosshair; }
   /* Opening a share link: the board replaces the current one (undoable), and the fragment is
      dropped from the address so a reload doesn't open it again. */
   function openShared() {
-    const h = location.hash;
-    if (!h.startsWith('#b=')) return;
+    const q = linkParts(location.hash);
+    if (!q || (q.room && q.room === WB.live.room())) return;
     history.replaceState(null, '', location.pathname + location.search);
-    openShareCode(h.slice(3));
+    if (q.code) openShareCode(q.code, q.room);
+    else joinRoom(q.room);
+  }
+  /* "#b=<board>&r=<room>" (either part may be missing) -> { code, room } or null. */
+  function linkParts(v) {
+    v = (v || '').trim();
+    const i = v.indexOf('#');
+    const q = {};
+    for (const part of (i >= 0 ? v.slice(i + 1) : v).split('&')) { const k = part.indexOf('='); if (k > 0) q[part.slice(0, k)] = part.slice(k + 1); }
+    const code = /^[A-Za-z0-9_-]{8,}$/.test(q.b || '') ? q.b : null, room = /^[A-Za-z0-9_-]{8,64}$/.test(q.r || '') ? q.r : null;
+    return code || room ? { code, room } : null;
+  }
+  /* A link with only the room (the address of a live board, after a reload or copied from the
+     address bar): the board comes from the others. This board joins only if it is that board. */
+  async function joinRoom(room) {
+    if (savedRoom === room) return startLive(room, { seeded: false, color: savedColor });
+    const overUnsaved = doc.strokes.length && unsaved, overPdf = doc.pages.some((p) => p.src);
+    if ((overUnsaved || overPdf) && !(await ask(tr(overUnsaved ? 'confirmShared' : 'confirmSharedPdf'), tr('openSharedBtn')))) return;
+    replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], pages: [], handle: null, gref: null }, '');
+    saveTarget = 'gallery'; markSaved();
+    startLive(room, { seeded: false });
   }
   /* A board drawn but not saved anywhere would be lost to the autosave of the shared one, so that
      case asks first (as opening a PDF does). Undo still brings the old board back. */
-  async function openShareCode(code) {
+  async function openShareCode(code, room) {
     let d;
     try { d = await WB.share.decode(code); } catch (e) { console.error('share link', e); return toast(tr('tShareBad'), null, null, 6000); }
     // Also over an opened PDF: the file is still on the device, but its place in the work isn't.
@@ -10233,19 +11098,16 @@ body.pipetting #canvas { cursor: crosshair; }
     saveTarget = 'gallery'; markSaved();
     toast(tr('tSharedOpened'), tr('undo'), undo, 6000);
     fitView(true);
+    if (room) startLive(room, { seeded: true });           // the link's copy shows at once; the live board replaces it when it arrives
   }
   /* "Open share link…": for when there's no address bar to paste into (the installed app). */
-  const linkCode = (v) => {
-    v = (v || '').trim();
-    const i = v.indexOf('#b=');
-    const code = i >= 0 ? v.slice(i + 3) : v;
-    return /^[A-Za-z0-9_-]{8,}$/.test(code) ? code : null;
-  };
   function openLink() {
-    const code = linkCode($('#open-link-input').value);
-    if (!code) return toast(tr('tLinkBad'), null, null, 5000);
+    let v = $('#open-link-input').value.trim();
+    if (v && !v.includes('#') && !v.includes('=')) v = 'b=' + v;          // just the code
+    const q = linkParts(v);
+    if (!q) return toast(tr('tLinkBad'), null, null, 5000);
     closeSheets();
-    openShareCode(code);
+    if (q.code) openShareCode(q.code, q.room); else joinRoom(q.room);
   }
   $('#open-link-go').addEventListener('click', openLink);
   $('#open-link-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); openLink(); } });
@@ -10962,6 +11824,8 @@ body.pipetting #canvas { cursor: crosshair; }
     if (docRev !== rev || doc.strokes.length) return;           // a board was opened meanwhile (from a file, say): keep that
     doc.title = saved.title || 'Untitled'; doc.created = saved.created || Date.now(); doc.strokes = saved.strokes;
     doc.pages = pages;
+    savedRoom = typeof saved.room === 'string' ? saved.room : null;
+    savedColor = Number.isInteger(saved.roomColor) ? saved.roomColor : null;
     unsaved = saved.unsaved !== false;                           // older autosaves didn't say: assume unsaved
     if (saved.view && saved.view.zoom > 0) Object.assign(view, saved.view);
     titleEl.value = shownTitle();

@@ -148,7 +148,9 @@
     if (plotActive) drawPlotActive();
     placePlotBar();
     if (live && !live.hl) paintLive();
+    if (WB.live.on()) paintGhosts();
     if (laser.trail.length) drawLaser(now);
+    if (pointers.size) drawPointers(now);
     syncView();
     placePageButtons();
   }
@@ -221,6 +223,15 @@
   pageBtns.top.addEventListener('click', () => addPage('top'));
   pageBtns.bottom.addEventListener('click', () => addPage('bottom'));
 
+  /* On a live board: send my line in progress, and draw the others' lines in progress. */
+  function paintGhosts() {
+    WB.live.streamInk(live);
+    const gs = WB.live.inkGhosts();
+    if (!gs.length) return;
+    worldTransform(ctx);
+    for (const g of gs) { const p = new Path2D(); WB.trace(g, p); WB.paint(ctx, g, p, true); }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
   function paintLive() {
     worldTransform(ctx);
     const p = new Path2D(); (WB.hasPress(live) ? WB.traceVar : WB.trace)(live, p);
@@ -234,20 +245,50 @@
   function laserAt(x, y) {
     laser.el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     laser.el.classList.add('on');
+    if (WB.live.on()) {
+      laser.el.style.setProperty('--lc', WB.live.myColor());
+      WB.live.pointer({ x: (x - view.x) / view.zoom, y: (y - view.y) / view.zoom });
+    }
     // Dragging the board: the dot is held still over the board, so it leaves no streak.
     if (mode === 'pan') { laser.trail.length = 0; requestFrame(); return; }
     const t = performance.now(), l = laser.trail[laser.trail.length - 1];
     if (!l || l.x !== x || l.y !== y) laser.trail.push({ x, y, t });
     requestFrame();
   }
-  function laserOff() { laser.el.classList.remove('on'); }
+  function laserOff() { laser.el.classList.remove('on'); WB.live.pointer(null); }
+  /* Others' laser pointers on a live board: a dot each, in their colour, with its streak. They are
+     kept in board coordinates, so they stay on the right spot while the board is moved or zoomed. */
+  const pointers = new Map();     // peer -> { el, trail: [{ x, y, t }], color, x, y }
+  function remotePointer(id, p) {
+    let q = pointers.get(id);
+    if (!p) { if (q) { q.el.remove(); pointers.delete(id); requestFrame(); } return; }
+    if (!q) {
+      q = { el: document.createElement('div'), trail: [] };
+      q.el.className = 'laser on'; q.el.setAttribute('aria-hidden', 'true');
+      laser.el.after(q.el);
+      pointers.set(id, q);
+    }
+    q.color = p.color; q.x = p.x; q.y = p.y;
+    q.el.style.setProperty('--lc', p.color);
+    const l = q.trail[q.trail.length - 1];
+    if (!l || l.x !== p.x || l.y !== p.y) q.trail.push({ x: p.x, y: p.y, t: performance.now() });
+    requestFrame();
+  }
+  function drawPointers(now) {
+    for (const q of pointers.values()) {
+      q.el.style.transform = `translate3d(${q.x * view.zoom + view.x}px, ${q.y * view.zoom + view.y}px, 0)`;
+      if (q.trail.length) drawTrail(q.trail, q.color, now, (p) => ({ x: p.x * view.zoom + view.x, y: p.y * view.zoom + view.y, t: p.t }));
+    }
+  }
+  function clearPointers() { for (const id of [...pointers.keys()]) remotePointer(id, null); }
   /* The streak is one tapered ribbon, filled once: narrow and old at the tail, widest at the dot.
      (Drawn as separate overlapping pieces it showed brighter dots wherever the pieces met.) */
-  function drawLaser(now) {
-    const T = 175, tr0 = laser.trail;
+  function drawLaser(now) { drawTrail(laser.trail, WB.live.on() ? WB.live.myColor() : '#ff2a2a', now, null); }
+  function drawTrail(tr0, color, now, toScreen) {
+    const T = 175;
     while (tr0.length && now - tr0[0].t > T) tr0.shift();
     const P = [];
-    for (const p of tr0) { const l = P[P.length - 1]; if (!l || Math.hypot(p.x - l.x, p.y - l.y) > 0.75) P.push(p); }
+    for (const p0 of tr0) { const p = toScreen ? toScreen(p0) : p0, l = P[P.length - 1]; if (!l || Math.hypot(p.x - l.x, p.y - l.y) > 0.75) P.push(p); }
     if (P.length < 2) { if (tr0.length) requestFrame(); return; }
     const n = P.length, L = [], Rt = [];
     for (let i = 0; i < n; i++) {
@@ -258,8 +299,9 @@
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.7;
-    ctx.shadowColor = 'rgba(255, 30, 30, 0.75)'; ctx.shadowBlur = 6;
-    ctx.fillStyle = '#ff2a2a';
+    const c = parseInt(color.slice(1), 16);
+    ctx.shadowColor = `rgba(${c >> 16}, ${(c >> 8) & 255}, ${c & 255}, 0.75)`; ctx.shadowBlur = 6;
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(L[0], L[1]);
     for (let i = 2; i < L.length; i += 2) ctx.lineTo(L[i], L[i + 1]);
@@ -1092,7 +1134,7 @@
       list.push({ type: 'edit', s, before, after });
     }
     if (!extend && list.length) { const action = { type: 'batch', list }; record(action); styleRun = { key, action }; }
-    else if (extend) changed();
+    else if (extend) { WB.live.touch(list.map((a) => a.s)); changed(); }
     invalidate(); refreshStyleBar();
   }
   const recolor = (c, key) => restyle((s) => (COLORED.has(s.tool) ? { color: c } : null), key);
@@ -1153,7 +1195,7 @@
     if (units(items).length === 1) return outer(items[0]) ? 'ungroup' : null;
     return 'group';
   }
-  const nextGroupId = () => { let m = 0; for (const s of doc.strokes) if (s.group) for (const g of s.group) m = Math.max(m, g); return m + 1; };
+  const nextGroupId = () => { if (WB.live.on()) return WB.live.groupId(); let m = 0; for (const s of doc.strokes) if (s.group) for (const g of s.group) m = Math.max(m, g); return m + 1; };
   function groupSelection() {
     const id = nextGroupId();
     styleRun = null;
@@ -1211,7 +1253,7 @@
 
   /* ---- Duplicate --------------------------------------------------------
      Copies of the selection, a little down and to the right, on top of everything, selected. */
-  const cloneObject = (s) => JSON.parse(JSON.stringify(s, (k, v) => (k && k[0] === '_' ? undefined : v)));
+  const cloneObject = (s) => { const c = JSON.parse(JSON.stringify(s, (k, v) => (k && k[0] === '_' ? undefined : v))); delete c.id; return c; };   // (a copy is a new object on a live board)
   function duplicateSelection() {
     const items = selItems().sort((a, b) => doc.strokes.indexOf(a) - doc.strokes.indexOf(b));
     if (!items.length) return;
@@ -1900,7 +1942,18 @@
   function record(a) {
     undoStack.push(a); redoStack.length = 0;
     if (undoStack.length > 2000) undoStack.shift();
+    WB.live.touch(touchedBy(a));
     changed();
+  }
+  /* The objects an undo step is about (for the live board, which sends them as they are now). */
+  function touchedBy(a, out = []) {
+    if (!a) return out;
+    if (a.type === 'add') out.push(a.stroke);
+    else if (a.type === 'remove') for (const it of a.items) out.push(it.s);
+    else if (a.type === 'move') for (const s of a.items) out.push(s);
+    else if (a.type === 'edit') out.push(a.s);
+    else if (a.type === 'batch') for (const x of a.list) touchedBy(x, out);
+    return out;
   }
   /* Actions: add (a new object on top), remove (objects taken out, with their positions
      in the drawing order), edit (a text changed in place), replace (the whole board). */
@@ -1911,7 +1964,7 @@
     if (!a) return;
     fillAnim = null; clearSelection(); inkDrop();
     applyUndo(a);
-    redoStack.push(a); invalidate(); changed();
+    redoStack.push(a); invalidate(); WB.live.touch(touchedBy(a)); changed();
   }
   function redo() {
     if (live || xf) return;
@@ -1920,26 +1973,29 @@
     if (!a) return;
     clearSelection(); inkDrop();
     applyRedo(a);
-    undoStack.push(a); invalidate(); changed();
+    undoStack.push(a); invalidate(); WB.live.touch(touchedBy(a)); changed();
   }
   function applyUndo(a) {
-    if (a.type === 'add') doc.strokes.pop();
-    else if (a.type === 'remove') for (const it of a.items) doc.strokes.splice(it.i, 0, it.s);
+    if (a.type === 'add') { const i = doc.strokes.lastIndexOf(a.stroke); if (i >= 0) doc.strokes.splice(i, 1); }   // (on a live board, others may have added things since)
+    else if (a.type === 'remove') for (const it of a.items) { if (!doc.strokes.includes(it.s)) doc.strokes.splice(Math.min(it.i, doc.strokes.length), 0, it.s); }
     else if (a.type === 'edit') retext(a.s, a.before);
     else if (a.type === 'move') translate(a.items, -a.dx, -a.dy);
     else if (a.type === 'batch') for (let k = a.list.length - 1; k >= 0; k--) applyUndo(a.list[k]);   // several steps undone as one
-    else applySnapshot(a.before);
+    else { leaveIfReplaced(a.before); applySnapshot(a.before); }
   }
   function applyRedo(a) {
     if (a.type === 'add') doc.strokes.push(a.stroke);
-    else if (a.type === 'remove') for (let k = a.items.length - 1; k >= 0; k--) doc.strokes.splice(a.items[k].i, 1);
+    else if (a.type === 'remove') for (let k = a.items.length - 1; k >= 0; k--) { const i = doc.strokes.indexOf(a.items[k].s); if (i >= 0) doc.strokes.splice(i, 1); }
     else if (a.type === 'edit') retext(a.s, a.after);
     else if (a.type === 'move') translate(a.items, a.dx, a.dy);
     else if (a.type === 'batch') for (const sub of a.list) applyRedo(sub);
-    else applySnapshot(a.after);
+    else { leaveIfReplaced(a.after); applySnapshot(a.after); }
   }
+  /* Bringing back another board (not just other pages of this one) leaves the live board first. */
+  function leaveIfReplaced(snap) { if (WB.live.on() && snap.strokes !== doc.strokes) stopLive(tr('tLiveLeftBoard')); }
   /* Replace the whole board (new, open, clear) as one undoable step. */
   function replaceBoard(next, message) {
+    if (WB.live.on()) stopLive(tr('tLiveLeftBoard'));          // another board: the live one stays with the others
     if (live) endStroke(true);
     if (edit) commitText();
     fillAnim = null; clearSelection(); inkDrop();
@@ -1952,7 +2008,7 @@
   /* unsaved: the board has changes that are in no file or gallery entry (it only lives in the
      browser's autosave). Then something that would replace it, like a share link, asks first. */
   let unsaved = false;
-  function changed() { docRev++; unsaved = true; updateChrome(); autosave(); }
+  function changed() { docRev++; unsaved = true; updateChrome(); autosave(); WB.live.changed(); }
   const markSaved = () => { unsaved = false; autosave(); };
   function updateChrome() {
     $('#btn-undo').disabled = !undoStack.length;
@@ -2018,7 +2074,7 @@
     const pages = doc.pages.map((p) => ({ x: p.x, y: p.y, w: p.w, h: p.h, img: p.src ? imgKey(p) : undefined }));
     const used = new Map();
     for (const p of doc.pages.concat(doc.strokes.filter((s) => s.tool === 'image'))) if (p.src) used.set(imgKey(p), p.src);
-    const record = { title: doc.title, created: doc.created, view: { ...view }, strokes, pages, unsaved };
+    const record = { title: doc.title, created: doc.created, view: { ...view }, strokes, pages, unsaved, room: WB.live.room() || undefined, roomColor: WB.live.on() ? WB.live.colorIndex() : undefined };
     try {
       const tx = d.transaction('kv', 'readwrite'), st = tx.objectStore('kv'), now = Date.now();
       tx.onabort = () => storageFailed(tx.error);
@@ -2503,19 +2559,97 @@
     let r;
     try { r = await WB.share.encode(doc); } catch (e) { return report(tr('tShareFail'), 'making the link', e); }
     const site = location.protocol.startsWith('http') ? location.origin + location.pathname : 'https://citromoseper.github.io/Whiteboard/';
-    shareLink = site + '#b=' + r.text;
+    // Sharing makes the board live (when the browser can): the same link both carries a copy of
+    // the board and lets whoever opens it draw on this one with you while it is open here.
+    if (WB.p2p.supported && !WB.live.on()) await startLive(WB.p2p.newRoom(), { seeded: false, color: 0 });   // the one who starts it points in red
+    const room = WB.live.room();
+    shareLink = site + '#b=' + r.text + (room ? '&r=' + room : '');
     $('#share-link').value = shareLink;
     $('#share-stats').textContent = tr('shareChars', { n: shareLink.length.toLocaleString(WB.lang()) });
     const warn = [];
     if (shareLink.length > 8000) warn.push(tr('shareLong'));
-    if (r.images) warn.push(tr('shareNoPics', { n: r.images }));
-    if (r.pdf) warn.push(tr('shareNoPdf'));
+    if (room && (r.images || r.pdf)) warn.push(tr('shareNoPicsLive'));
+    else {
+      if (r.images) warn.push(tr('shareNoPics', { n: r.images }));
+      if (r.pdf) warn.push(tr('shareNoPdf'));
+    }
     const ul = $('#share-warn'); ul.textContent = '';
     for (const w of warn) { const li = document.createElement('li'); li.textContent = w; ul.appendChild(li); }
     ul.hidden = !warn.length;
     $('#share-send').hidden = !navigator.share;
+    refreshLive();
     openSheet('#share');
   }
+
+  /* ---- Live boards ---------------------------------------------------------
+     See js/live.js and js/p2p.js. While a board is live, the address ends in #r=<room>, so a
+     reload joins again (with the board from the autosave, which remembers its room). */
+  let savedRoom = null, savedColor = null, liveBlockedSaid = false;
+  const turnStore = { get: () => store.get('wb.turn', {}), set: (v) => store.set('wb.turn', v) };
+  WB.live.init({
+    doc,
+    turn: () => turnStore.get(),
+    requestFrame,
+    unselect: (s) => selection.delete(s),
+    remoteChanged() { docRev++; unsaved = true; updateChrome(); autosave(); invalidate(); if (selection.size) selectionChanged(); },
+    metaChanged() { docRev++; unsaved = true; titleEl.value = shownTitle(); updateChrome(); autosave(); invalidate(); },
+    peerJoined() { toast(tr('tLiveJoined')); refreshLive(); },
+    pointer: remotePointer,
+    colorChanged(c) { savedColor = c; autosave(); if (laser.el.classList.contains('on')) laser.el.style.setProperty('--lc', WB.live.myColor()); },
+    peerLeft() { toast(tr('tLiveLeft')); refreshLive(); },
+    status(st) {
+      refreshLive();
+      if (st.failed && !st.peers && !liveBlockedSaid) { liveBlockedSaid = true; toast(tr('liveBlocked'), null, null, 9000); }
+    },
+  });
+  async function startLive(room, opt) {
+    if (!WB.p2p.supported) { toast(tr('tLiveUnsupported'), null, null, 6000); return false; }
+    liveBlockedSaid = false;
+    savedColor = opt.color != null ? opt.color : null;
+    try { await WB.live.start(room, opt); }
+    catch (e) { report(tr('tLiveFail'), 'joining the live board', e); return false; }
+    history.replaceState(null, '', location.pathname + location.search + '#r=' + room);
+    savedRoom = room;
+    autosave(); refreshLive();
+    return true;
+  }
+  function stopLive(message) {
+    if (!WB.live.on()) return;
+    WB.live.stop();
+    savedRoom = null; savedColor = null;
+    clearPointers(); laser.el.style.removeProperty('--lc');
+    if (location.hash.startsWith('#r=')) history.replaceState(null, '', location.pathname + location.search);
+    autosave(); refreshLive(); requestFrame();
+    if (message) toast(message, null, null, 5000);
+  }
+  /* The top bar's "Live" badge and the share window's status line. */
+  function refreshLive() {
+    const on = WB.live.on(), st = WB.live.status(), pill = $('#live-pill');
+    pill.hidden = !on;
+    $('#live-box').hidden = !on;
+    if (!on) return;
+    let text;
+    if (st.peers) text = tr('liveConnected', { n: st.peers });
+    else if (st.failed && st.others) text = tr('liveBlocked');
+    else if (st.connecting) text = tr('liveConnecting');
+    else if (!st.trackers) text = tr('liveNoTrackers');
+    else text = tr('liveWaiting');
+    $('#live-state').textContent = text;
+    pill.querySelector('span').textContent = st.peers ? String(st.peers + 1) : tr('livePill');
+    pill.classList.toggle('alone', !st.peers);
+    $('#live-box').classList.toggle('alone', !st.peers);
+    pill.title = text;
+  }
+  $('#live-pill').addEventListener('click', () => openShare());
+  $('#live-stop').addEventListener('click', () => { stopLive(tr('tLiveStopped')); });
+  function initTurn() {
+    const t = turnStore.get(), f = { url: $('#turn-url'), username: $('#turn-user'), credential: $('#turn-pass') };
+    for (const k in f) {
+      f[k].value = t[k] || '';
+      f[k].addEventListener('change', () => { const v = turnStore.get(); v[k] = f[k].value.trim(); turnStore.set(v); });
+    }
+  }
+  initTurn();
   $('#share-copy').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(shareLink); }
     catch (e) { const i = $('#share-link'); i.focus(); i.select(); try { document.execCommand('copy'); } catch (e2) { return; } }
@@ -2526,14 +2660,34 @@
   /* Opening a share link: the board replaces the current one (undoable), and the fragment is
      dropped from the address so a reload doesn't open it again. */
   function openShared() {
-    const h = location.hash;
-    if (!h.startsWith('#b=')) return;
+    const q = linkParts(location.hash);
+    if (!q || (q.room && q.room === WB.live.room())) return;
     history.replaceState(null, '', location.pathname + location.search);
-    openShareCode(h.slice(3));
+    if (q.code) openShareCode(q.code, q.room);
+    else joinRoom(q.room);
+  }
+  /* "#b=<board>&r=<room>" (either part may be missing) -> { code, room } or null. */
+  function linkParts(v) {
+    v = (v || '').trim();
+    const i = v.indexOf('#');
+    const q = {};
+    for (const part of (i >= 0 ? v.slice(i + 1) : v).split('&')) { const k = part.indexOf('='); if (k > 0) q[part.slice(0, k)] = part.slice(k + 1); }
+    const code = /^[A-Za-z0-9_-]{8,}$/.test(q.b || '') ? q.b : null, room = /^[A-Za-z0-9_-]{8,64}$/.test(q.r || '') ? q.r : null;
+    return code || room ? { code, room } : null;
+  }
+  /* A link with only the room (the address of a live board, after a reload or copied from the
+     address bar): the board comes from the others. This board joins only if it is that board. */
+  async function joinRoom(room) {
+    if (savedRoom === room) return startLive(room, { seeded: false, color: savedColor });
+    const overUnsaved = doc.strokes.length && unsaved, overPdf = doc.pages.some((p) => p.src);
+    if ((overUnsaved || overPdf) && !(await ask(tr(overUnsaved ? 'confirmShared' : 'confirmSharedPdf'), tr('openSharedBtn')))) return;
+    replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], pages: [], handle: null, gref: null }, '');
+    saveTarget = 'gallery'; markSaved();
+    startLive(room, { seeded: false });
   }
   /* A board drawn but not saved anywhere would be lost to the autosave of the shared one, so that
      case asks first (as opening a PDF does). Undo still brings the old board back. */
-  async function openShareCode(code) {
+  async function openShareCode(code, room) {
     let d;
     try { d = await WB.share.decode(code); } catch (e) { console.error('share link', e); return toast(tr('tShareBad'), null, null, 6000); }
     // Also over an opened PDF: the file is still on the device, but its place in the work isn't.
@@ -2543,19 +2697,16 @@
     saveTarget = 'gallery'; markSaved();
     toast(tr('tSharedOpened'), tr('undo'), undo, 6000);
     fitView(true);
+    if (room) startLive(room, { seeded: true });           // the link's copy shows at once; the live board replaces it when it arrives
   }
   /* "Open share link…": for when there's no address bar to paste into (the installed app). */
-  const linkCode = (v) => {
-    v = (v || '').trim();
-    const i = v.indexOf('#b=');
-    const code = i >= 0 ? v.slice(i + 3) : v;
-    return /^[A-Za-z0-9_-]{8,}$/.test(code) ? code : null;
-  };
   function openLink() {
-    const code = linkCode($('#open-link-input').value);
-    if (!code) return toast(tr('tLinkBad'), null, null, 5000);
+    let v = $('#open-link-input').value.trim();
+    if (v && !v.includes('#') && !v.includes('=')) v = 'b=' + v;          // just the code
+    const q = linkParts(v);
+    if (!q) return toast(tr('tLinkBad'), null, null, 5000);
     closeSheets();
-    openShareCode(code);
+    if (q.code) openShareCode(q.code, q.room); else joinRoom(q.room);
   }
   $('#open-link-go').addEventListener('click', openLink);
   $('#open-link-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); openLink(); } });
@@ -3272,6 +3423,8 @@
     if (docRev !== rev || doc.strokes.length) return;           // a board was opened meanwhile (from a file, say): keep that
     doc.title = saved.title || 'Untitled'; doc.created = saved.created || Date.now(); doc.strokes = saved.strokes;
     doc.pages = pages;
+    savedRoom = typeof saved.room === 'string' ? saved.room : null;
+    savedColor = Number.isInteger(saved.roomColor) ? saved.roomColor : null;
     unsaved = saved.unsaved !== false;                           // older autosaves didn't say: assume unsaved
     if (saved.view && saved.view.zoom > 0) Object.assign(view, saved.view);
     titleEl.value = shownTitle();

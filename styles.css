@@ -126,6 +126,13 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
   user-select: text; -webkit-user-select: text; text-overflow: ellipsis;
 }
 #doc-title:hover { background: var(--fill); }
+/* The live board badge: a green dot and how many are here (or "Live" while alone). */
+.live-pill { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; margin-right: 2px; border-radius: 15px; background: var(--fill); font-weight: 600; font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+.live-pill[hidden] { display: none; }
+.live-pill i, .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #34c759; box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.22); flex: none; }
+.live-pill.alone i, #live-box.alone .live-dot { background: #ff9f0a; box-shadow: 0 0 0 3px rgba(255, 159, 10, 0.22); }
+.live-dot { display: inline-block; margin-right: 8px; vertical-align: 1px; }
+#live-state { font-weight: 600; }
 #doc-title:focus { background: var(--fill); outline: 2px solid var(--accent); outline-offset: 0; }
 
 /* ---------- Buttons ---------- */
@@ -584,13 +591,13 @@ body.pipetting #canvas { cursor: crosshair; }
 #brush-cursor.hl { border-radius: 3px; }
 #preview-dot.highlighter { border-radius: 4px; }
 #canvas.t-laser, #canvas.t-laser.panning { cursor: none; }
-#laser {
+#laser, .laser {
   position: fixed; left: 0; top: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%;
   pointer-events: none; z-index: 5; opacity: 0; will-change: transform; transition: opacity 120ms ease;
-  background: radial-gradient(circle, #fff 0 16%, #ff4040 42%, #ff1a1a 72%);
-  box-shadow: 0 0 6px 2px rgba(255, 40, 40, 0.95), 0 0 18px 8px rgba(255, 0, 0, 0.45), 0 0 42px 16px rgba(255, 0, 0, 0.18);
+  background: radial-gradient(circle, #fff 0 16%, var(--lc, #ff4040) 42%, var(--lc, #ff1a1a) 72%);
+  box-shadow: 0 0 6px 2px color-mix(in srgb, var(--lc, #ff2828) 95%, transparent), 0 0 18px 8px color-mix(in srgb, var(--lc, #ff0000) 45%, transparent), 0 0 42px 16px color-mix(in srgb, var(--lc, #ff0000) 18%, transparent);
 }
-#laser.on { opacity: 1; }
+#laser.on, .laser.on { opacity: 1; }
 
 /* ---------- New sheet ---------- */
 #sheets .sheet { width: min(36rem, 100%); }

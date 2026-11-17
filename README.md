@@ -38,7 +38,7 @@ The dock at the bottom holds the tools and colours; the panel on the left sets t
 - **Erasing stays with what you erased.** Erase part of a line and that part is gone from the line itself: move, resize, turn or duplicate the line and the erased part goes with it (a copy is erased the same way), and it never uncovers or hides anything else. Erase a line completely and it is removed. Selecting only needs the part that is left: tap it, or loop around just the visible part.
 - **Highlighter.** The tool after the pen draws wide, see-through strokes with a flat tip, in neon colours (the dock shows its own colour set while it is chosen). It always slides **under** what is already drawn, so the writing you mark stays crisp.
 - **Pressure.** Turn on **Settings → Pressure sensitivity** and pressing harder with a stylus makes thicker lines. It is off by default: then every line keeps the thickness you set. It only works with a stylus that reports pressure (Apple Pencil, most Windows pens); a mouse or finger always draws evenly.
-- **Laser pointer.** The tool at the end of the tools shows a glowing red dot with a short trail that follows your pen, finger or mouse, for presenting. Nothing is drawn; dragging moves the board, like the hand tool.
+- **Laser pointer.** The tool at the end of the tools shows a glowing red dot with a short trail that follows your pen, finger or mouse, for presenting. Nothing is drawn; dragging moves the board, like the hand tool. On a [live board](#share-links), everyone sees everyone's pointer, each in its own colour.
 - **Line type.** The button under the opacity slider picks solid, dotted, dashed, long dashes, or dash and dot.
 - **Snap to a shape.** Hold still for a moment at the end of a stroke and it becomes a clean line, circle, ellipse, triangle, square, rectangle or polygon. Keep holding to turn and resize it; put **another finger** down (or hold **Shift**) to snap its angle to 45° steps.
 - **Fill a shape.** Drag a colour out of the dock and drop it inside a closed shape. A dashed outline counts as closed too. Fills work the same at any zoom.
@@ -166,12 +166,27 @@ The **menu** (top left) holds everything about files.
 
 ### Share links
 
-**Share link…** puts the whole board into a link you can send to anyone. Opening the link opens a copy of the board in their browser, which they can edit and save; your board isn't affected.
+**Share link…** makes one link that does two things:
 
-- The board is stored **in the link itself**, in the part after `#`, which browsers never send to the server. Nothing is uploaded anywhere, and the link works as long as the app exists.
+- **It carries a copy of the board.** Opening it shows the board at once, even when you're offline later. The board is stored in the link itself, in the part after `#`, which browsers never send to the server.
+- **It makes the board live.** While your board is open, anyone who opens the link draws on it with you: lines appear as they are drawn, and every change, move, deletion and group reaches everyone. The top bar shows a green **Live** badge with how many people are on the board (orange while you're alone); tap it to see the link again or press **Stop**.
+
+How the live part works, without any server of ours:
+
+- Browsers connect **directly to each other** (WebRTC) and send the changes straight between them, encrypted. Nothing is uploaded or stored anywhere.
+- To find each other, they use free public meeting points (WebTorrent trackers) for a few seconds. These only see a scrambled version of the room code, and the connection details they pass on are encrypted, so they can't see what's on the board or even who is in it. No account or sign-up is needed.
+- With more than two people, everyone connects to everyone. That works well for a handful of people, like a study group or a lesson.
+- **Laser pointers:** everyone sees each other's pointer while they use the laser pointer tool. Whoever started the live board points in **red**, and everyone who joins gets a different colour of their own (green, blue, orange, …). Each pointer looks the same colour to everyone, its owner too. Switching to another tool hides your pointer for the others.
+- **Undo** only undoes your own steps, never someone else's.
+- **Pictures and PDF pages** aren't in the link itself (they'd make it far too long), but they reach the others over the live connection.
+- When everyone has closed the board, there is no shared board any more: each person keeps their own copy, autosaved as usual. Opening another board, or **New**, leaves the live board and the others keep it. Reloading the page joins again.
+- **Anyone with the link can draw on your board** while it is live. Send it only to people you want there, and press **Stop** when you're done.
+- **Some networks block direct connections** (some school and university Wi-Fi, some mobile networks). If no connection can be made, the app says so after a few seconds; the link still opens a copy. A TURN relay gets through those networks: if you have one, enter it under **Settings → Live boards**. Like an AI key, it stays on your device.
+
+More about links:
+
 - Links grow with the drawing. A sketch or a few lines of notes make a short link; a page of handwriting makes one of roughly ten thousand characters. Long links work when copied and pasted, but some chat apps and emails cut them short.
 - Opening a link replaces the board on screen. If that board has changes you haven't saved, the app asks first, and **Undo** brings it back either way.
-- **Pictures, and the pages of an opened PDF, aren't included**: they would make links far too long. The dialog tells you when something was left out. Send the `.whtbd` file (or an export) when they matter.
 
 ### The gallery
 
