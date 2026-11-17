@@ -2625,6 +2625,7 @@
     metaChanged() { docRev++; unsaved = true; titleEl.value = shownTitle(); updateChrome(); autosave(); invalidate(); },
     peerJoined() { toast(tr('tLiveJoined')); refreshLive(); },
     pointer: remotePointer,
+    exploring: (s) => s === plotActive,
     translate: (list, dx, dy) => { if (list.length && (dx || dy)) translate(list, dx, dy); },
     retext: (s, props) => { retext(s, props); invalidate(); },
     /* Someone else got hold of what I was working on at the same moment: they keep it. */
@@ -2632,6 +2633,7 @@
       if (selDrag && selDrag.moved) { const d = selDrag; selDrag = null; mode = null; translate(selection, -d.dx, -d.dy); }
       if (xf) { const d = xf; xf = null; mode = null; d.items.forEach((s, i) => retext(s, d.starts[i])); }
       if (edit && edit.s) { ta.value = edit.s.text; commitText(); }
+      if (plotPanelFor) { const s = plotPanelFor; s.fns = plotPanelBefore; plotPanelBefore = fnsOf(s); closePlotPanel(); }
       clearSelection(); invalidate();
       toast(tr('tLiveBusy'));
     },
@@ -3022,8 +3024,8 @@
     for (let i = doc.strokes.length - 1; i >= 0; i--) { const o = doc.strokes[i]; if (o.tool === 'plot' && inPlot(o, cx, cy)) return o; }
     return null;
   }
-  function enterPlot(s) { plotActive = s; textDown = null; mode = null; refreshPlotBar(); requestFrame(); }
-  function exitPlot() { if (!plotActive) return; plotActive = null; plotDrag = null; if (mode === 'plot') mode = null; refreshPlotBar(); requestFrame(); }
+  function enterPlot(s) { plotActive = s; textDown = null; mode = null; WB.live.view(s); refreshPlotBar(); requestFrame(); }
+  function exitPlot() { if (!plotActive) return; plotActive = null; plotDrag = null; if (mode === 'plot') mode = null; WB.live.view(null); refreshPlotBar(); requestFrame(); }
   function plotViewChanged() { invalidate(); unsaved = true; updateChrome(); autosave(); }
   function drawPlotActive() {
     const s = plotActive, z = view.zoom, accent = getComputedStyle(root).getPropertyValue('--accent').trim() || '#007aff';
@@ -3120,6 +3122,7 @@
   /* Editing the functions: one per line, drawn as they are typed; closing it is one undo step. */
   const fnsOf = (s) => s.fns.map((f) => ({ src: f.src, color: f.color }));
   function openPlotPanel(s) {
+    if (!WB.live.hold([s], true)) return toast(tr('tLiveBusy'));   // on a live board: one person edits a graph's functions at a time
     plotPanelFor = s; plotPanelBefore = fnsOf(s);
     const t = $('#pb-fns');
     t.value = s.fns.map((f) => f.src).join('\n');
@@ -3136,6 +3139,7 @@
     if (document.activeElement === $('#pb-fns')) $('#pb-fns').blur();
     const after = fnsOf(s);
     if (JSON.stringify(after) !== JSON.stringify(plotPanelBefore) && doc.strokes.includes(s)) record({ type: 'edit', s, before: { fns: plotPanelBefore }, after: { fns: after } });
+    WB.live.release();
     placePlotBar();
   }
   function initPlotBar() {
@@ -3151,6 +3155,7 @@
       if (!s) return;
       const old = s.fns, lines = $('#pb-fns').value.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 12);
       s.fns = lines.map((src, i) => ({ src, color: (old[i] && old[i].color) || WB.PLOT_COLORS[i % WB.PLOT_COLORS.length] }));
+      WB.live.editHeld();
       invalidate();
     });
   }

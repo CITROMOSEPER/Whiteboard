@@ -1038,7 +1038,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.17.03.</p>
+      <p id="app-version">version: 2026.11.17.04.</p>
       <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
@@ -8042,7 +8042,7 @@ body.pipetting #canvas { cursor: crosshair; }
     try {
       rm = await WB.p2p.join(r, {
         ice,
-        onPeer: (id) => { send({ k: 'hello', c: myColor }, id); if (ptr) send({ k: 'ptr', x: ptr.x, y: ptr.y }, id); sendState(id); if (mine.size) send({ k: 'lock', ids: [...mine.keys()] }, id); host.peerJoined(); },
+        onPeer: (id) => { send({ k: 'hello', c: myColor }, id); if (ptr) send({ k: 'ptr', x: ptr.x, y: ptr.y }, id); sendState(id); if (mine.size) send({ k: 'lock', ids: [...mine.keys()] }, id); if (myView) send({ k: 'view', id: myView }, id); host.peerJoined(); },
         onLeave: (id) => { ghosts.delete(id); colors.delete(id); dropLocks(id, true); host.pointer(id, null); host.peerLeft(); host.requestFrame(); },
         onMessage: (id, m) => { if (room === rm) handle(id, m); },
         onStatus: (s) => { if (room === rm) { st = s; host.status(st); } },
@@ -8057,7 +8057,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (room && room.leave) room.leave();
     room = null; code = ''; seeds = null;
     clearTimeout(flushTimer); dirty.clear(); ghosts.clear(); ink = null;
-    locks.clear(); mine.clear(); drags.clear(); typed.clear(); clearTimeout(dragTimer); dragTimer = 0;
+    locks.clear(); mine.clear(); drags.clear(); typed.clear(); viewers.clear(); myView = null; clearTimeout(dragTimer); dragTimer = 0;
   }
   const on = () => !!room;
 
@@ -8163,6 +8163,8 @@ body.pipetting #canvas { cursor: crosshair; }
     else if (m.k === 'unlock') dropLocks(from, false);
     else if (m.k === 'drag') gotDrag(from, m);
     else if (m.k === 'typing') gotTyping(from, m);
+    else if (m.k === 'view') gotView(from, m.id);
+    else if (m.k === 'unview') gotView(from, null);
     else if (m.k === 'ptr') {
       if (m.off) host.pointer(from, null);
       else if (isFinite(m.x) && isFinite(m.y) && Math.abs(m.x) < 1e9 && Math.abs(m.y) < 1e9) host.pointer(from, { x: +m.x, y: +m.y, color: colorOf(from) });
@@ -8212,7 +8214,12 @@ body.pipetting #canvas { cursor: crosshair; }
       }
       vers.set(op.id, v);
       obj.id = op.id;
-      if (s) { for (const key of Object.keys(s)) delete s[key]; Object.assign(s, obj); if (obj.tool === 'image') loads[loads.length - 1] = s; }
+      if (s) {
+        const keep = s.tool === 'plot' && obj.tool === 'plot' && host.exploring(s) ? { cx: s.cx, cy: s.cy, span: s.span } : null;   // my own view of a graph I'm exploring
+        for (const key of Object.keys(s)) delete s[key];
+        Object.assign(s, obj, keep);
+        if (obj.tool === 'image') loads[loads.length - 1] = s;
+      }
       const target = s || obj;
       objs.set(op.id, target);
       if (at == null) {
@@ -8324,11 +8331,16 @@ body.pipetting #canvas { cursor: crosshair; }
   const mine = new Map();        // object id -> object (held by me)
   const drags = new Map();       // peer -> { dx, dy }: how far their move has been shown here
   const typed = new Map();       // object id -> { from, text }: a text as it was before someone started editing it
+  /* A graph someone is exploring can't be moved, resized or deleted by the others (they can still
+     explore it, and edit its functions); several people can explore the same graph at once. */
+  const viewers = new Map();     // object id -> Set of peers exploring it
+  let myView = null;             // the id of the graph I'm exploring
   let drag = null, dragTimer = 0, dragSent = 0, editTimer = 0;
-  /* Take these objects. False if someone else holds any of them. */
-  function hold(list) {
+  /* Take these objects. False if someone else holds any of them (or, unless soft, is exploring one:
+     editing a graph's functions is allowed while others explore it, moving it is not). */
+  function hold(list, soft) {
     if (!room) return true;
-    for (const s of list) if (s.id && locks.has(s.id)) return false;
+    for (const s of list) if (s.id && (locks.has(s.id) || (!soft && viewers.has(s.id)))) return false;
     for (const s of list) mine.set(ensureId(s), s);
     if (list.length) send({ k: 'lock', ids: list.map((s) => s.id) });
     return true;
@@ -8343,7 +8355,25 @@ body.pipetting #canvas { cursor: crosshair; }
     send({ k: 'unlock' });
     mine.clear();
   }
-  const heldByOther = (s) => !!(room && s && s.id && locks.has(s.id));
+  const heldByOther = (s) => !!(room && s && s.id && (locks.has(s.id) || viewers.has(s.id)));
+  /* The graph I'm exploring (null when none). */
+  function view(s) {
+    const id = s ? ensureId(s) : null;
+    if (id === myView) return;
+    myView = id;
+    if (room) send(id ? { k: 'view', id } : { k: 'unview' });
+  }
+  function gotView(from, id) {
+    for (const set of viewers.values()) set.delete(from);
+    for (const [k, set] of [...viewers]) if (!set.size) viewers.delete(k);
+    if (typeof id === 'string') {
+      if (!viewers.has(id)) viewers.set(id, new Set());
+      viewers.get(id).add(from);
+      const s = objs.get(id);
+      if (s) host.unselect(s);
+    }
+    host.remoteChanged(true);
+  }
   function gotLock(from, ids) {
     let lost = false;
     for (const id of ids) {
@@ -8359,6 +8389,7 @@ body.pipetting #canvas { cursor: crosshair; }
   /* Their hold ends. When they left without letting go, what they were doing is undone here. */
   function dropLocks(from, gone) {
     for (const [id, p] of [...locks]) if (p === from) locks.delete(id);
+    if (gone) gotView(from, null);
     const d = drags.get(from);
     drags.delete(from);
     if (gone && d && (d.dx || d.dy)) host.translate(d.list, -d.dx, -d.dy);
@@ -8409,12 +8440,14 @@ body.pipetting #canvas { cursor: crosshair; }
   /* Objects others hold, with the colour of who holds them (for a frame around them). */
   function held() {
     const by = new Map();
-    for (const [id, p] of locks) {
+    const add = (id, p) => {
       const s = objs.get(id);
-      if (!s || !doc().strokes.includes(s)) continue;
+      if (!s || !doc().strokes.includes(s)) return;
       if (!by.has(p)) by.set(p, { color: colorOf(p), list: [] });
       by.get(p).list.push(s);
-    }
+    };
+    for (const [id, p] of locks) add(id, p);
+    for (const [id, set] of viewers) for (const p of set) if (locks.get(id) !== p) add(id, p);
     return [...by.values()];
   }
 
@@ -8450,7 +8483,7 @@ body.pipetting #canvas { cursor: crosshair; }
   WB.live = {
     init(h) { host = h; },
     start, stop, on, touch, changed, streamInk, inkGhosts, pointer,
-    hold, release, heldByOther, moveHeld, editHeld, typing, held,
+    hold, release, heldByOther, moveHeld, editHeld, typing, held, view,
     /* My pointer colour on the live board (red until I have one). */
     myColor: () => COLORS[myColor == null ? 0 : myColor],
     colorIndex: () => myColor,
@@ -11155,6 +11188,7 @@ body.pipetting #canvas { cursor: crosshair; }
     metaChanged() { docRev++; unsaved = true; titleEl.value = shownTitle(); updateChrome(); autosave(); invalidate(); },
     peerJoined() { toast(tr('tLiveJoined')); refreshLive(); },
     pointer: remotePointer,
+    exploring: (s) => s === plotActive,
     translate: (list, dx, dy) => { if (list.length && (dx || dy)) translate(list, dx, dy); },
     retext: (s, props) => { retext(s, props); invalidate(); },
     /* Someone else got hold of what I was working on at the same moment: they keep it. */
@@ -11162,6 +11196,7 @@ body.pipetting #canvas { cursor: crosshair; }
       if (selDrag && selDrag.moved) { const d = selDrag; selDrag = null; mode = null; translate(selection, -d.dx, -d.dy); }
       if (xf) { const d = xf; xf = null; mode = null; d.items.forEach((s, i) => retext(s, d.starts[i])); }
       if (edit && edit.s) { ta.value = edit.s.text; commitText(); }
+      if (plotPanelFor) { const s = plotPanelFor; s.fns = plotPanelBefore; plotPanelBefore = fnsOf(s); closePlotPanel(); }
       clearSelection(); invalidate();
       toast(tr('tLiveBusy'));
     },
@@ -11552,8 +11587,8 @@ body.pipetting #canvas { cursor: crosshair; }
     for (let i = doc.strokes.length - 1; i >= 0; i--) { const o = doc.strokes[i]; if (o.tool === 'plot' && inPlot(o, cx, cy)) return o; }
     return null;
   }
-  function enterPlot(s) { plotActive = s; textDown = null; mode = null; refreshPlotBar(); requestFrame(); }
-  function exitPlot() { if (!plotActive) return; plotActive = null; plotDrag = null; if (mode === 'plot') mode = null; refreshPlotBar(); requestFrame(); }
+  function enterPlot(s) { plotActive = s; textDown = null; mode = null; WB.live.view(s); refreshPlotBar(); requestFrame(); }
+  function exitPlot() { if (!plotActive) return; plotActive = null; plotDrag = null; if (mode === 'plot') mode = null; WB.live.view(null); refreshPlotBar(); requestFrame(); }
   function plotViewChanged() { invalidate(); unsaved = true; updateChrome(); autosave(); }
   function drawPlotActive() {
     const s = plotActive, z = view.zoom, accent = getComputedStyle(root).getPropertyValue('--accent').trim() || '#007aff';
@@ -11650,6 +11685,7 @@ body.pipetting #canvas { cursor: crosshair; }
   /* Editing the functions: one per line, drawn as they are typed; closing it is one undo step. */
   const fnsOf = (s) => s.fns.map((f) => ({ src: f.src, color: f.color }));
   function openPlotPanel(s) {
+    if (!WB.live.hold([s], true)) return toast(tr('tLiveBusy'));   // on a live board: one person edits a graph's functions at a time
     plotPanelFor = s; plotPanelBefore = fnsOf(s);
     const t = $('#pb-fns');
     t.value = s.fns.map((f) => f.src).join('\n');
@@ -11666,6 +11702,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (document.activeElement === $('#pb-fns')) $('#pb-fns').blur();
     const after = fnsOf(s);
     if (JSON.stringify(after) !== JSON.stringify(plotPanelBefore) && doc.strokes.includes(s)) record({ type: 'edit', s, before: { fns: plotPanelBefore }, after: { fns: after } });
+    WB.live.release();
     placePlotBar();
   }
   function initPlotBar() {
@@ -11681,6 +11718,7 @@ body.pipetting #canvas { cursor: crosshair; }
       if (!s) return;
       const old = s.fns, lines = $('#pb-fns').value.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 12);
       s.fns = lines.map((src, i) => ({ src, color: (old[i] && old[i].color) || WB.PLOT_COLORS[i % WB.PLOT_COLORS.length] }));
+      WB.live.editHeld();
       invalidate();
     });
   }

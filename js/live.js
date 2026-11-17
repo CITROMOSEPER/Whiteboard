@@ -71,7 +71,7 @@
     try {
       rm = await WB.p2p.join(r, {
         ice,
-        onPeer: (id) => { send({ k: 'hello', c: myColor }, id); if (ptr) send({ k: 'ptr', x: ptr.x, y: ptr.y }, id); sendState(id); if (mine.size) send({ k: 'lock', ids: [...mine.keys()] }, id); host.peerJoined(); },
+        onPeer: (id) => { send({ k: 'hello', c: myColor }, id); if (ptr) send({ k: 'ptr', x: ptr.x, y: ptr.y }, id); sendState(id); if (mine.size) send({ k: 'lock', ids: [...mine.keys()] }, id); if (myView) send({ k: 'view', id: myView }, id); host.peerJoined(); },
         onLeave: (id) => { ghosts.delete(id); colors.delete(id); dropLocks(id, true); host.pointer(id, null); host.peerLeft(); host.requestFrame(); },
         onMessage: (id, m) => { if (room === rm) handle(id, m); },
         onStatus: (s) => { if (room === rm) { st = s; host.status(st); } },
@@ -86,7 +86,7 @@
     if (room && room.leave) room.leave();
     room = null; code = ''; seeds = null;
     clearTimeout(flushTimer); dirty.clear(); ghosts.clear(); ink = null;
-    locks.clear(); mine.clear(); drags.clear(); typed.clear(); clearTimeout(dragTimer); dragTimer = 0;
+    locks.clear(); mine.clear(); drags.clear(); typed.clear(); viewers.clear(); myView = null; clearTimeout(dragTimer); dragTimer = 0;
   }
   const on = () => !!room;
 
@@ -192,6 +192,8 @@
     else if (m.k === 'unlock') dropLocks(from, false);
     else if (m.k === 'drag') gotDrag(from, m);
     else if (m.k === 'typing') gotTyping(from, m);
+    else if (m.k === 'view') gotView(from, m.id);
+    else if (m.k === 'unview') gotView(from, null);
     else if (m.k === 'ptr') {
       if (m.off) host.pointer(from, null);
       else if (isFinite(m.x) && isFinite(m.y) && Math.abs(m.x) < 1e9 && Math.abs(m.y) < 1e9) host.pointer(from, { x: +m.x, y: +m.y, color: colorOf(from) });
@@ -241,7 +243,12 @@
       }
       vers.set(op.id, v);
       obj.id = op.id;
-      if (s) { for (const key of Object.keys(s)) delete s[key]; Object.assign(s, obj); if (obj.tool === 'image') loads[loads.length - 1] = s; }
+      if (s) {
+        const keep = s.tool === 'plot' && obj.tool === 'plot' && host.exploring(s) ? { cx: s.cx, cy: s.cy, span: s.span } : null;   // my own view of a graph I'm exploring
+        for (const key of Object.keys(s)) delete s[key];
+        Object.assign(s, obj, keep);
+        if (obj.tool === 'image') loads[loads.length - 1] = s;
+      }
       const target = s || obj;
       objs.set(op.id, target);
       if (at == null) {
@@ -353,11 +360,16 @@
   const mine = new Map();        // object id -> object (held by me)
   const drags = new Map();       // peer -> { dx, dy }: how far their move has been shown here
   const typed = new Map();       // object id -> { from, text }: a text as it was before someone started editing it
+  /* A graph someone is exploring can't be moved, resized or deleted by the others (they can still
+     explore it, and edit its functions); several people can explore the same graph at once. */
+  const viewers = new Map();     // object id -> Set of peers exploring it
+  let myView = null;             // the id of the graph I'm exploring
   let drag = null, dragTimer = 0, dragSent = 0, editTimer = 0;
-  /* Take these objects. False if someone else holds any of them. */
-  function hold(list) {
+  /* Take these objects. False if someone else holds any of them (or, unless soft, is exploring one:
+     editing a graph's functions is allowed while others explore it, moving it is not). */
+  function hold(list, soft) {
     if (!room) return true;
-    for (const s of list) if (s.id && locks.has(s.id)) return false;
+    for (const s of list) if (s.id && (locks.has(s.id) || (!soft && viewers.has(s.id)))) return false;
     for (const s of list) mine.set(ensureId(s), s);
     if (list.length) send({ k: 'lock', ids: list.map((s) => s.id) });
     return true;
@@ -372,7 +384,25 @@
     send({ k: 'unlock' });
     mine.clear();
   }
-  const heldByOther = (s) => !!(room && s && s.id && locks.has(s.id));
+  const heldByOther = (s) => !!(room && s && s.id && (locks.has(s.id) || viewers.has(s.id)));
+  /* The graph I'm exploring (null when none). */
+  function view(s) {
+    const id = s ? ensureId(s) : null;
+    if (id === myView) return;
+    myView = id;
+    if (room) send(id ? { k: 'view', id } : { k: 'unview' });
+  }
+  function gotView(from, id) {
+    for (const set of viewers.values()) set.delete(from);
+    for (const [k, set] of [...viewers]) if (!set.size) viewers.delete(k);
+    if (typeof id === 'string') {
+      if (!viewers.has(id)) viewers.set(id, new Set());
+      viewers.get(id).add(from);
+      const s = objs.get(id);
+      if (s) host.unselect(s);
+    }
+    host.remoteChanged(true);
+  }
   function gotLock(from, ids) {
     let lost = false;
     for (const id of ids) {
@@ -388,6 +418,7 @@
   /* Their hold ends. When they left without letting go, what they were doing is undone here. */
   function dropLocks(from, gone) {
     for (const [id, p] of [...locks]) if (p === from) locks.delete(id);
+    if (gone) gotView(from, null);
     const d = drags.get(from);
     drags.delete(from);
     if (gone && d && (d.dx || d.dy)) host.translate(d.list, -d.dx, -d.dy);
@@ -438,12 +469,14 @@
   /* Objects others hold, with the colour of who holds them (for a frame around them). */
   function held() {
     const by = new Map();
-    for (const [id, p] of locks) {
+    const add = (id, p) => {
       const s = objs.get(id);
-      if (!s || !doc().strokes.includes(s)) continue;
+      if (!s || !doc().strokes.includes(s)) return;
       if (!by.has(p)) by.set(p, { color: colorOf(p), list: [] });
       by.get(p).list.push(s);
-    }
+    };
+    for (const [id, p] of locks) add(id, p);
+    for (const [id, set] of viewers) for (const p of set) if (locks.get(id) !== p) add(id, p);
     return [...by.values()];
   }
 
@@ -479,7 +512,7 @@
   WB.live = {
     init(h) { host = h; },
     start, stop, on, touch, changed, streamInk, inkGhosts, pointer,
-    hold, release, heldByOther, moveHeld, editHeld, typing, held,
+    hold, release, heldByOther, moveHeld, editHeld, typing, held, view,
     /* My pointer colour on the live board (red until I have one). */
     myColor: () => COLORS[myColor == null ? 0 : myColor],
     colorIndex: () => myColor,

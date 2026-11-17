@@ -1,6 +1,6 @@
 /* Offline support. Network first, so an online visit always gets the newest version;
    when the network is missing or too slow, the last copy saved on this device is used. */
-const CACHE = 'whiteboard-v6';
+const CACHE = 'whiteboard-v7';
 const CORE = [
   './', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   // Present only in the multi-file (development) layout; missing files are skipped.
