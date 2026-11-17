@@ -148,7 +148,7 @@
     if (plotActive) drawPlotActive();
     placePlotBar();
     if (live && !live.hl) paintLive();
-    if (WB.live.on()) paintGhosts();
+    if (WB.live.on()) { paintGhosts(); drawHeld(); }
     if (laser.trail.length) drawLaser(now);
     if (pointers.size) drawPointers(now);
     syncView();
@@ -230,6 +230,25 @@
     if (!gs.length) return;
     worldTransform(ctx);
     for (const g of gs) { const p = new Path2D(); WB.trace(g, p); WB.paint(ctx, g, p, true); }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  /* What others are working on (moving, resizing, editing): a dashed frame in their colour. */
+  function drawHeld() {
+    const list = WB.live.held();
+    if (!list.length) return;
+    const z = view.zoom, pad = 6 / z;
+    worldTransform(ctx);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    ctx.lineWidth = 2 / z; ctx.setLineDash([7 / z, 5 / z]);
+    for (const h of list) {
+      const b = WB.contentBounds(h.list);
+      if (!b) continue;
+      ctx.strokeStyle = h.color;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(b.x - pad, b.y - pad, b.w + 2 * pad, b.h + 2 * pad, 6 / z); else ctx.rect(b.x - pad, b.y - pad, b.w + 2 * pad, b.h + 2 * pad);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
   function paintLive() {
@@ -589,7 +608,7 @@
     const pts = WB.resampleFlat(E.points, Math.max(2, Math.min(400, Math.ceil(len / Math.max(1e-6, E.width / 3)) + 1)));
     const edits = [], gone = [];
     doc.strokes.forEach((o, i) => {
-      if (o.tool === 'eraser') return;
+      if (o.tool === 'eraser' || WB.live.heldByOther(o)) return;
       const b = WB.boundsOf(o);
       if (b.x1 < eb.x0 || b.x0 > eb.x1 || b.y1 < eb.y0 || b.y0 > eb.y1) return;
       let touch = false;
@@ -649,7 +668,7 @@
     const tol = Math.max(s.width, 4 / view.zoom), victims = [];
     for (let i = 0; i < doc.strokes.length; i++) {
       const o = doc.strokes[i];
-      if (o.tool === 'eraser') continue;
+      if (o.tool === 'eraser' || WB.live.heldByOther(o)) continue;
       let hits = 0;
       for (let k = 0; k < R.length; k += 2) if (WB.hit(o, R[k], R[k + 1], tol)) hits++;
       if (hits < 3) continue;
@@ -721,7 +740,7 @@
   function objectAt(x, y, tol) {
     for (let i = doc.strokes.length - 1; i >= 0; i--) {
       const s = doc.strokes[i];
-      if ((s.tool === 'pen' || s.tool === 'text' || s.tool === 'fill') && WB.hit(s, x, y, tol)) return s;
+      if ((s.tool === 'pen' || s.tool === 'text' || s.tool === 'fill') && !WB.live.heldByOther(s) && WB.hit(s, x, y, tol)) return s;
     }
     return null;
   }
@@ -805,7 +824,7 @@
     let hit = null, under = null;
     for (let i = doc.strokes.length - 1; i >= 0 && !hit; i--) {
       const s = doc.strokes[i];
-      if (!WB.hit(s, x, y, 6 / z)) continue;
+      if (WB.live.heldByOther(s) || !WB.hit(s, x, y, 6 / z)) continue;   // (someone else is working on it)
       if (s.tool === 'fill' && s.under) under = under || s; else hit = s;
     }
     hit = hit || under;
@@ -816,7 +835,7 @@
   }
   function selectLasso(poly, add) {
     if (!add) selection.clear();
-    if (poly.length >= 6) for (const s of doc.strokes) if (WB.inLasso(s, poly)) selection.add(s);
+    if (poly.length >= 6) for (const s of doc.strokes) if (!WB.live.heldByOther(s) && WB.inLasso(s, poly)) selection.add(s);
     selectionChanged();
   }
   function clearSelection() { if (selection.size) { selection.clear(); selectionChanged(); } }
@@ -841,11 +860,12 @@
   function cancelSelDrag() {
     const d = selDrag;
     selDrag = null;
-    if (d && d.moved) translate(selection, -d.dx, -d.dy);
+    if (d && d.moved) { translate(selection, -d.dx, -d.dy); WB.live.release(); }
     requestFrame();
   }
   function selectionChanged() {
     for (const s of [...selection]) if (outer(s)) for (const m of members(s)) selection.add(m);   // never part of a group
+    for (const s of [...selection]) if (WB.live.heldByOther(s)) selection.delete(s);
     const n = units(selection).length;
     $('#sel-bar').classList.toggle('on', n > 0);
     if (n) $('#sel-count').textContent = tr('selected', { n });
@@ -1006,6 +1026,7 @@
     const F = selFrame(), z = view.zoom;
     const px = (e.clientX - view.x) / z, py = (e.clientY - view.y) / z;
     const items = [...selection].filter((s) => doc.strokes.includes(s));
+    if (!WB.live.hold(items)) return toast(tr('tLiveBusy'));
     mode = 'xform';
     xf = { id: e.pointerId, k, items, starts: items.map(geometry), start: F, cur: { ...F },
       extra: new Set(), last: { x: e.clientX, y: e.clientY }, keys: { alt: e.altKey, shift: e.shiftKey } };
@@ -1051,6 +1072,7 @@
     }
     d.cur = F;
     d.items.forEach((s, i) => mapObject(s, d.starts[i], st, F));
+    WB.live.editHeld();
     invalidate();
   }
   for (const type of ['keydown', 'keyup']) {
@@ -1064,9 +1086,10 @@
   function endXform(cancel) {
     const d = xf;
     xf = null; mode = null; canvas.style.cursor = '';
-    if (cancel) { d.items.forEach((s, i) => retext(s, d.starts[i])); invalidate(); showStyleBar(); return; }
+    if (cancel) { d.items.forEach((s, i) => retext(s, d.starts[i])); WB.live.release(); invalidate(); showStyleBar(); return; }
     const list = d.items.map((s, i) => ({ type: 'edit', s, before: d.starts[i], after: geometry(s) }));
     if (d.cur.x !== d.start.x || d.cur.y !== d.start.y || d.cur.w !== d.start.w || d.cur.h !== d.start.h || d.cur.rot !== d.start.rot) record({ type: 'batch', list });
+    WB.live.release();
     showStyleBar();
   }
 
@@ -1292,6 +1315,7 @@
     if (edit) commitText();
     const z = view.zoom, wx = (cx - view.x) / z, wy = (cy - view.y) / z, T = tools.text;
     const s = textUnder(cx, cy);
+    if (s && !WB.live.hold([s])) return toast(tr('tLiveBusy'));   // someone else is editing it
     clearSelection(); inkDrop();
     edit = s ? { s, x: s.x, y: s.y, rot: s.rot || 0, font: s.font, size: s.size, color: s.color }
       : { s: null, x: wx, y: wy - (T.size / z) * WB.LINE / 2, rot: 0, font: T.font, size: T.size / z, color: T.color };
@@ -1345,6 +1369,7 @@
       doc.strokes.push(s);
       record({ type: 'add', stroke: s });
     }
+    if (e.s) WB.live.release();
     invalidate(); updateChrome(); selectionChanged();
   }
   function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; delete s._fb; delete s._path; delete s._opath; }
@@ -1365,6 +1390,7 @@
 
   function initText() {
     ta.addEventListener('input', layoutEdit);
+    ta.addEventListener('input', () => { if (edit && edit.s) WB.live.typing(edit.s, ta.value); });
     // Using the bar must not take the caret out of the text.
     for (const el of [textBar, $('#font-menu')]) el.addEventListener('pointerdown', (e) => e.preventDefault());
     $('#tb-smaller').addEventListener('click', () => stepTextSize(-1));
@@ -1832,9 +1858,13 @@
       if (d.move) {                             // dragging the selection: it follows the pointer 1:1
         if (!d.moved && hyp(e.clientX - d.x, e.clientY - d.y) < 4) return;
         const dx = (e.clientX - d.lx) / z, dy = (e.clientY - d.ly) / z;
-        if (!d.moved) hideStyleBar();
+        if (!d.moved) {
+          if (!WB.live.hold(selItems())) { selDrag = null; mode = null; toast(tr('tLiveBusy')); return; }
+          hideStyleBar();
+        }
         d.moved = true; d.lx = e.clientX; d.ly = e.clientY; d.dx += dx; d.dy += dy;
         translate(selection, dx, dy);
+        WB.live.moveHeld(d.dx, d.dy);
         return;
       }
       if (!d.lasso && hyp(e.clientX - d.x, e.clientY - d.y) > 5) d.lasso = [(d.x - view.x) / z, (d.y - view.y) / z];   // a drag, not a click
@@ -1863,7 +1893,7 @@
       mode = null;
       if (cancel) return cancelSelDrag();
       selDrag = null;
-      if (d.moved) { record({ type: 'move', items: [...selection], dx: d.dx, dy: d.dy }); showStyleBar(); }
+      if (d.moved) { record({ type: 'move', items: [...selection], dx: d.dx, dy: d.dy }); WB.live.release(); showStyleBar(); }
       else if (d.lasso) selectLasso(d.lasso, d.add);
       else { plotPointTap(d.x, d.y); selectAt(d.x, d.y, d.add); }
     } else if (mode === 'text' && textDown && e.pointerId === textDown.id) {
@@ -2595,6 +2625,16 @@
     metaChanged() { docRev++; unsaved = true; titleEl.value = shownTitle(); updateChrome(); autosave(); invalidate(); },
     peerJoined() { toast(tr('tLiveJoined')); refreshLive(); },
     pointer: remotePointer,
+    translate: (list, dx, dy) => { if (list.length && (dx || dy)) translate(list, dx, dy); },
+    retext: (s, props) => { retext(s, props); invalidate(); },
+    /* Someone else got hold of what I was working on at the same moment: they keep it. */
+    yieldHold() {
+      if (selDrag && selDrag.moved) { const d = selDrag; selDrag = null; mode = null; translate(selection, -d.dx, -d.dy); }
+      if (xf) { const d = xf; xf = null; mode = null; d.items.forEach((s, i) => retext(s, d.starts[i])); }
+      if (edit && edit.s) { ta.value = edit.s.text; commitText(); }
+      clearSelection(); invalidate();
+      toast(tr('tLiveBusy'));
+    },
     colorChanged(c) { savedColor = c; autosave(); if (laser.el.classList.contains('on')) laser.el.style.setProperty('--lc', WB.live.myColor()); },
     peerLeft() { toast(tr('tLiveLeft')); refreshLive(); },
     status(st) {

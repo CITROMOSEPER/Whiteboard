@@ -169,7 +169,7 @@ The **menu** (top left) holds everything about files.
 **Share link…** makes one link that does two things:
 
 - **It carries a copy of the board.** Opening it shows the board at once, even when you're offline later. The board is stored in the link itself, in the part after `#`, which browsers never send to the server.
-- **It makes the board live.** While your board is open, anyone who opens the link draws on it with you: lines appear as they are drawn, and every change, move, deletion and group reaches everyone. The top bar shows a green **Live** badge with how many people are on the board (orange while you're alone); tap it to see the link again or press **Stop**.
+- **It makes the board live.** While your board is open, anyone who opens the link draws on it with you: lines, highlighting and erasing appear as they happen, things being moved glide along, texts change as they're typed, and every other change, deletion and group reaches everyone. The top bar shows a green **Live** badge with how many people are on the board (orange while you're alone); tap it to see the link again or press **Stop**.
 
 How the live part works, without any server of ours:
 
@@ -177,6 +177,7 @@ How the live part works, without any server of ours:
 - To find each other, they use free public meeting points (WebTorrent trackers) for a few seconds. These only see a scrambled version of the room code, and the connection details they pass on are encrypted, so they can't see what's on the board or even who is in it. No account or sign-up is needed.
 - With more than two people, everyone connects to everyone. That works well for a handful of people, like a study group or a lesson.
 - **Laser pointers:** everyone sees each other's pointer while they use the laser pointer tool. Whoever started the live board points in **red**, and everyone who joins gets a different colour of their own (green, blue, orange, …). Each pointer looks the same colour to everyone, its owner too. Switching to another tool hides your pointer for the others.
+- **One at a time:** while someone moves, resizes or turns something, or edits a text, it's theirs until they let go. The others see it framed in that person's colour and can't select, erase or edit it meanwhile. If two people grab the same thing at the same moment, one of them gets it and the other is told.
 - **Undo** only undoes your own steps, never someone else's.
 - **Pictures and PDF pages** aren't in the link itself (they'd make it far too long), but they reach the others over the live connection.
 - When everyone has closed the board, there is no shared board any more: each person keeps their own copy, autosaved as usual. Opening another board, or **New**, leaves the live board and the others keep it. Reloading the page joins again.

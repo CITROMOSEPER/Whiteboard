@@ -1038,7 +1038,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.17.02.</p>
+      <p id="app-version">version: 2026.11.17.03.</p>
       <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
@@ -2452,6 +2452,22 @@ body.pipetting #canvas { cursor: crosshair; }
   Object.assign(D.ja, {"aiActions": "AI アクション", "aiShort": "AI", "aiTidy": "手書きを清書", "aiSolve": "途中式つきで解く", "aiPlot": "グラフにする", "aiSettingsMenu": "AI の設定…", "plotHome": "最初の表示に戻る", "plotEdit": "関数", "plotExplore": "探索", "plotEditNote": "1 行に 1 つ、例: f(x) = sin(x) や y = x^2 − 1。探索中はドラッグで移動、スクロールやピンチで拡大縮小できます。曲線上の点をタップすると座標が表示されます。", "aiTitle": "AI（自分のキー）", "aiProvider": "プロバイダー", "aiOther": "その他", "aiBaseUrl": "サーバーのアドレス（OpenAI 互換）", "aiKey": "API キー", "aiGetKey": "キーを取得 ↗", "aiModel": "モデル", "aiListModels": "利用可能なものを表示", "aiPrivacy": "キーはこのデバイスのこのブラウザーにだけ保存されます。Whiteboard のサーバーはありません。AI アクションを使うと、ブラウザーがボードの選択部分の画像を、選んだプロバイダーへ直接送ります。キーがボード、ファイル、共有リンクに入ることはありません。", "aiCost": "プロバイダーが利用ごとにキーへ課金する場合があります。Gemini には無料枠があります。グラフと答えの検算はデバイス上で計算されます。", "aiForget": "キーを削除", "tAiReading": "手書きを読み取り中…", "tAiNoKey": "先に 設定 → AI で API キーを追加してください", "tAiNothing": "先に手書きを選択してください", "tAiFailed": "AI リクエストに失敗しました: {e}", "tAiKeyBad": "プロバイダーが API キーを受け付けませんでした", "tAiQuota": "上限に達したとプロバイダーが応答しました。後でもう一度お試しください", "tAiNetwork": "プロバイダーに接続できません", "tAiTidied": "手書きを清書しました", "tAiSolved": "解きました", "tAiChecked": "解きました。答えは検算で確認済みです", "tAiCheckFailed": "解きましたが、答えが検算で合いません。途中式を確認してください", "tAiPlotted": "グラフを追加しました。ダブルクリックまたはダブルタップで探索できます", "tAiNoFn": "グラフにできる x の関数が見つかりません", "tAiEmpty": "文字が見つかりません", "tAiModels": "{n} 個のモデルが利用可能", "tAiForgot": "API キーを削除しました", "aiCheckFail": "検算: この答えは問題を満たしません", "sBuiltIn": "組み込みステッカー", "sBuiltInNote": "アプリの一部: いつでもここにあり、キャンバスの色に合わせて描かれます。", "sBuiltInNoSave": "組み込みフォルダーにはステッカーを保存できません。別のフォルダーを選んでください。", "bGraphs": "グラフ", "bAxes": "座標系", "bVenn": "ベン図", "bKarnaugh": "カルノー図", "bVeitch": "ファイチ図", "bTruth": "真理値表", "bGraphEmpty": "空のグラフ", "bGraphOf": "{f} のグラフ", "bAllQuadrants": "4 つの象限すべて", "bQuadrant": "第 {q} 象限", "bQuadrants": "第 {q} 象限", "bVennTwo": "2 つの集合", "bVennThree": "3 つの集合", "bVennFour": "4 つの集合", "bVennTwoU": "全体集合の中の 2 つの集合", "bVennThreeU": "全体集合の中の 3 つの集合", "bVennSubset": "部分集合", "bVennDisjoint": "互いに素な集合", "bDisj": "加法標準形", "bConj": "乗法標準形", "bTruthVars": "{n} 変数", "shareNoteLive": "このリンクを持つ人はボードのコピーを受け取り、ここでボードが開いている間は、あなたと一緒にライブで描けます。コピーはリンク自体に入っていて、ライブの変更はブラウザー同士で直接やり取りされます。どこにもアップロードも保存もされません。", "liveNote": "このボードがここで開いている間は他の人も描けます。各人のレーザーポインターはその人の色で表示されます（あなたが始めた場合は赤があなたの色）。全員が閉じると、各自が自分のコピーを持ち続けます。", "liveStop": "停止", "livePill": "ライブ", "liveConnected": "ライブ: ほかに {n} 人", "liveConnecting": "接続中…", "liveWaiting": "ライブ: ほかの人がリンクを開くのを待っています", "liveBlocked": "直接接続できませんでした。別のネットワークを試すか、設定で TURN サーバーを追加してください。リンクからはコピーを開けます。", "liveNoTrackers": "ライブボードの待ち合わせ場所に接続できません。インターネット接続を確認してください。", "shareNoPicsLive": "画像と PDF ページはリンク自体には入りません。ライブ接続で他の人に届きます。", "tLiveJoined": "誰かがボードに参加しました", "tLiveLeft": "誰かがボードを離れました", "tLiveLeftBoard": "ライブボードを離れました。他の人の手元には残ります", "tLiveStopped": "ライブ共有を停止しました。ボードはここに残ります。", "tLiveUnsupported": "このブラウザーはボードのライブ共有に対応していません。リンクはコピーを開きます。", "tLiveFail": "ライブボードを開始できませんでした", "liveSettings": "ライブボード", "turnUrl": "TURN サーバー（任意）", "turnUser": "TURN ユーザー名", "turnPass": "TURN パスワード", "turnNote": "直接接続をブロックするネットワーク（一部の学校、大学、モバイル回線）でのみ必要です。自分の TURN サーバーを使ってください。ライブボードにだけ使われ、このデバイスに保存されます。"});
   Object.assign(D.ar, {"aiActions": "إجراءات الذكاء الاصطناعي", "aiShort": "ذكاء", "aiTidy": "ترتيب الكتابة اليدوية", "aiSolve": "الحل مع عرض الخطوات", "aiPlot": "رسم كمنحنى بياني", "aiSettingsMenu": "إعدادات الذكاء الاصطناعي…", "plotHome": "العودة إلى العرض الأول", "plotEdit": "الدوال", "plotExplore": "استكشاف", "plotEditNote": "دالة في كل سطر، مثل f(x) = sin(x) أو y = x^2 − 1. أثناء الاستكشاف اسحب للتنقل، ومرّر أو اقرص للتكبير. المس نقطة على المنحنى لترى إحداثياتها.", "aiTitle": "الذكاء الاصطناعي (مفتاحك الخاص)", "aiProvider": "المزوّد", "aiOther": "آخر", "aiBaseUrl": "عنوان الخادم (متوافق مع OpenAI)", "aiKey": "مفتاح API", "aiGetKey": "احصل على مفتاح ↗", "aiModel": "النموذج", "aiListModels": "عرض المتاح", "aiPrivacy": "يُحفظ مفتاحك في هذا المتصفح على هذا الجهاز فقط. لا يوجد خادم لـ Whiteboard: عند استخدام إجراء ذكاء اصطناعي يرسل متصفحك صورة للجزء المحدد من اللوح مباشرةً إلى المزوّد الذي اخترته. لا يُوضع مفتاحك أبدًا في الألواح أو الملفات أو روابط المشاركة.", "aiCost": "قد يحاسب المزوّد مفتاحك على كل استخدام. لدى Gemini فئة مجانية. تُحسب المنحنيات والتحقق من الإجابات على جهازك.", "aiForget": "إزالة المفاتيح", "tAiReading": "جارٍ قراءة الكتابة اليدوية…", "tAiNoKey": "أضف أولًا مفتاح API في الإعدادات ← الذكاء الاصطناعي", "tAiNothing": "حدّد بعض الكتابة اليدوية أولًا", "tAiFailed": "فشل طلب الذكاء الاصطناعي: {e}", "tAiKeyBad": "لم يقبل المزوّد مفتاح API", "tAiQuota": "يقول المزوّد إن الحد قد بُلغ. حاول لاحقًا", "tAiNetwork": "تعذّر الوصول إلى المزوّد", "tAiTidied": "تم ترتيب الكتابة اليدوية", "tAiSolved": "تم الحل", "tAiChecked": "تم الحل، والإجابة صحيحة عند التحقق", "tAiCheckFailed": "تم الحل، لكن الإجابة لم تصح عند التحقق: راجع الخطوات", "tAiPlotted": "أُضيف المنحنى. انقر أو المس مرتين لاستكشافه", "tAiNoFn": "لم يُعثر على دالة في x لرسمها", "tAiEmpty": "لم يُعثر على كتابة", "tAiModels": "{n} نماذج متاحة", "tAiForgot": "أُزيلت مفاتيح API", "aiCheckFail": "تحقق: هذه الإجابة لا تحقق المسألة", "sBuiltIn": "ملصقات مدمجة", "sBuiltInNote": "جزء من التطبيق: موجودة دائمًا وتناسب لون لوحتك.", "sBuiltInNoSave": "لا يمكن حفظ ملصقات في المجلد المدمج. اختر مجلدًا آخر.", "bGraphs": "منحنيات بيانية", "bAxes": "أنظمة إحداثيات", "bVenn": "مخططات فن", "bKarnaugh": "خرائط كارنو", "bVeitch": "خرائط فايتش", "bTruth": "جداول الحقيقة", "bGraphEmpty": "منحنى فارغ", "bGraphOf": "منحنى {f}", "bAllQuadrants": "الأرباع الأربعة كلها", "bQuadrant": "الربع {q}", "bQuadrants": "الأرباع {q}", "bVennTwo": "مجموعتان", "bVennThree": "ثلاث مجموعات", "bVennFour": "أربع مجموعات", "bVennTwoU": "مجموعتان داخل مجموعة شاملة", "bVennThreeU": "ثلاث مجموعات داخل مجموعة شاملة", "bVennSubset": "مجموعة جزئية", "bVennDisjoint": "مجموعات منفصلة", "bDisj": "فصلي", "bConj": "وصلي", "bTruthVars": "{n} متغيرات", "shareNoteLive": "يحصل كل من لديه هذا الرابط على نسخة من اللوح، وما دام اللوح مفتوحًا هنا يرسم عليه معك مباشرةً. تنتقل النسخة داخل الرابط نفسه، وتنتقل التغييرات المباشرة بين متصفحاتكم مباشرةً. لا يُرفع شيء ولا يُخزَّن في أي مكان.", "liveNote": "يمكن للآخرين الرسم ما دام هذا اللوح مفتوحًا هنا، ويظهر مؤشر الليزر لكل شخص بلونه الخاص (الأحمر لك إن كنت من بدأه). عندما يغلقه الجميع، يحتفظ كل واحد بنسخته.", "liveStop": "إيقاف", "livePill": "مباشر", "liveConnected": "مباشر: {n} آخرون هنا", "liveConnecting": "جارٍ الاتصال…", "liveWaiting": "مباشر: بانتظار أن يفتح الآخرون الرابط", "liveBlocked": "تعذّر الاتصال المباشر. جرّب شبكة أخرى، أو أضف خادم TURN في الإعدادات، أو سيفتح الرابط نسخة على أي حال.", "liveNoTrackers": "تعذّر الوصول إلى نقاط الالتقاء للألواح المباشرة. تحقق من الاتصال بالإنترنت.", "shareNoPicsLive": "الصور وصفحات PDF ليست في الرابط نفسه؛ تصل إلى الآخرين عبر الاتصال المباشر.", "tLiveJoined": "انضم شخص إلى اللوح", "tLiveLeft": "غادر شخص اللوح", "tLiveLeftBoard": "غادرت اللوح المباشر؛ يبقى لدى الآخرين", "tLiveStopped": "توقفت المشاركة المباشرة. يبقى اللوح هنا.", "tLiveUnsupported": "لا يستطيع هذا المتصفح مشاركة الألواح مباشرةً. يفتح الرابط نسخة.", "tLiveFail": "تعذّر بدء اللوح المباشر", "liveSettings": "الألواح المباشرة", "turnUrl": "خادم TURN (اختياري)", "turnUser": "اسم مستخدم TURN", "turnPass": "كلمة مرور TURN", "turnNote": "لا يلزم إلا على الشبكات التي تحجب الاتصالات المباشرة (بعض المدارس والجامعات وشبكات الجوال). استخدم خادم TURN الخاص بك؛ يُستخدم للألواح المباشرة فقط ويبقى على هذا الجهاز."});
   Object.assign(D.hi, {"aiActions": "AI क्रियाएँ", "aiShort": "AI", "aiTidy": "लिखावट को साफ़ करें", "aiSolve": "चरणों के साथ हल करें", "aiPlot": "ग्राफ़ के रूप में बनाएँ", "aiSettingsMenu": "AI सेटिंग्स…", "plotHome": "शुरुआती दृश्य पर लौटें", "plotEdit": "फलन", "plotExplore": "खोजें", "plotEditNote": "हर पंक्ति में एक, जैसे f(x) = sin(x) या y = x^2 − 1। खोजते समय घूमने के लिए खींचें, और ज़ूम के लिए स्क्रॉल या पिंच करें। निर्देशांक देखने के लिए वक्र पर किसी बिंदु को टैप करें।", "aiTitle": "AI (आपकी अपनी कुंजी)", "aiProvider": "प्रदाता", "aiOther": "अन्य", "aiBaseUrl": "सर्वर का पता (OpenAI-संगत)", "aiKey": "API कुंजी", "aiGetKey": "कुंजी पाएँ ↗", "aiModel": "मॉडल", "aiListModels": "उपलब्ध दिखाएँ", "aiPrivacy": "आपकी कुंजी केवल इसी डिवाइस के इसी ब्राउज़र में रहती है। Whiteboard का कोई सर्वर नहीं है: AI क्रिया उपयोग करने पर आपका ब्राउज़र बोर्ड के चुने हुए हिस्से की तस्वीर सीधे आपके चुने प्रदाता को भेजता है। आपकी कुंजी कभी बोर्ड, फ़ाइलों या शेयर लिंक में नहीं डाली जाती।", "aiCost": "प्रदाता हर उपयोग का शुल्क आपकी कुंजी पर ले सकता है। Gemini का मुफ़्त स्तर है। ग्राफ़ और उत्तर की जाँच आपके डिवाइस पर ही की जाती है।", "aiForget": "कुंजियाँ हटाएँ", "tAiReading": "लिखावट पढ़ी जा रही है…", "tAiNoKey": "पहले सेटिंग्स → AI में API कुंजी जोड़ें", "tAiNothing": "पहले कुछ लिखावट चुनें", "tAiFailed": "AI अनुरोध विफल: {e}", "tAiKeyBad": "प्रदाता ने API कुंजी स्वीकार नहीं की", "tAiQuota": "प्रदाता के अनुसार सीमा पूरी हो गई है। बाद में फिर कोशिश करें", "tAiNetwork": "प्रदाता तक नहीं पहुँच सके", "tAiTidied": "लिखावट साफ़ कर दी गई", "tAiSolved": "हल हो गया", "tAiChecked": "हल हो गया, और उत्तर जाँच में सही है", "tAiCheckFailed": "हल हो गया, पर उत्तर जाँच में सही नहीं निकला: चरण देखें", "tAiPlotted": "ग्राफ़ जोड़ा गया। खोजने के लिए डबल-क्लिक या डबल-टैप करें", "tAiNoFn": "बनाने के लिए x का कोई फलन नहीं मिला", "tAiEmpty": "कोई लिखावट नहीं मिली", "tAiModels": "{n} मॉडल उपलब्ध", "tAiForgot": "API कुंजियाँ हटा दी गईं", "aiCheckFail": "जाँच: यह उत्तर प्रश्न को संतुष्ट नहीं करता", "sBuiltIn": "अंतर्निहित स्टिकर", "sBuiltInNote": "ऐप का हिस्सा: हमेशा यहाँ, आपके कैनवास के रंग के अनुसार।", "sBuiltInNoSave": "अंतर्निहित फ़ोल्डर में स्टिकर सहेजे नहीं जा सकते। कोई दूसरा फ़ोल्डर चुनें।", "bGraphs": "ग्राफ़", "bAxes": "निर्देशांक पद्धतियाँ", "bVenn": "वेन आरेख", "bKarnaugh": "कार्नो मानचित्र", "bVeitch": "वाइच मानचित्र", "bTruth": "सत्य सारणियाँ", "bGraphEmpty": "खाली ग्राफ़", "bGraphOf": "{f} का ग्राफ़", "bAllQuadrants": "चारों चतुर्थांश", "bQuadrant": "चतुर्थांश {q}", "bQuadrants": "चतुर्थांश {q}", "bVennTwo": "दो समुच्चय", "bVennThree": "तीन समुच्चय", "bVennFour": "चार समुच्चय", "bVennTwoU": "सार्वत्रिक समुच्चय में दो समुच्चय", "bVennThreeU": "सार्वत्रिक समुच्चय में तीन समुच्चय", "bVennSubset": "उपसमुच्चय", "bVennDisjoint": "असंयुक्त समुच्चय", "bDisj": "वियोजक", "bConj": "संयोजक", "bTruthVars": "{n} चर", "shareNoteLive": "इस लिंक वाला हर व्यक्ति बोर्ड की एक प्रति पाता है, और जब तक बोर्ड यहाँ खुला है, वह आपके साथ लाइव उस पर बना सकता है। प्रति लिंक के अंदर ही जाती है; लाइव बदलाव सीधे आपके ब्राउज़रों के बीच जाते हैं। कुछ भी कहीं अपलोड या संग्रहीत नहीं होता।", "liveNote": "जब तक यह बोर्ड यहाँ खुला है, दूसरे भी बना सकते हैं, और हर व्यक्ति का लेज़र पॉइंटर उसके अपने रंग में दिखता है (अगर आपने शुरू किया तो लाल आपका है)। सबके बंद करने पर हर किसी के पास अपनी प्रति रहती है।", "liveStop": "रोकें", "livePill": "लाइव", "liveConnected": "लाइव: यहाँ {n} और", "liveConnecting": "जुड़ रहा है…", "liveWaiting": "लाइव: दूसरों के लिंक खोलने की प्रतीक्षा", "liveBlocked": "सीधे नहीं जुड़ सके। दूसरा नेटवर्क आज़माएँ, सेटिंग्स में TURN सर्वर जोड़ें, या लिंक फिर भी एक प्रति खोलेगा।", "liveNoTrackers": "लाइव बोर्ड के मिलन-बिंदुओं तक नहीं पहुँच सके। इंटरनेट कनेक्शन जाँचें।", "shareNoPicsLive": "चित्र और PDF पेज लिंक में नहीं होते; वे लाइव कनेक्शन से दूसरों तक पहुँचते हैं।", "tLiveJoined": "कोई बोर्ड से जुड़ा", "tLiveLeft": "कोई बोर्ड छोड़ गया", "tLiveLeftBoard": "आपने लाइव बोर्ड छोड़ दिया; दूसरों के पास यह बना रहेगा", "tLiveStopped": "लाइव साझा करना रुका। बोर्ड यहीं रहेगा।", "tLiveUnsupported": "यह ब्राउज़र बोर्ड लाइव साझा नहीं कर सकता। लिंक एक प्रति खोलता है।", "tLiveFail": "लाइव बोर्ड शुरू नहीं हो सका", "liveSettings": "लाइव बोर्ड", "turnUrl": "TURN सर्वर (वैकल्पिक)", "turnUser": "TURN उपयोगकर्ता नाम", "turnPass": "TURN पासवर्ड", "turnNote": "केवल उन नेटवर्क पर ज़रूरी जो सीधे कनेक्शन रोकते हैं (कुछ स्कूल, विश्वविद्यालय और मोबाइल नेटवर्क)। अपना TURN सर्वर इस्तेमाल करें; यह केवल लाइव बोर्ड के लिए है और इसी डिवाइस पर रहता है।"});
+
+  /* Live boards: what someone else is moving or editing can't be touched until they let go. */
+  D.en.tLiveBusy = "Someone else is working on this right now";
+  D.hu.tLiveBusy = "Ezen most épp valaki más dolgozik";
+  D.de.tLiveBusy = "Daran arbeitet gerade jemand anderes";
+  D.fr.tLiveBusy = "Quelqu’un d’autre travaille dessus en ce moment";
+  D.it.tLiveBusy = "Qualcun altro ci sta lavorando in questo momento";
+  D.es.tLiveBusy = "Otra persona está trabajando en esto ahora mismo";
+  D.pt.tLiveBusy = "Outra pessoa está mexendo nisso agora";
+  D.ru.tLiveBusy = "Сейчас с этим работает кто-то другой";
+  D.uk.tLiveBusy = "Зараз із цим працює хтось інший";
+  D.tr.tLiveBusy = "Şu anda bunun üzerinde başka biri çalışıyor";
+  D.zh.tLiveBusy = "其他人正在处理此内容";
+  D.ja.tLiveBusy = "ほかの人が今これを操作しています";
+  D.ar.tLiveBusy = "شخص آخر يعمل على هذا الآن";
+  D.hi.tLiveBusy = "इस पर अभी कोई और काम कर रहा है";
 
   /* The best supported language for this device's preferences. */
   WB.systemLang = function () {
@@ -8026,8 +8042,8 @@ body.pipetting #canvas { cursor: crosshair; }
     try {
       rm = await WB.p2p.join(r, {
         ice,
-        onPeer: (id) => { send({ k: 'hello', c: myColor }, id); if (ptr) send({ k: 'ptr', x: ptr.x, y: ptr.y }, id); sendState(id); host.peerJoined(); },
-        onLeave: (id) => { ghosts.delete(id); colors.delete(id); host.pointer(id, null); host.peerLeft(); host.requestFrame(); },
+        onPeer: (id) => { send({ k: 'hello', c: myColor }, id); if (ptr) send({ k: 'ptr', x: ptr.x, y: ptr.y }, id); sendState(id); if (mine.size) send({ k: 'lock', ids: [...mine.keys()] }, id); host.peerJoined(); },
+        onLeave: (id) => { ghosts.delete(id); colors.delete(id); dropLocks(id, true); host.pointer(id, null); host.peerLeft(); host.requestFrame(); },
         onMessage: (id, m) => { if (room === rm) handle(id, m); },
         onStatus: (s) => { if (room === rm) { st = s; host.status(st); } },
       });
@@ -8041,6 +8057,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (room && room.leave) room.leave();
     room = null; code = ''; seeds = null;
     clearTimeout(flushTimer); dirty.clear(); ghosts.clear(); ink = null;
+    locks.clear(); mine.clear(); drags.clear(); typed.clear(); clearTimeout(dragTimer); dragTimer = 0;
   }
   const on = () => !!room;
 
@@ -8142,6 +8159,10 @@ body.pipetting #canvas { cursor: crosshair; }
     else if (m.k === 'ink') gotInk(from, m);
     else if (m.k === 'inkEnd') { const g = ghosts.get(from); if (g) g.end = Date.now(); host.requestFrame(); }
     else if (m.k === 'hello') gotColor(from, m.c);
+    else if (m.k === 'lock' && Array.isArray(m.ids)) gotLock(from, m.ids.slice(0, 100000));
+    else if (m.k === 'unlock') dropLocks(from, false);
+    else if (m.k === 'drag') gotDrag(from, m);
+    else if (m.k === 'typing') gotTyping(from, m);
     else if (m.k === 'ptr') {
       if (m.off) host.pointer(from, null);
       else if (isFinite(m.x) && isFinite(m.y) && Math.abs(m.x) < 1e9 && Math.abs(m.y) < 1e9) host.pointer(from, { x: +m.x, y: +m.y, color: colorOf(from) });
@@ -8248,7 +8269,7 @@ body.pipetting #canvas { cursor: crosshair; }
   /* Called every frame with the line being drawn (or null): sends what is new, ~25 times a second. */
   function streamInk(L) {
     if (!room || !st.peers) { ink = null; return; }
-    if (!L || L.tool !== 'pen') {
+    if (!L || (L.tool !== 'pen' && L.tool !== 'eraser')) {
       if (ink) { send({ k: 'inkEnd', n: ink.seq }); ink = null; }
       return;
     }
@@ -8261,7 +8282,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (from > p.length || (from >= 2 && (p[from - 2] !== ink.lx || p[from - 1] !== ink.ly))) from = 0;   // reshaped (snapped): send it all again
     if (from === p.length && from) return;
     const m = { k: 'ink', n: ink.seq, from, pts: Array.from(p.slice(from), r2) };
-    if (!from) Object.assign(m, { color: L.color, width: L.width, opacity: L.opacity, hl: !!L.hl, dash: L.dash || null, smooth: !!L.smooth });
+    if (!from) Object.assign(m, { tool: L.tool, color: L.color, width: L.width, opacity: L.opacity, hl: !!L.hl, dash: L.dash || null, smooth: !!L.smooth });
     send(m);
     ink.sent = p.length; ink.lx = p[p.length - 2]; ink.ly = p[p.length - 1];
   }
@@ -8269,8 +8290,10 @@ body.pipetting #canvas { cursor: crosshair; }
     if (!Array.isArray(m.pts) || m.pts.length > 200000) return;
     let g = ghosts.get(from);
     if (!m.from) {
-      if (!HEX.test(m.color) || !(m.width > 0 && m.width < 5000)) return;
-      g = { seq: m.n, s: { tool: 'pen', color: m.color.toLowerCase(), width: +m.width, opacity: Math.min(1, Math.max(0.01, +m.opacity || 1)), hl: !!m.hl, dash: WB.DASHES[m.dash] ? m.dash : undefined, smooth: !!m.smooth, points: [] } };
+      if (!(m.width > 0 && m.width < 5000)) return;
+      if (m.tool === 'eraser') g = { seq: m.n, s: { tool: 'eraser', width: +m.width, opacity: Math.min(1, Math.max(0.01, +m.opacity || 1)), smooth: !!m.smooth, points: [] } };
+      else if (!HEX.test(m.color)) return;
+      else g = { seq: m.n, s: { tool: 'pen', color: m.color.toLowerCase(), width: +m.width, opacity: Math.min(1, Math.max(0.01, +m.opacity || 1)), hl: !!m.hl, dash: WB.DASHES[m.dash] ? m.dash : undefined, smooth: !!m.smooth, points: [] } };
       ghosts.set(from, g);
     } else if (!g || g.seq !== m.n || g.s.points.length !== m.from) return;
     for (const v of m.pts) if (!isFinite(v)) return;
@@ -8288,6 +8311,111 @@ body.pipetting #canvas { cursor: crosshair; }
     }
     if (ghosts.size) setTimeout(host.requestFrame, 200);
     return out;
+  }
+
+  /* ---- Holding objects while working on them ----
+     While someone drags, resizes or turns objects, or edits a text, those objects are theirs: the
+     others see them framed in that person's colour and can't select, erase or edit them until they
+     are let go. A move is sent as how far it has gone so far (cheap, ~30 times a second); resizing
+     sends the objects themselves a few times a second, and a text being edited sends what it says.
+     Letting go sends the objects as they ended up, so everyone has exactly the same again. If two
+     people grab the same thing at the same moment, the one with the smaller id keeps it. */
+  const locks = new Map();       // object id -> peer holding it (others)
+  const mine = new Map();        // object id -> object (held by me)
+  const drags = new Map();       // peer -> { dx, dy }: how far their move has been shown here
+  const typed = new Map();       // object id -> { from, text }: a text as it was before someone started editing it
+  let drag = null, dragTimer = 0, dragSent = 0, editTimer = 0;
+  /* Take these objects. False if someone else holds any of them. */
+  function hold(list) {
+    if (!room) return true;
+    for (const s of list) if (s.id && locks.has(s.id)) return false;
+    for (const s of list) mine.set(ensureId(s), s);
+    if (list.length) send({ k: 'lock', ids: list.map((s) => s.id) });
+    return true;
+  }
+  /* Let go of everything I hold, sending it as it is now. */
+  function release() {
+    if (!room || !mine.size) { mine.clear(); return; }
+    clearTimeout(dragTimer); dragTimer = 0; drag = null;
+    clearTimeout(editTimer); editTimer = 0;
+    touch([...mine.values()]);
+    flush();
+    send({ k: 'unlock' });
+    mine.clear();
+  }
+  const heldByOther = (s) => !!(room && s && s.id && locks.has(s.id));
+  function gotLock(from, ids) {
+    let lost = false;
+    for (const id of ids) {
+      if (typeof id !== 'string') continue;
+      if (mine.has(id)) { if (from < me) lost = true; else continue; }
+      locks.set(id, from);
+      const s = objs.get(id);
+      if (s) host.unselect(s);
+    }
+    if (lost) { mine.clear(); clearTimeout(dragTimer); dragTimer = 0; drag = null; host.yieldHold(); }
+    host.remoteChanged(true);
+  }
+  /* Their hold ends. When they left without letting go, what they were doing is undone here. */
+  function dropLocks(from, gone) {
+    for (const [id, p] of [...locks]) if (p === from) locks.delete(id);
+    const d = drags.get(from);
+    drags.delete(from);
+    if (gone && d && (d.dx || d.dy)) host.translate(d.list, -d.dx, -d.dy);
+    for (const [id, t] of [...typed]) {
+      if (t.from !== from) continue;
+      typed.delete(id);
+      const s = objs.get(id);
+      if (gone && s) host.retext(s, { text: t.text });
+    }
+    host.requestFrame();
+  }
+  /* My move so far, in board units. */
+  function moveHeld(dx, dy) {
+    if (!room || !mine.size) return;
+    drag = { dx: Math.round(dx * 100) / 100, dy: Math.round(dy * 100) / 100 };
+    if (dragTimer) return;
+    const go = () => { dragTimer = 0; if (drag) { dragSent = performance.now(); send({ k: 'drag', dx: drag.dx, dy: drag.dy }); } };
+    const wait = 33 - (performance.now() - dragSent);
+    if (wait <= 0) go(); else dragTimer = setTimeout(go, wait);
+  }
+  function gotDrag(from, m) {
+    if (!isFinite(m.dx) || !isFinite(m.dy)) return;
+    const list = [];
+    for (const [id, p] of locks) if (p === from) { const s = objs.get(id); if (s && doc().strokes.includes(s)) list.push(s); }
+    const d = drags.get(from) || { dx: 0, dy: 0, list };
+    d.list = list;
+    host.translate(list, +m.dx - d.dx, +m.dy - d.dy);
+    d.dx = +m.dx; d.dy = +m.dy;
+    drags.set(from, d);
+  }
+  /* Objects I hold changed shape (resizing, turning): send them a few times a second. */
+  function editHeld() {
+    if (!room || !mine.size || editTimer) return;
+    editTimer = setTimeout(() => { editTimer = 0; if (mine.size) touch([...mine.values()]); }, 100);
+  }
+  /* The text I'm editing says this now. */
+  function typing(s, text) {
+    if (!room || !s.id || !mine.has(s.id)) return;
+    clearTimeout(editTimer);
+    editTimer = setTimeout(() => { editTimer = 0; send({ k: 'typing', id: s.id, text: String(text).slice(0, 20000) }); }, 80);
+  }
+  function gotTyping(from, m) {
+    const s = objs.get(m.id);
+    if (!s || s.tool !== 'text' || locks.get(m.id) !== from || typeof m.text !== 'string') return;
+    if (!typed.has(m.id)) typed.set(m.id, { from, text: s.text });
+    host.retext(s, { text: m.text.slice(0, 20000) || ' ' });
+  }
+  /* Objects others hold, with the colour of who holds them (for a frame around them). */
+  function held() {
+    const by = new Map();
+    for (const [id, p] of locks) {
+      const s = objs.get(id);
+      if (!s || !doc().strokes.includes(s)) continue;
+      if (!by.has(p)) by.set(p, { color: colorOf(p), list: [] });
+      by.get(p).list.push(s);
+    }
+    return [...by.values()];
   }
 
   /* ---- Pointer colours ---- */
@@ -8322,6 +8450,7 @@ body.pipetting #canvas { cursor: crosshair; }
   WB.live = {
     init(h) { host = h; },
     start, stop, on, touch, changed, streamInk, inkGhosts, pointer,
+    hold, release, heldByOther, moveHeld, editHeld, typing, held,
     /* My pointer colour on the live board (red until I have one). */
     myColor: () => COLORS[myColor == null ? 0 : myColor],
     colorIndex: () => myColor,
@@ -8549,7 +8678,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (plotActive) drawPlotActive();
     placePlotBar();
     if (live && !live.hl) paintLive();
-    if (WB.live.on()) paintGhosts();
+    if (WB.live.on()) { paintGhosts(); drawHeld(); }
     if (laser.trail.length) drawLaser(now);
     if (pointers.size) drawPointers(now);
     syncView();
@@ -8631,6 +8760,25 @@ body.pipetting #canvas { cursor: crosshair; }
     if (!gs.length) return;
     worldTransform(ctx);
     for (const g of gs) { const p = new Path2D(); WB.trace(g, p); WB.paint(ctx, g, p, true); }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  /* What others are working on (moving, resizing, editing): a dashed frame in their colour. */
+  function drawHeld() {
+    const list = WB.live.held();
+    if (!list.length) return;
+    const z = view.zoom, pad = 6 / z;
+    worldTransform(ctx);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    ctx.lineWidth = 2 / z; ctx.setLineDash([7 / z, 5 / z]);
+    for (const h of list) {
+      const b = WB.contentBounds(h.list);
+      if (!b) continue;
+      ctx.strokeStyle = h.color;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(b.x - pad, b.y - pad, b.w + 2 * pad, b.h + 2 * pad, 6 / z); else ctx.rect(b.x - pad, b.y - pad, b.w + 2 * pad, b.h + 2 * pad);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
   function paintLive() {
@@ -8990,7 +9138,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const pts = WB.resampleFlat(E.points, Math.max(2, Math.min(400, Math.ceil(len / Math.max(1e-6, E.width / 3)) + 1)));
     const edits = [], gone = [];
     doc.strokes.forEach((o, i) => {
-      if (o.tool === 'eraser') return;
+      if (o.tool === 'eraser' || WB.live.heldByOther(o)) return;
       const b = WB.boundsOf(o);
       if (b.x1 < eb.x0 || b.x0 > eb.x1 || b.y1 < eb.y0 || b.y0 > eb.y1) return;
       let touch = false;
@@ -9050,7 +9198,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const tol = Math.max(s.width, 4 / view.zoom), victims = [];
     for (let i = 0; i < doc.strokes.length; i++) {
       const o = doc.strokes[i];
-      if (o.tool === 'eraser') continue;
+      if (o.tool === 'eraser' || WB.live.heldByOther(o)) continue;
       let hits = 0;
       for (let k = 0; k < R.length; k += 2) if (WB.hit(o, R[k], R[k + 1], tol)) hits++;
       if (hits < 3) continue;
@@ -9122,7 +9270,7 @@ body.pipetting #canvas { cursor: crosshair; }
   function objectAt(x, y, tol) {
     for (let i = doc.strokes.length - 1; i >= 0; i--) {
       const s = doc.strokes[i];
-      if ((s.tool === 'pen' || s.tool === 'text' || s.tool === 'fill') && WB.hit(s, x, y, tol)) return s;
+      if ((s.tool === 'pen' || s.tool === 'text' || s.tool === 'fill') && !WB.live.heldByOther(s) && WB.hit(s, x, y, tol)) return s;
     }
     return null;
   }
@@ -9206,7 +9354,7 @@ body.pipetting #canvas { cursor: crosshair; }
     let hit = null, under = null;
     for (let i = doc.strokes.length - 1; i >= 0 && !hit; i--) {
       const s = doc.strokes[i];
-      if (!WB.hit(s, x, y, 6 / z)) continue;
+      if (WB.live.heldByOther(s) || !WB.hit(s, x, y, 6 / z)) continue;   // (someone else is working on it)
       if (s.tool === 'fill' && s.under) under = under || s; else hit = s;
     }
     hit = hit || under;
@@ -9217,7 +9365,7 @@ body.pipetting #canvas { cursor: crosshair; }
   }
   function selectLasso(poly, add) {
     if (!add) selection.clear();
-    if (poly.length >= 6) for (const s of doc.strokes) if (WB.inLasso(s, poly)) selection.add(s);
+    if (poly.length >= 6) for (const s of doc.strokes) if (!WB.live.heldByOther(s) && WB.inLasso(s, poly)) selection.add(s);
     selectionChanged();
   }
   function clearSelection() { if (selection.size) { selection.clear(); selectionChanged(); } }
@@ -9242,11 +9390,12 @@ body.pipetting #canvas { cursor: crosshair; }
   function cancelSelDrag() {
     const d = selDrag;
     selDrag = null;
-    if (d && d.moved) translate(selection, -d.dx, -d.dy);
+    if (d && d.moved) { translate(selection, -d.dx, -d.dy); WB.live.release(); }
     requestFrame();
   }
   function selectionChanged() {
     for (const s of [...selection]) if (outer(s)) for (const m of members(s)) selection.add(m);   // never part of a group
+    for (const s of [...selection]) if (WB.live.heldByOther(s)) selection.delete(s);
     const n = units(selection).length;
     $('#sel-bar').classList.toggle('on', n > 0);
     if (n) $('#sel-count').textContent = tr('selected', { n });
@@ -9407,6 +9556,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const F = selFrame(), z = view.zoom;
     const px = (e.clientX - view.x) / z, py = (e.clientY - view.y) / z;
     const items = [...selection].filter((s) => doc.strokes.includes(s));
+    if (!WB.live.hold(items)) return toast(tr('tLiveBusy'));
     mode = 'xform';
     xf = { id: e.pointerId, k, items, starts: items.map(geometry), start: F, cur: { ...F },
       extra: new Set(), last: { x: e.clientX, y: e.clientY }, keys: { alt: e.altKey, shift: e.shiftKey } };
@@ -9452,6 +9602,7 @@ body.pipetting #canvas { cursor: crosshair; }
     }
     d.cur = F;
     d.items.forEach((s, i) => mapObject(s, d.starts[i], st, F));
+    WB.live.editHeld();
     invalidate();
   }
   for (const type of ['keydown', 'keyup']) {
@@ -9465,9 +9616,10 @@ body.pipetting #canvas { cursor: crosshair; }
   function endXform(cancel) {
     const d = xf;
     xf = null; mode = null; canvas.style.cursor = '';
-    if (cancel) { d.items.forEach((s, i) => retext(s, d.starts[i])); invalidate(); showStyleBar(); return; }
+    if (cancel) { d.items.forEach((s, i) => retext(s, d.starts[i])); WB.live.release(); invalidate(); showStyleBar(); return; }
     const list = d.items.map((s, i) => ({ type: 'edit', s, before: d.starts[i], after: geometry(s) }));
     if (d.cur.x !== d.start.x || d.cur.y !== d.start.y || d.cur.w !== d.start.w || d.cur.h !== d.start.h || d.cur.rot !== d.start.rot) record({ type: 'batch', list });
+    WB.live.release();
     showStyleBar();
   }
 
@@ -9693,6 +9845,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (edit) commitText();
     const z = view.zoom, wx = (cx - view.x) / z, wy = (cy - view.y) / z, T = tools.text;
     const s = textUnder(cx, cy);
+    if (s && !WB.live.hold([s])) return toast(tr('tLiveBusy'));   // someone else is editing it
     clearSelection(); inkDrop();
     edit = s ? { s, x: s.x, y: s.y, rot: s.rot || 0, font: s.font, size: s.size, color: s.color }
       : { s: null, x: wx, y: wy - (T.size / z) * WB.LINE / 2, rot: 0, font: T.font, size: T.size / z, color: T.color };
@@ -9746,6 +9899,7 @@ body.pipetting #canvas { cursor: crosshair; }
       doc.strokes.push(s);
       record({ type: 'add', stroke: s });
     }
+    if (e.s) WB.live.release();
     invalidate(); updateChrome(); selectionChanged();
   }
   function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; delete s._fb; delete s._path; delete s._opath; }
@@ -9766,6 +9920,7 @@ body.pipetting #canvas { cursor: crosshair; }
 
   function initText() {
     ta.addEventListener('input', layoutEdit);
+    ta.addEventListener('input', () => { if (edit && edit.s) WB.live.typing(edit.s, ta.value); });
     // Using the bar must not take the caret out of the text.
     for (const el of [textBar, $('#font-menu')]) el.addEventListener('pointerdown', (e) => e.preventDefault());
     $('#tb-smaller').addEventListener('click', () => stepTextSize(-1));
@@ -10233,9 +10388,13 @@ body.pipetting #canvas { cursor: crosshair; }
       if (d.move) {                             // dragging the selection: it follows the pointer 1:1
         if (!d.moved && hyp(e.clientX - d.x, e.clientY - d.y) < 4) return;
         const dx = (e.clientX - d.lx) / z, dy = (e.clientY - d.ly) / z;
-        if (!d.moved) hideStyleBar();
+        if (!d.moved) {
+          if (!WB.live.hold(selItems())) { selDrag = null; mode = null; toast(tr('tLiveBusy')); return; }
+          hideStyleBar();
+        }
         d.moved = true; d.lx = e.clientX; d.ly = e.clientY; d.dx += dx; d.dy += dy;
         translate(selection, dx, dy);
+        WB.live.moveHeld(d.dx, d.dy);
         return;
       }
       if (!d.lasso && hyp(e.clientX - d.x, e.clientY - d.y) > 5) d.lasso = [(d.x - view.x) / z, (d.y - view.y) / z];   // a drag, not a click
@@ -10264,7 +10423,7 @@ body.pipetting #canvas { cursor: crosshair; }
       mode = null;
       if (cancel) return cancelSelDrag();
       selDrag = null;
-      if (d.moved) { record({ type: 'move', items: [...selection], dx: d.dx, dy: d.dy }); showStyleBar(); }
+      if (d.moved) { record({ type: 'move', items: [...selection], dx: d.dx, dy: d.dy }); WB.live.release(); showStyleBar(); }
       else if (d.lasso) selectLasso(d.lasso, d.add);
       else { plotPointTap(d.x, d.y); selectAt(d.x, d.y, d.add); }
     } else if (mode === 'text' && textDown && e.pointerId === textDown.id) {
@@ -10996,6 +11155,16 @@ body.pipetting #canvas { cursor: crosshair; }
     metaChanged() { docRev++; unsaved = true; titleEl.value = shownTitle(); updateChrome(); autosave(); invalidate(); },
     peerJoined() { toast(tr('tLiveJoined')); refreshLive(); },
     pointer: remotePointer,
+    translate: (list, dx, dy) => { if (list.length && (dx || dy)) translate(list, dx, dy); },
+    retext: (s, props) => { retext(s, props); invalidate(); },
+    /* Someone else got hold of what I was working on at the same moment: they keep it. */
+    yieldHold() {
+      if (selDrag && selDrag.moved) { const d = selDrag; selDrag = null; mode = null; translate(selection, -d.dx, -d.dy); }
+      if (xf) { const d = xf; xf = null; mode = null; d.items.forEach((s, i) => retext(s, d.starts[i])); }
+      if (edit && edit.s) { ta.value = edit.s.text; commitText(); }
+      clearSelection(); invalidate();
+      toast(tr('tLiveBusy'));
+    },
     colorChanged(c) { savedColor = c; autosave(); if (laser.el.classList.contains('on')) laser.el.style.setProperty('--lc', WB.live.myColor()); },
     peerLeft() { toast(tr('tLiveLeft')); refreshLive(); },
     status(st) {

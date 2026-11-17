@@ -71,8 +71,8 @@
     try {
       rm = await WB.p2p.join(r, {
         ice,
-        onPeer: (id) => { send({ k: 'hello', c: myColor }, id); if (ptr) send({ k: 'ptr', x: ptr.x, y: ptr.y }, id); sendState(id); host.peerJoined(); },
-        onLeave: (id) => { ghosts.delete(id); colors.delete(id); host.pointer(id, null); host.peerLeft(); host.requestFrame(); },
+        onPeer: (id) => { send({ k: 'hello', c: myColor }, id); if (ptr) send({ k: 'ptr', x: ptr.x, y: ptr.y }, id); sendState(id); if (mine.size) send({ k: 'lock', ids: [...mine.keys()] }, id); host.peerJoined(); },
+        onLeave: (id) => { ghosts.delete(id); colors.delete(id); dropLocks(id, true); host.pointer(id, null); host.peerLeft(); host.requestFrame(); },
         onMessage: (id, m) => { if (room === rm) handle(id, m); },
         onStatus: (s) => { if (room === rm) { st = s; host.status(st); } },
       });
@@ -86,6 +86,7 @@
     if (room && room.leave) room.leave();
     room = null; code = ''; seeds = null;
     clearTimeout(flushTimer); dirty.clear(); ghosts.clear(); ink = null;
+    locks.clear(); mine.clear(); drags.clear(); typed.clear(); clearTimeout(dragTimer); dragTimer = 0;
   }
   const on = () => !!room;
 
@@ -187,6 +188,10 @@
     else if (m.k === 'ink') gotInk(from, m);
     else if (m.k === 'inkEnd') { const g = ghosts.get(from); if (g) g.end = Date.now(); host.requestFrame(); }
     else if (m.k === 'hello') gotColor(from, m.c);
+    else if (m.k === 'lock' && Array.isArray(m.ids)) gotLock(from, m.ids.slice(0, 100000));
+    else if (m.k === 'unlock') dropLocks(from, false);
+    else if (m.k === 'drag') gotDrag(from, m);
+    else if (m.k === 'typing') gotTyping(from, m);
     else if (m.k === 'ptr') {
       if (m.off) host.pointer(from, null);
       else if (isFinite(m.x) && isFinite(m.y) && Math.abs(m.x) < 1e9 && Math.abs(m.y) < 1e9) host.pointer(from, { x: +m.x, y: +m.y, color: colorOf(from) });
@@ -293,7 +298,7 @@
   /* Called every frame with the line being drawn (or null): sends what is new, ~25 times a second. */
   function streamInk(L) {
     if (!room || !st.peers) { ink = null; return; }
-    if (!L || L.tool !== 'pen') {
+    if (!L || (L.tool !== 'pen' && L.tool !== 'eraser')) {
       if (ink) { send({ k: 'inkEnd', n: ink.seq }); ink = null; }
       return;
     }
@@ -306,7 +311,7 @@
     if (from > p.length || (from >= 2 && (p[from - 2] !== ink.lx || p[from - 1] !== ink.ly))) from = 0;   // reshaped (snapped): send it all again
     if (from === p.length && from) return;
     const m = { k: 'ink', n: ink.seq, from, pts: Array.from(p.slice(from), r2) };
-    if (!from) Object.assign(m, { color: L.color, width: L.width, opacity: L.opacity, hl: !!L.hl, dash: L.dash || null, smooth: !!L.smooth });
+    if (!from) Object.assign(m, { tool: L.tool, color: L.color, width: L.width, opacity: L.opacity, hl: !!L.hl, dash: L.dash || null, smooth: !!L.smooth });
     send(m);
     ink.sent = p.length; ink.lx = p[p.length - 2]; ink.ly = p[p.length - 1];
   }
@@ -314,8 +319,10 @@
     if (!Array.isArray(m.pts) || m.pts.length > 200000) return;
     let g = ghosts.get(from);
     if (!m.from) {
-      if (!HEX.test(m.color) || !(m.width > 0 && m.width < 5000)) return;
-      g = { seq: m.n, s: { tool: 'pen', color: m.color.toLowerCase(), width: +m.width, opacity: Math.min(1, Math.max(0.01, +m.opacity || 1)), hl: !!m.hl, dash: WB.DASHES[m.dash] ? m.dash : undefined, smooth: !!m.smooth, points: [] } };
+      if (!(m.width > 0 && m.width < 5000)) return;
+      if (m.tool === 'eraser') g = { seq: m.n, s: { tool: 'eraser', width: +m.width, opacity: Math.min(1, Math.max(0.01, +m.opacity || 1)), smooth: !!m.smooth, points: [] } };
+      else if (!HEX.test(m.color)) return;
+      else g = { seq: m.n, s: { tool: 'pen', color: m.color.toLowerCase(), width: +m.width, opacity: Math.min(1, Math.max(0.01, +m.opacity || 1)), hl: !!m.hl, dash: WB.DASHES[m.dash] ? m.dash : undefined, smooth: !!m.smooth, points: [] } };
       ghosts.set(from, g);
     } else if (!g || g.seq !== m.n || g.s.points.length !== m.from) return;
     for (const v of m.pts) if (!isFinite(v)) return;
@@ -333,6 +340,111 @@
     }
     if (ghosts.size) setTimeout(host.requestFrame, 200);
     return out;
+  }
+
+  /* ---- Holding objects while working on them ----
+     While someone drags, resizes or turns objects, or edits a text, those objects are theirs: the
+     others see them framed in that person's colour and can't select, erase or edit them until they
+     are let go. A move is sent as how far it has gone so far (cheap, ~30 times a second); resizing
+     sends the objects themselves a few times a second, and a text being edited sends what it says.
+     Letting go sends the objects as they ended up, so everyone has exactly the same again. If two
+     people grab the same thing at the same moment, the one with the smaller id keeps it. */
+  const locks = new Map();       // object id -> peer holding it (others)
+  const mine = new Map();        // object id -> object (held by me)
+  const drags = new Map();       // peer -> { dx, dy }: how far their move has been shown here
+  const typed = new Map();       // object id -> { from, text }: a text as it was before someone started editing it
+  let drag = null, dragTimer = 0, dragSent = 0, editTimer = 0;
+  /* Take these objects. False if someone else holds any of them. */
+  function hold(list) {
+    if (!room) return true;
+    for (const s of list) if (s.id && locks.has(s.id)) return false;
+    for (const s of list) mine.set(ensureId(s), s);
+    if (list.length) send({ k: 'lock', ids: list.map((s) => s.id) });
+    return true;
+  }
+  /* Let go of everything I hold, sending it as it is now. */
+  function release() {
+    if (!room || !mine.size) { mine.clear(); return; }
+    clearTimeout(dragTimer); dragTimer = 0; drag = null;
+    clearTimeout(editTimer); editTimer = 0;
+    touch([...mine.values()]);
+    flush();
+    send({ k: 'unlock' });
+    mine.clear();
+  }
+  const heldByOther = (s) => !!(room && s && s.id && locks.has(s.id));
+  function gotLock(from, ids) {
+    let lost = false;
+    for (const id of ids) {
+      if (typeof id !== 'string') continue;
+      if (mine.has(id)) { if (from < me) lost = true; else continue; }
+      locks.set(id, from);
+      const s = objs.get(id);
+      if (s) host.unselect(s);
+    }
+    if (lost) { mine.clear(); clearTimeout(dragTimer); dragTimer = 0; drag = null; host.yieldHold(); }
+    host.remoteChanged(true);
+  }
+  /* Their hold ends. When they left without letting go, what they were doing is undone here. */
+  function dropLocks(from, gone) {
+    for (const [id, p] of [...locks]) if (p === from) locks.delete(id);
+    const d = drags.get(from);
+    drags.delete(from);
+    if (gone && d && (d.dx || d.dy)) host.translate(d.list, -d.dx, -d.dy);
+    for (const [id, t] of [...typed]) {
+      if (t.from !== from) continue;
+      typed.delete(id);
+      const s = objs.get(id);
+      if (gone && s) host.retext(s, { text: t.text });
+    }
+    host.requestFrame();
+  }
+  /* My move so far, in board units. */
+  function moveHeld(dx, dy) {
+    if (!room || !mine.size) return;
+    drag = { dx: Math.round(dx * 100) / 100, dy: Math.round(dy * 100) / 100 };
+    if (dragTimer) return;
+    const go = () => { dragTimer = 0; if (drag) { dragSent = performance.now(); send({ k: 'drag', dx: drag.dx, dy: drag.dy }); } };
+    const wait = 33 - (performance.now() - dragSent);
+    if (wait <= 0) go(); else dragTimer = setTimeout(go, wait);
+  }
+  function gotDrag(from, m) {
+    if (!isFinite(m.dx) || !isFinite(m.dy)) return;
+    const list = [];
+    for (const [id, p] of locks) if (p === from) { const s = objs.get(id); if (s && doc().strokes.includes(s)) list.push(s); }
+    const d = drags.get(from) || { dx: 0, dy: 0, list };
+    d.list = list;
+    host.translate(list, +m.dx - d.dx, +m.dy - d.dy);
+    d.dx = +m.dx; d.dy = +m.dy;
+    drags.set(from, d);
+  }
+  /* Objects I hold changed shape (resizing, turning): send them a few times a second. */
+  function editHeld() {
+    if (!room || !mine.size || editTimer) return;
+    editTimer = setTimeout(() => { editTimer = 0; if (mine.size) touch([...mine.values()]); }, 100);
+  }
+  /* The text I'm editing says this now. */
+  function typing(s, text) {
+    if (!room || !s.id || !mine.has(s.id)) return;
+    clearTimeout(editTimer);
+    editTimer = setTimeout(() => { editTimer = 0; send({ k: 'typing', id: s.id, text: String(text).slice(0, 20000) }); }, 80);
+  }
+  function gotTyping(from, m) {
+    const s = objs.get(m.id);
+    if (!s || s.tool !== 'text' || locks.get(m.id) !== from || typeof m.text !== 'string') return;
+    if (!typed.has(m.id)) typed.set(m.id, { from, text: s.text });
+    host.retext(s, { text: m.text.slice(0, 20000) || ' ' });
+  }
+  /* Objects others hold, with the colour of who holds them (for a frame around them). */
+  function held() {
+    const by = new Map();
+    for (const [id, p] of locks) {
+      const s = objs.get(id);
+      if (!s || !doc().strokes.includes(s)) continue;
+      if (!by.has(p)) by.set(p, { color: colorOf(p), list: [] });
+      by.get(p).list.push(s);
+    }
+    return [...by.values()];
   }
 
   /* ---- Pointer colours ---- */
@@ -367,6 +479,7 @@
   WB.live = {
     init(h) { host = h; },
     start, stop, on, touch, changed, streamInk, inkGhosts, pointer,
+    hold, release, heldByOther, moveHeld, editHeld, typing, held,
     /* My pointer colour on the live board (red until I have one). */
     myColor: () => COLORS[myColor == null ? 0 : myColor],
     colorIndex: () => myColor,
