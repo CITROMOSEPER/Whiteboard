@@ -2584,11 +2584,12 @@
      The board travels in the link's fragment (after #), which browsers never send to a server:
      GitHub Pages never sees it. See js/share.js for the encoding. */
   let shareLink = '';
+  const shareSite = () => (location.protocol.startsWith('http') ? location.origin + location.pathname : 'https://citromoseper.github.io/Whiteboard/');
   async function openShare() {
     commitPending();
     let r;
     try { r = await WB.share.encode(doc); } catch (e) { return report(tr('tShareFail'), 'making the link', e); }
-    const site = location.protocol.startsWith('http') ? location.origin + location.pathname : 'https://citromoseper.github.io/Whiteboard/';
+    const site = shareSite();
     // Sharing makes the board live (when the browser can): the same link both carries a copy of
     // the board and lets whoever opens it draw on this one with you while it is open here.
     if (WB.p2p.supported && !WB.live.on()) await startLive(WB.p2p.newRoom(), { seeded: false, color: 0 });   // the one who starts it points in red
@@ -2678,6 +2679,15 @@
     else text = tr('liveWaiting');
     $('#live-state').textContent = text;
     pill.querySelector('span').textContent = st.peers ? String(st.peers + 1) : tr('livePill');
+    const room = WB.live.room();
+    if ($('#live-code').textContent !== room) {
+      // For phones: the board's address with only the room in it (a whole board doesn't fit in a QR code).
+      const url = shareSite() + '#r=' + room;
+      $('#live-code').textContent = room;
+      try { $('#live-qr').innerHTML = WB.qrSvg(url, 3); } catch (e) { $('#live-qr').textContent = ''; }
+      $('#live-qr').title = url;
+    }
+    $('#live-qr-note').textContent = tr('liveQrNote', { m: tr('mOpenLink').replace(/…$/, '') });
     pill.classList.toggle('alone', !st.peers);
     $('#live-box').classList.toggle('alone', !st.peers);
     pill.title = text;
@@ -2714,7 +2724,7 @@
     const i = v.indexOf('#');
     const q = {};
     for (const part of (i >= 0 ? v.slice(i + 1) : v).split('&')) { const k = part.indexOf('='); if (k > 0) q[part.slice(0, k)] = part.slice(k + 1); }
-    const code = /^[A-Za-z0-9_-]{8,}$/.test(q.b || '') ? q.b : null, room = /^[A-Za-z0-9_-]{8,64}$/.test(q.r || '') ? q.r : null;
+    const code = /^[A-Za-z0-9_-]{8,}$/.test(q.b || '') ? q.b : null, room = q.r ? WB.p2p.roomOf(decodeURIComponent(q.r)) : null;
     return code || room ? { code, room } : null;
   }
   /* A link with only the room (the address of a live board, after a reload or copied from the
@@ -2744,7 +2754,9 @@
   /* "Open share link…": for when there's no address bar to paste into (the installed app). */
   function openLink() {
     let v = $('#open-link-input').value.trim();
-    if (v && !v.includes('#') && !v.includes('=')) v = 'b=' + v;          // just the code
+    const typed = !v.includes('#') && !v.includes('=') && v.length <= 12 && WB.p2p.roomOf(v);   // a live board's code, typed in
+    if (typed) { closeSheets(); return joinRoom(typed); }
+    if (v && !v.includes('#') && !v.includes('=')) v = 'b=' + v;          // just the board's code
     const q = linkParts(v);
     if (!q) return toast(tr('tLinkBad'), null, null, 5000);
     closeSheets();

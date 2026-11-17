@@ -133,6 +133,13 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
 .live-pill.alone i, #live-box.alone .live-dot { background: #ff9f0a; box-shadow: 0 0 0 3px rgba(255, 159, 10, 0.22); }
 .live-dot { display: inline-block; margin-right: 8px; vertical-align: 1px; }
 #live-state { font-weight: 600; }
+/* Joining from a phone: the QR code and the room code beside it. */
+.live-join { display: flex; align-items: center; gap: 16px; padding: 12px 14px 14px; border-top: 0.5px solid var(--hairline); }
+.live-qr { flex: none; width: 132px; height: 132px; border-radius: 10px; overflow: hidden; background: #fff; }
+.live-qr svg { display: block; width: 100%; height: 100%; }
+.live-join-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+#live-code { font: 700 1.6rem/1.1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: 0.08em; user-select: all; }
+@media (max-width: 420px) { .live-join { flex-direction: column; align-items: flex-start; } }
 #doc-title:focus { background: var(--fill); outline: 2px solid var(--accent); outline-offset: 0; }
 
 /* ---------- Buttons ---------- */

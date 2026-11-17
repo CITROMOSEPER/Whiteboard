@@ -143,6 +143,13 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
 .live-pill.alone i, #live-box.alone .live-dot { background: #ff9f0a; box-shadow: 0 0 0 3px rgba(255, 159, 10, 0.22); }
 .live-dot { display: inline-block; margin-right: 8px; vertical-align: 1px; }
 #live-state { font-weight: 600; }
+/* Joining from a phone: the QR code and the room code beside it. */
+.live-join { display: flex; align-items: center; gap: 16px; padding: 12px 14px 14px; border-top: 0.5px solid var(--hairline); }
+.live-qr { flex: none; width: 132px; height: 132px; border-radius: 10px; overflow: hidden; background: #fff; }
+.live-qr svg { display: block; width: 100%; height: 100%; }
+.live-join-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+#live-code { font: 700 1.6rem/1.1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: 0.08em; user-select: all; }
+@media (max-width: 420px) { .live-join { flex-direction: column; align-items: flex-start; } }
 #doc-title:focus { background: var(--fill); outline: 2px solid var(--accent); outline-offset: 0; }
 
 /* ---------- Buttons ---------- */
@@ -1036,7 +1043,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.17.04.</p>
+      <p id="app-version">version: 2026.11.17.05.</p>
       <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
@@ -1153,6 +1160,13 @@ body.pipetting #canvas { cursor: crosshair; }
         <div><span class="live-dot"></span><span id="live-state"></span><p class="note" data-i18n="liveNote"></p></div>
         <button class="pill-btn quiet" id="live-stop" data-i18n="liveStop"></button>
       </div>
+      <div class="live-join">
+        <div class="live-qr" id="live-qr" role="img" aria-label="QR"></div>
+        <div class="live-join-text">
+          <output id="live-code"></output>
+          <p class="note" id="live-qr-note"></p>
+        </div>
+      </div>
     </div>
     <h3 data-i18n="shareLinkLabel"></h3>
     <div class="group">
@@ -1174,10 +1188,10 @@ body.pipetting #canvas { cursor: crosshair; }
       <h2 id="open-link-title" data-i18n="openLinkTitle"></h2>
       <button class="pill-btn quiet" data-close data-i18n="cancel"></button>
     </div>
-    <p class="note" data-i18n="openLinkNote"></p>
+    <p class="note" data-i18n="openLinkNoteLive"></p>
     <h3 data-i18n="shareLinkLabel"></h3>
     <div class="group">
-      <input id="open-link-input" type="url" spellcheck="false" autocomplete="off" autocapitalize="off" inputmode="url" data-i18n-label="shareLinkLabel" placeholder="https://…/#b=…">
+      <input id="open-link-input" type="url" spellcheck="false" autocomplete="off" autocapitalize="off" inputmode="url" data-i18n-label="shareLinkLabel" placeholder="https://…  ·  K7QM-4XHC">
     </div>
     <button class="primary" id="open-link-go" data-i18n="openLinkGo"></button>
   </div>
@@ -2466,6 +2480,22 @@ body.pipetting #canvas { cursor: crosshair; }
   D.ja.tLiveBusy = "ほかの人が今これを操作しています";
   D.ar.tLiveBusy = "شخص آخر يعمل على هذا الآن";
   D.hi.tLiveBusy = "इस पर अभी कोई और काम कर रहा है";
+
+  /* Joining a live board from a phone (QR code) or by typing its code. */
+  D.en.liveQrNote = "Scan with a phone camera to join, or type this code into “{m}” on another device."; D.en.openLinkNoteLive = "Paste a link someone shared with you, or type the code of a live board (like K7QM-4XHC) to join it.";
+  D.hu.liveQrNote = "Olvasd be telefonnal a csatlakozáshoz, vagy egy másik eszközön írd be ezt a kódot ide: „{m}”."; D.hu.openLinkNoteLive = "Illeszd be a linket, amit megosztottak veled, vagy írd be egy élő tábla kódját (pl. K7QM-4XHC) a csatlakozáshoz.";
+  D.de.liveQrNote = "Zum Beitreten mit der Handykamera scannen oder diesen Code auf einem anderen Gerät unter „{m}“ eingeben."; D.de.openLinkNoteLive = "Füge einen Link ein, den jemand mit dir geteilt hat, oder gib den Code einer Live-Tafel (z. B. K7QM-4XHC) ein, um beizutreten.";
+  D.fr.liveQrNote = "Scannez avec l’appareil photo d’un téléphone pour rejoindre, ou saisissez ce code dans « {m} » sur un autre appareil."; D.fr.openLinkNoteLive = "Collez un lien qu’on vous a partagé, ou saisissez le code d’un tableau en direct (comme K7QM-4XHC) pour le rejoindre.";
+  D.it.liveQrNote = "Inquadra con la fotocamera del telefono per unirti, oppure inserisci questo codice in “{m}” su un altro dispositivo."; D.it.openLinkNoteLive = "Incolla un link che ti hanno condiviso, oppure inserisci il codice di una lavagna live (come K7QM-4XHC) per unirti.";
+  D.es.liveQrNote = "Escanéalo con la cámara del móvil para unirte, o escribe este código en «{m}» en otro dispositivo."; D.es.openLinkNoteLive = "Pega un enlace que te hayan compartido, o escribe el código de una pizarra en directo (como K7QM-4XHC) para unirte.";
+  D.pt.liveQrNote = "Escaneie com a câmera do celular para entrar, ou digite este código em “{m}” em outro dispositivo."; D.pt.openLinkNoteLive = "Cole um link que compartilharam com você, ou digite o código de um quadro ao vivo (como K7QM-4XHC) para entrar.";
+  D.ru.liveQrNote = "Отсканируйте камерой телефона, чтобы присоединиться, или введите этот код в «{m}» на другом устройстве."; D.ru.openLinkNoteLive = "Вставьте ссылку, которой с вами поделились, или введите код совместной доски (например, K7QM-4XHC), чтобы присоединиться.";
+  D.uk.liveQrNote = "Відскануйте камерою телефона, щоб приєднатися, або введіть цей код у «{m}» на іншому пристрої."; D.uk.openLinkNoteLive = "Вставте посилання, яким із вами поділилися, або введіть код спільної дошки (наприклад, K7QM-4XHC), щоб приєднатися.";
+  D.tr.liveQrNote = "Katılmak için telefon kamerasıyla tarayın ya da bu kodu başka bir cihazda “{m}” içine yazın."; D.tr.openLinkNoteLive = "Sizinle paylaşılan bir bağlantıyı yapıştırın ya da katılmak için canlı bir tahtanın kodunu (ör. K7QM-4XHC) yazın.";
+  D.zh.liveQrNote = "用手机相机扫码加入，或在其他设备的“{m}”中输入此代码。"; D.zh.openLinkNoteLive = "粘贴别人分享给你的链接，或输入实时白板的代码（如 K7QM-4XHC）加入。";
+  D.ja.liveQrNote = "スマートフォンのカメラで読み取って参加するか、別のデバイスの「{m}」でこのコードを入力してください。"; D.ja.openLinkNoteLive = "共有されたリンクを貼り付けるか、ライブボードのコード（例: K7QM-4XHC）を入力して参加します。";
+  D.ar.liveQrNote = "امسح الرمز بكاميرا الهاتف للانضمام، أو اكتب هذا الرمز في «{m}» على جهاز آخر."; D.ar.openLinkNoteLive = "الصق رابطًا شاركه أحدهم معك، أو اكتب رمز لوح مباشر (مثل K7QM-4XHC) للانضمام إليه.";
+  D.hi.liveQrNote = "जुड़ने के लिए फ़ोन के कैमरे से स्कैन करें, या किसी दूसरे डिवाइस पर “{m}” में यह कोड डालें।"; D.hi.openLinkNoteLive = "किसी का साझा किया लिंक चिपकाएँ, या जुड़ने के लिए किसी लाइव बोर्ड का कोड (जैसे K7QM-4XHC) लिखें।";
 
   /* The best supported language for this device's preferences. */
   WB.systemLang = function () {
@@ -7712,6 +7742,173 @@ body.pipetting #canvas { cursor: crosshair; }
 
 </script>
 <script>
+/* Whiteboard: QR codes, for joining a live board from a phone (the share window shows one).
+
+   A small encoder for short texts: byte mode, error correction level M (about 15 % of the code
+   can be damaged or covered), versions 1-6 (up to 106 bytes, plenty for an address with a room
+   code), and the mask that makes the code easiest to read, chosen by the standard's penalty rules.
+
+   WB.qr(text) -> { size, dark(x, y) }        (no quiet zone; leave 4 modules of margin around it)
+   WB.qrSvg(text, scale) -> '<svg …>'         (black on white, with the quiet zone) */
+(function () {
+  const WB = window.WB;
+  // Per version (index 1-6), level M: [error correction codewords per block, [data codewords of each block]].
+  const BLOCKS = [null, [10, [16]], [16, [28]], [26, [44]], [18, [32, 32]], [24, [43, 43]], [16, [27, 27, 27, 27]]];
+  const ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34]];
+
+  // ---- Reed-Solomon over GF(256), polynomial 0x11D ----
+  function mul(x, y) {
+    let z = 0;
+    for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11d); z ^= ((y >>> i) & 1) * x; }
+    return z;
+  }
+  function divisor(degree) {
+    const r = new Array(degree).fill(0);
+    r[degree - 1] = 1;
+    let root = 1;
+    for (let i = 0; i < degree; i++) {
+      for (let j = 0; j < degree; j++) { r[j] = mul(r[j], root); if (j + 1 < degree) r[j] ^= r[j + 1]; }
+      root = mul(root, 2);
+    }
+    return r;
+  }
+  function remainder(data, div) {
+    const r = new Array(div.length).fill(0);
+    for (const b of data) {
+      const f = b ^ r.shift();
+      r.push(0);
+      div.forEach((c, i) => { r[i] ^= mul(c, f); });
+    }
+    return r;
+  }
+
+  function encode(text, mask) {
+    const bytes = Array.from(new TextEncoder().encode(text));
+    let version = 1;
+    while (version <= 6 && 4 + 8 + bytes.length * 8 > BLOCKS[version][1].reduce((a, b) => a + b, 0) * 8) version++;
+    if (version > 6) throw new Error('text too long for a QR code here');
+    const [ecLen, blockSizes] = BLOCKS[version];
+    const capacity = blockSizes.reduce((a, b) => a + b, 0) * 8;
+
+    // Bits: mode 0100 (bytes), 8-bit length, the bytes, a terminator, then padding.
+    const bits = [];
+    const put = (v, n) => { for (let i = n - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
+    put(4, 4); put(bytes.length, 8);
+    for (const b of bytes) put(b, 8);
+    put(0, Math.min(4, capacity - bits.length));
+    while (bits.length % 8) bits.push(0);
+    for (let pad = 0xec; bits.length < capacity; pad ^= 0xec ^ 0x11) put(pad, 8);
+    const data = [];
+    for (let i = 0; i < bits.length; i += 8) { let b = 0; for (let j = 0; j < 8; j++) b = (b << 1) | bits[i + j]; data.push(b); }
+
+    // Blocks, each with its error correction, interleaved.
+    const div = divisor(ecLen), blocks = [];
+    let k = 0;
+    for (const n of blockSizes) { const d = data.slice(k, k + n); k += n; blocks.push({ d, e: remainder(d, div) }); }
+    const words = [];
+    for (let i = 0; i < Math.max(...blockSizes); i++) for (const b of blocks) if (i < b.d.length) words.push(b.d[i]);
+    for (let i = 0; i < ecLen; i++) for (const b of blocks) words.push(b.e[i]);
+
+    // ---- The grid ----
+    const size = version * 4 + 17;
+    const mod = Array.from({ length: size }, () => new Array(size).fill(false));
+    const fn = Array.from({ length: size }, () => new Array(size).fill(false));
+    const set = (x, y, dark) => { mod[y][x] = dark; fn[y][x] = true; };
+    for (let i = 0; i < size; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }      // timing
+    for (const [cx, cy] of [[3, 3], [size - 4, 3], [3, size - 4]]) {                          // finders and their separators
+      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+        const x = cx + dx, y = cy + dy, d = Math.max(Math.abs(dx), Math.abs(dy));
+        if (x >= 0 && x < size && y >= 0 && y < size) set(x, y, d !== 2 && d !== 4);
+      }
+    }
+    const al = ALIGN[version], last = al.length - 1;
+    for (let i = 0; i < al.length; i++) for (let j = 0; j < al.length; j++) {
+      if ((i === 0 && j === 0) || (i === 0 && j === last) || (i === last && j === 0)) continue;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(al[i] + dx, al[j] + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+    }
+    const format = (mask) => {
+      const v = (0 << 3) | mask;                         // level M is 00
+      let r = v;
+      for (let i = 0; i < 10; i++) r = (r << 1) ^ ((r >>> 9) * 0x537);
+      const f = ((v << 10) | r) ^ 0x5412, bit = (i) => ((f >>> i) & 1) === 1;
+      for (let i = 0; i <= 5; i++) set(8, i, bit(i));
+      set(8, 7, bit(6)); set(8, 8, bit(7)); set(7, 8, bit(8));
+      for (let i = 9; i < 15; i++) set(14 - i, 8, bit(i));
+      for (let i = 0; i < 8; i++) set(size - 1 - i, 8, bit(i));
+      for (let i = 8; i < 15; i++) set(8, size - 15 + i, bit(i));
+      set(8, size - 8, true);                            // the dark module
+    };
+    format(0);                                           // (reserves those places)
+
+    // Codewords, in the zigzag from the bottom right.
+    let n = 0;
+    for (let right = size - 1; right >= 1; right -= 2) {
+      if (right === 6) right = 5;
+      for (let v = 0; v < size; v++) for (let j = 0; j < 2; j++) {
+        const x = right - j, up = ((right + 1) & 2) === 0, y = up ? size - 1 - v : v;
+        if (fn[y][x] || n >= words.length * 8) continue;
+        mod[y][x] = ((words[n >>> 3] >>> (7 - (n & 7))) & 1) === 1;
+        n++;
+      }
+    }
+
+    const MASKS = [
+      (x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, (x) => x % 3 === 0, (x, y) => (x + y) % 3 === 0,
+      (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0, (x, y) => ((x * y) % 2) + ((x * y) % 3) === 0,
+      (x, y) => (((x * y) % 2) + ((x * y) % 3)) % 2 === 0, (x, y) => (((x + y) % 2) + ((x * y) % 3)) % 2 === 0,
+    ];
+    const flip = (m) => { for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (!fn[y][x] && MASKS[m](x, y)) mod[y][x] = !mod[y][x]; };
+    let best = 0, low = Infinity;
+    for (let m = 0; m < 8; m++) {
+      flip(m); format(m);
+      const p = penalty(mod, size);
+      if (p < low) { low = p; best = m; }
+      flip(m);
+    }
+    if (mask >= 0 && mask < 8) best = mask;            // (a given mask: for testing)
+    flip(best); format(best);
+    return { size, version, dark: (x, y) => mod[y][x] };
+  }
+
+  /* The standard's penalty: long runs, 2×2 blocks, finder-like patterns, and an uneven dark/light balance. */
+  function penalty(m, size) {
+    let p = 0, dark = 0;
+    const lines = [];
+    for (let i = 0; i < size; i++) { lines.push(m[i]); lines.push(m.map((row) => row[i])); }
+    for (const line of lines) {
+      let run = 1;
+      for (let i = 1; i <= size; i++) {
+        if (i < size && line[i] === line[i - 1]) { run++; continue; }
+        if (run >= 5) p += 3 + run - 5;
+        run = 1;
+      }
+      for (let i = 0; i + 7 <= size; i++) {               // 1:1:3:1:1 with 4 light modules on either side
+        if (!(line[i] && !line[i + 1] && line[i + 2] && line[i + 3] && line[i + 4] && !line[i + 5] && line[i + 6])) continue;
+        const before = i >= 4 && !line[i - 1] && !line[i - 2] && !line[i - 3] && !line[i - 4];
+        const after = i + 11 <= size && !line[i + 7] && !line[i + 8] && !line[i + 9] && !line[i + 10];
+        if (before || after) p += 40;
+      }
+    }
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      if (m[y][x]) dark++;
+      if (x < size - 1 && y < size - 1 && m[y][x] === m[y][x + 1] && m[y][x] === m[y + 1][x] && m[y][x] === m[y + 1][x + 1]) p += 3;
+    }
+    p += Math.floor(Math.abs(dark * 20 - size * size * 10) / (size * size)) * 10;
+    return p;
+  }
+
+  WB.qr = encode;
+  WB.qrSvg = function (text, scale) {
+    const q = encode(text), quiet = 4, n = q.size + quiet * 2;
+    let d = '';
+    for (let y = 0; y < q.size; y++) for (let x = 0; x < q.size; x++) if (q.dark(x, y)) d += `M${x + quiet} ${y + quiet}h1v1h-1z`;
+    const px = n * (scale || 4);
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n} ${n}" width="${px}" height="${px}" shape-rendering="crispEdges"><rect width="${n}" height="${n}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+  };
+})();
+
+</script>
+<script>
 /* Whiteboard: browsers talking straight to each other (WebRTC), for live boards.
 
    Finding each other ("signalling") goes through public WebTorrent trackers: free, no account,
@@ -7959,10 +8156,24 @@ body.pipetting #canvas { cursor: crosshair; }
     };
   }
 
-  /* A new room code: 16 characters, about 96 random bits. */
-  const newRoom = () => b64(rand(12)).replace(/\+/g, '-').replace(/\//g, '_');
+  /* A new room code, easy to read out and type: 8 characters like K7QM-4XHC, from letters and
+     digits that can't be mistaken for each other (no 0/O, 1/I/L). About 40 random bits: far too
+     many rooms to find one by trying. */
+  const CODE = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  function newRoom() {
+    let s = '';
+    while (s.length < 8) for (const b of rand(16)) if (b < 248 && s.length < 8) s += CODE[b % 31];   // (248 = 8 × 31: no bias)
+    return s.slice(0, 4) + '-' + s.slice(4);
+  }
+  /* A room code as typed or found in a link -> the room, or null. Short codes are forgiving about
+     case, spaces and dashes; the longer codes of earlier versions are taken as they are. */
+  function roomOf(text) {
+    const t = String(text || '').trim(), short = t.toUpperCase().replace(/[\s-]+/g, '');
+    if (short.length === 8 && [...short].every((c) => CODE.includes(c))) return short.slice(0, 4) + '-' + short.slice(4);
+    return /^[A-Za-z0-9_-]{12,64}$/.test(t) ? t : null;
+  }
 
-  WB.p2p = { join, newRoom, supported: typeof RTCPeerConnection === 'function' && !!(window.crypto && crypto.subtle) };
+  WB.p2p = { join, newRoom, roomOf, supported: typeof RTCPeerConnection === 'function' && !!(window.crypto && crypto.subtle) };
 })();
 
 </script>
@@ -11145,11 +11356,12 @@ body.pipetting #canvas { cursor: crosshair; }
      The board travels in the link's fragment (after #), which browsers never send to a server:
      GitHub Pages never sees it. See js/share.js for the encoding. */
   let shareLink = '';
+  const shareSite = () => (location.protocol.startsWith('http') ? location.origin + location.pathname : 'https://citromoseper.github.io/Whiteboard/');
   async function openShare() {
     commitPending();
     let r;
     try { r = await WB.share.encode(doc); } catch (e) { return report(tr('tShareFail'), 'making the link', e); }
-    const site = location.protocol.startsWith('http') ? location.origin + location.pathname : 'https://citromoseper.github.io/Whiteboard/';
+    const site = shareSite();
     // Sharing makes the board live (when the browser can): the same link both carries a copy of
     // the board and lets whoever opens it draw on this one with you while it is open here.
     if (WB.p2p.supported && !WB.live.on()) await startLive(WB.p2p.newRoom(), { seeded: false, color: 0 });   // the one who starts it points in red
@@ -11239,6 +11451,15 @@ body.pipetting #canvas { cursor: crosshair; }
     else text = tr('liveWaiting');
     $('#live-state').textContent = text;
     pill.querySelector('span').textContent = st.peers ? String(st.peers + 1) : tr('livePill');
+    const room = WB.live.room();
+    if ($('#live-code').textContent !== room) {
+      // For phones: the board's address with only the room in it (a whole board doesn't fit in a QR code).
+      const url = shareSite() + '#r=' + room;
+      $('#live-code').textContent = room;
+      try { $('#live-qr').innerHTML = WB.qrSvg(url, 3); } catch (e) { $('#live-qr').textContent = ''; }
+      $('#live-qr').title = url;
+    }
+    $('#live-qr-note').textContent = tr('liveQrNote', { m: tr('mOpenLink').replace(/…$/, '') });
     pill.classList.toggle('alone', !st.peers);
     $('#live-box').classList.toggle('alone', !st.peers);
     pill.title = text;
@@ -11275,7 +11496,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const i = v.indexOf('#');
     const q = {};
     for (const part of (i >= 0 ? v.slice(i + 1) : v).split('&')) { const k = part.indexOf('='); if (k > 0) q[part.slice(0, k)] = part.slice(k + 1); }
-    const code = /^[A-Za-z0-9_-]{8,}$/.test(q.b || '') ? q.b : null, room = /^[A-Za-z0-9_-]{8,64}$/.test(q.r || '') ? q.r : null;
+    const code = /^[A-Za-z0-9_-]{8,}$/.test(q.b || '') ? q.b : null, room = q.r ? WB.p2p.roomOf(decodeURIComponent(q.r)) : null;
     return code || room ? { code, room } : null;
   }
   /* A link with only the room (the address of a live board, after a reload or copied from the
@@ -11305,7 +11526,9 @@ body.pipetting #canvas { cursor: crosshair; }
   /* "Open share link…": for when there's no address bar to paste into (the installed app). */
   function openLink() {
     let v = $('#open-link-input').value.trim();
-    if (v && !v.includes('#') && !v.includes('=')) v = 'b=' + v;          // just the code
+    const typed = !v.includes('#') && !v.includes('=') && v.length <= 12 && WB.p2p.roomOf(v);   // a live board's code, typed in
+    if (typed) { closeSheets(); return joinRoom(typed); }
+    if (v && !v.includes('#') && !v.includes('=')) v = 'b=' + v;          // just the board's code
     const q = linkParts(v);
     if (!q) return toast(tr('tLinkBad'), null, null, 5000);
     closeSheets();

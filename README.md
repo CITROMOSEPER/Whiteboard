@@ -170,6 +170,7 @@ The **menu** (top left) holds everything about files.
 
 - **It carries a copy of the board.** Opening it shows the board at once, even when you're offline later. The board is stored in the link itself, in the part after `#`, which browsers never send to the server.
 - **It makes the board live.** While your board is open, anyone who opens the link draws on it with you: lines, highlighting and erasing appear as they happen, things being moved glide along, texts change as they're typed, and every other change, deletion and group reaches everyone. The top bar shows a green **Live** badge with how many people are on the board (orange while you're alone); tap it to see the link again or press **Stop**.
+- **Join from a phone or another device.** While the board is live, the share window also shows a **QR code** and a short **room code** like `K7QM-4XHC`. Scan the QR code with a phone camera and it opens the app straight into the live board. On a computer, type the code into **Open share link…** instead (capitals, spaces and the dash don't matter). The code only joins the live board, so it needs someone to have the board open; the long link also carries a copy of the board.
 
 How the live part works, without any server of ours:
 

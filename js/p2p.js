@@ -245,8 +245,22 @@
     };
   }
 
-  /* A new room code: 16 characters, about 96 random bits. */
-  const newRoom = () => b64(rand(12)).replace(/\+/g, '-').replace(/\//g, '_');
+  /* A new room code, easy to read out and type: 8 characters like K7QM-4XHC, from letters and
+     digits that can't be mistaken for each other (no 0/O, 1/I/L). About 40 random bits: far too
+     many rooms to find one by trying. */
+  const CODE = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  function newRoom() {
+    let s = '';
+    while (s.length < 8) for (const b of rand(16)) if (b < 248 && s.length < 8) s += CODE[b % 31];   // (248 = 8 × 31: no bias)
+    return s.slice(0, 4) + '-' + s.slice(4);
+  }
+  /* A room code as typed or found in a link -> the room, or null. Short codes are forgiving about
+     case, spaces and dashes; the longer codes of earlier versions are taken as they are. */
+  function roomOf(text) {
+    const t = String(text || '').trim(), short = t.toUpperCase().replace(/[\s-]+/g, '');
+    if (short.length === 8 && [...short].every((c) => CODE.includes(c))) return short.slice(0, 4) + '-' + short.slice(4);
+    return /^[A-Za-z0-9_-]{12,64}$/.test(t) ? t : null;
+  }
 
-  WB.p2p = { join, newRoom, supported: typeof RTCPeerConnection === 'function' && !!(window.crypto && crypto.subtle) };
+  WB.p2p = { join, newRoom, roomOf, supported: typeof RTCPeerConnection === 'function' && !!(window.crypto && crypto.subtle) };
 })();

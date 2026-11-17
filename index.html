@@ -369,7 +369,7 @@
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.17.04.</p>
+      <p id="app-version">version: 2026.11.17.05.</p>
       <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
@@ -486,6 +486,13 @@
         <div><span class="live-dot"></span><span id="live-state"></span><p class="note" data-i18n="liveNote"></p></div>
         <button class="pill-btn quiet" id="live-stop" data-i18n="liveStop"></button>
       </div>
+      <div class="live-join">
+        <div class="live-qr" id="live-qr" role="img" aria-label="QR"></div>
+        <div class="live-join-text">
+          <output id="live-code"></output>
+          <p class="note" id="live-qr-note"></p>
+        </div>
+      </div>
     </div>
     <h3 data-i18n="shareLinkLabel"></h3>
     <div class="group">
@@ -507,10 +514,10 @@
       <h2 id="open-link-title" data-i18n="openLinkTitle"></h2>
       <button class="pill-btn quiet" data-close data-i18n="cancel"></button>
     </div>
-    <p class="note" data-i18n="openLinkNote"></p>
+    <p class="note" data-i18n="openLinkNoteLive"></p>
     <h3 data-i18n="shareLinkLabel"></h3>
     <div class="group">
-      <input id="open-link-input" type="url" spellcheck="false" autocomplete="off" autocapitalize="off" inputmode="url" data-i18n-label="shareLinkLabel" placeholder="https://…/#b=…">
+      <input id="open-link-input" type="url" spellcheck="false" autocomplete="off" autocapitalize="off" inputmode="url" data-i18n-label="shareLinkLabel" placeholder="https://…  ·  K7QM-4XHC">
     </div>
     <button class="primary" id="open-link-go" data-i18n="openLinkGo"></button>
   </div>
@@ -548,6 +555,7 @@
 <script src="js/ink.js"></script>
 <script src="js/gallery.js"></script>
 <script src="js/share.js"></script>
+<script src="js/qr.js"></script>
 <script src="js/p2p.js"></script>
 <script src="js/live.js"></script>
 <script src="js/pdf.js"></script>

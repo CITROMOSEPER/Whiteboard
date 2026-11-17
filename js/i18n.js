@@ -1263,6 +1263,22 @@
   D.ar.tLiveBusy = "شخص آخر يعمل على هذا الآن";
   D.hi.tLiveBusy = "इस पर अभी कोई और काम कर रहा है";
 
+  /* Joining a live board from a phone (QR code) or by typing its code. */
+  D.en.liveQrNote = "Scan with a phone camera to join, or type this code into “{m}” on another device."; D.en.openLinkNoteLive = "Paste a link someone shared with you, or type the code of a live board (like K7QM-4XHC) to join it.";
+  D.hu.liveQrNote = "Olvasd be telefonnal a csatlakozáshoz, vagy egy másik eszközön írd be ezt a kódot ide: „{m}”."; D.hu.openLinkNoteLive = "Illeszd be a linket, amit megosztottak veled, vagy írd be egy élő tábla kódját (pl. K7QM-4XHC) a csatlakozáshoz.";
+  D.de.liveQrNote = "Zum Beitreten mit der Handykamera scannen oder diesen Code auf einem anderen Gerät unter „{m}“ eingeben."; D.de.openLinkNoteLive = "Füge einen Link ein, den jemand mit dir geteilt hat, oder gib den Code einer Live-Tafel (z. B. K7QM-4XHC) ein, um beizutreten.";
+  D.fr.liveQrNote = "Scannez avec l’appareil photo d’un téléphone pour rejoindre, ou saisissez ce code dans « {m} » sur un autre appareil."; D.fr.openLinkNoteLive = "Collez un lien qu’on vous a partagé, ou saisissez le code d’un tableau en direct (comme K7QM-4XHC) pour le rejoindre.";
+  D.it.liveQrNote = "Inquadra con la fotocamera del telefono per unirti, oppure inserisci questo codice in “{m}” su un altro dispositivo."; D.it.openLinkNoteLive = "Incolla un link che ti hanno condiviso, oppure inserisci il codice di una lavagna live (come K7QM-4XHC) per unirti.";
+  D.es.liveQrNote = "Escanéalo con la cámara del móvil para unirte, o escribe este código en «{m}» en otro dispositivo."; D.es.openLinkNoteLive = "Pega un enlace que te hayan compartido, o escribe el código de una pizarra en directo (como K7QM-4XHC) para unirte.";
+  D.pt.liveQrNote = "Escaneie com a câmera do celular para entrar, ou digite este código em “{m}” em outro dispositivo."; D.pt.openLinkNoteLive = "Cole um link que compartilharam com você, ou digite o código de um quadro ao vivo (como K7QM-4XHC) para entrar.";
+  D.ru.liveQrNote = "Отсканируйте камерой телефона, чтобы присоединиться, или введите этот код в «{m}» на другом устройстве."; D.ru.openLinkNoteLive = "Вставьте ссылку, которой с вами поделились, или введите код совместной доски (например, K7QM-4XHC), чтобы присоединиться.";
+  D.uk.liveQrNote = "Відскануйте камерою телефона, щоб приєднатися, або введіть цей код у «{m}» на іншому пристрої."; D.uk.openLinkNoteLive = "Вставте посилання, яким із вами поділилися, або введіть код спільної дошки (наприклад, K7QM-4XHC), щоб приєднатися.";
+  D.tr.liveQrNote = "Katılmak için telefon kamerasıyla tarayın ya da bu kodu başka bir cihazda “{m}” içine yazın."; D.tr.openLinkNoteLive = "Sizinle paylaşılan bir bağlantıyı yapıştırın ya da katılmak için canlı bir tahtanın kodunu (ör. K7QM-4XHC) yazın.";
+  D.zh.liveQrNote = "用手机相机扫码加入，或在其他设备的“{m}”中输入此代码。"; D.zh.openLinkNoteLive = "粘贴别人分享给你的链接，或输入实时白板的代码（如 K7QM-4XHC）加入。";
+  D.ja.liveQrNote = "スマートフォンのカメラで読み取って参加するか、別のデバイスの「{m}」でこのコードを入力してください。"; D.ja.openLinkNoteLive = "共有されたリンクを貼り付けるか、ライブボードのコード（例: K7QM-4XHC）を入力して参加します。";
+  D.ar.liveQrNote = "امسح الرمز بكاميرا الهاتف للانضمام، أو اكتب هذا الرمز في «{m}» على جهاز آخر."; D.ar.openLinkNoteLive = "الصق رابطًا شاركه أحدهم معك، أو اكتب رمز لوح مباشر (مثل K7QM-4XHC) للانضمام إليه.";
+  D.hi.liveQrNote = "जुड़ने के लिए फ़ोन के कैमरे से स्कैन करें, या किसी दूसरे डिवाइस पर “{m}” में यह कोड डालें।"; D.hi.openLinkNoteLive = "किसी का साझा किया लिंक चिपकाएँ, या जुड़ने के लिए किसी लाइव बोर्ड का कोड (जैसे K7QM-4XHC) लिखें।";
+
   /* The best supported language for this device's preferences. */
   WB.systemLang = function () {
     for (const l of navigator.languages || [navigator.language || 'en']) {
