@@ -122,6 +122,29 @@
       c.stroke();
     });
 
+    // Special points: a small dot each; the ones tapped show their coordinates.
+    const pts = WB.plotPoints(s), dr = 3.6 * px;
+    for (const q of pts) {
+      c.beginPath(); c.arc(X(q.x), Y(q.y), dr, 0, Math.PI * 2);
+      c.fillStyle = q.color; c.fill();
+      c.lineWidth = 1.4 * px; c.strokeStyle = '#ffffff'; c.stroke();
+    }
+    const fsl = Math.max(9, Math.min(15, Math.min(w, h) * 0.045));
+    c.font = `${fsl}px -apple-system, "Segoe UI", system-ui, sans-serif`;
+    c.textAlign = 'left'; c.textBaseline = 'middle';
+    for (const q of pts) {
+      if (!q.pinned) continue;
+      const label = WB.plotLabel(q), tw = c.measureText(label).width, pw = tw + fsl * 0.9, ph = fsl * 1.6;
+      let lx = X(q.x) + fsl * 0.6, ly = Y(q.y) - fsl * 0.6 - ph;
+      if (lx + pw > w / 2 - 2) lx = X(q.x) - fsl * 0.6 - pw;
+      if (ly < -h / 2 + 2) ly = Y(q.y) + fsl * 0.6;
+      c.beginPath();
+      if (c.roundRect) c.roundRect(lx, ly, pw, ph, ph * 0.3); else c.rect(lx, ly, pw, ph);
+      c.fillStyle = 'rgba(255,255,255,0.95)'; c.fill();
+      c.lineWidth = px; c.strokeStyle = q.color; c.stroke();
+      c.fillStyle = '#24272c'; c.fillText(label, lx + fsl * 0.45, ly + ph / 2);
+    }
+
     // The functions, typeset, in a card at the top left.
     const ls = Math.max(8, Math.min(18, Math.min(w, h) * 0.055));
     const rows = fns.map((F, i) => {
@@ -151,6 +174,124 @@
     if (c.roundRect) c.roundRect(-w / 2, -h / 2, w, h, r); else c.rect(-w / 2, -h / 2, w, h);
     c.strokeStyle = '#b8bec8'; c.lineWidth = px; c.stroke();
     c.restore();
+  };
+
+  /* ---- Special points ------------------------------------------------------
+     Where each curve crosses the axes, its local highest and lowest points, its inflection points,
+     and where two curves meet, within the part of the plane in view. Found numerically: the curve
+     is sampled finely, then every sign change (of the value, its slope or its curvature, or of
+     the difference of two curves) is narrowed down by bisection. Jumps across an asymptote are
+     not crossings. Worked out again only when the view or the functions change.
+     Each: { x, y, kind: 'root' | 'yint' | 'max' | 'min' | 'infl' | 'cross', color, pinned }. */
+  const N = 480;
+  function bisect(g, a, b, ga) {
+    for (let k = 0; k < 60; k++) {
+      const m = (a + b) / 2, gm = g(m);
+      if (!isFinite(gm)) return NaN;
+      if ((gm > 0) === (ga > 0)) { a = m; ga = gm; } else b = m;
+    }
+    return (a + b) / 2;
+  }
+  function golden(g, a, b, max) {            // the highest (or lowest) point of g between a and b
+    const r = (Math.sqrt(5) - 1) / 2, sgn = max ? -1 : 1;
+    let x1 = b - r * (b - a), x2 = a + r * (b - a), f1 = sgn * g(x1), f2 = sgn * g(x2);
+    for (let k = 0; k < 80; k++) {
+      if (f1 < f2) { b = x2; x2 = x1; f2 = f1; x1 = b - r * (b - a); f1 = sgn * g(x1); }
+      else { a = x1; x1 = x2; f1 = f2; x2 = a + r * (b - a); f2 = sgn * g(x2); }
+    }
+    return (a + b) / 2;
+  }
+  WB.plotPoints = function (s) {
+    const fns = WB.plotFns(s), u = s.w / s.span;
+    const x0 = s.cx - s.w / 2 / u, x1 = s.cx + s.w / 2 / u, y0 = s.cy - s.h / 2 / u, y1 = s.cy + s.h / 2 / u;
+    const key = [s.cx, s.cy, s.span, s.w, s.h, s._fx && s._fx.key].join('|');
+    if (s._pts && s._pts.key === key) return markPins(s, s._pts.list);
+    const out = [], H = y1 - y0, dx = (x1 - x0) / N, eps = H * 1e-9;
+    const inView = (x, y) => isFinite(x) && isFinite(y) && x >= x0 && x <= x1 && y >= y0 && y <= y1;
+    const add = (x, y, kind, color) => {
+      if (!inView(x, y)) return;
+      const tol = (x1 - x0) * 2e-4;
+      if (out.some((q) => Math.abs(q.x - x) < tol && Math.abs(q.y - y) < tol)) return;   // already there (a root that is also a minimum…)
+      out.push({ x, y, kind, color });
+    };
+    const safe = (f) => (x) => { try { return f(x); } catch (e) { return NaN; } };
+    const curves = fns.map((F, i) => ({ f: F.f && safe(F.f), color: s.fns[i].color || WB.PLOT_COLORS[i % WB.PLOT_COLORS.length] })).filter((c) => c.f);
+    const xs = [];
+    for (let k = 0; k <= N; k++) xs.push(x0 + k * dx);
+    // Is the step from k to k+1 a smooth stretch (not across an asymptote or a gap)?
+    const smooth = (ys, k) => isFinite(ys[k]) && isFinite(ys[k + 1]) && Math.abs(ys[k + 1] - ys[k]) < H * 0.5;
+    for (const C of curves) {
+      const f = C.f, ys = xs.map(f);
+      // Where it meets the y axis.
+      if (x0 <= 0 && x1 >= 0) add(0, f(0), 'yint', C.color);
+      // Where it meets the x axis: a sign change, or a sample right on it.
+      for (let k = 0; k < N; k++) {
+        if (!smooth(ys, k)) continue;
+        if (ys[k] === 0) add(xs[k], 0, 'root', C.color);
+        else if (ys[k] * ys[k + 1] < 0) { const r = bisect(f, xs[k], xs[k + 1], ys[k]); if (Math.abs(f(r)) < H * 1e-6) add(r, 0, 'root', C.color); }
+      }
+      // Highest and lowest points: the slope changes sign.
+      for (let k = 1; k < N; k++) {
+        if (!smooth(ys, k - 1) || !smooth(ys, k)) continue;
+        const a = ys[k] - ys[k - 1], b = ys[k + 1] - ys[k];
+        if (Math.abs(a) < eps && Math.abs(b) < eps) continue;         // flat: no single highest point
+        if (a > 0 && b <= 0 || a >= 0 && b < 0) { const x = golden(f, xs[k - 1], xs[k + 1], true); add(x, f(x), 'max', C.color); }
+        else if (a < 0 && b >= 0 || a <= 0 && b > 0) { const x = golden(f, xs[k - 1], xs[k + 1], false); add(x, f(x), 'min', C.color); }
+      }
+      // Inflection points: the curvature changes sign.
+      const h = dx;
+      const curv = (x) => (f(x + h) - 2 * f(x) + f(x - h));
+      const cs = xs.map((x, k) => (k > 0 && k < N && smooth(ys, k - 1) && smooth(ys, k) ? ys[k + 1] - 2 * ys[k] + ys[k - 1] : NaN));
+      const noise = H * 1e-9;
+      for (let k = 1; k < N - 1; k++) {
+        const a = cs[k], b = cs[k + 1];
+        if (!isFinite(a) || !isFinite(b) || Math.abs(a) < noise || Math.abs(b) < noise || a * b >= 0) continue;
+        if (Math.max(Math.abs(a), Math.abs(b)) > H * 0.2) continue;   // a corner or a near-asymptote, not a bend
+        const x = bisect(curv, xs[k], xs[k + 1], a);
+        if (isFinite(x)) add(x, f(x), 'infl', C.color);
+      }
+    }
+    // Where two curves meet.
+    for (let i = 0; i < curves.length; i++) for (let j = i + 1; j < curves.length; j++) {
+      const f = curves[i].f, g = curves[j].f, d = (x) => f(x) - g(x), ds = xs.map(d), fy = xs.map(f), gy = xs.map(g);
+      for (let k = 0; k < N; k++) {
+        if (!smooth(fy, k) || !smooth(gy, k) || !(ds[k] * ds[k + 1] <= 0) || ds[k] === ds[k + 1]) continue;
+        const x = ds[k] === 0 ? xs[k] : bisect(d, xs[k], xs[k + 1], ds[k]);
+        if (Math.abs(d(x)) < H * 1e-6) add(x, f(x), 'cross', '#5a6270');
+      }
+    }
+    s._pts = { key, list: out };
+    return markPins(s, out);
+  };
+  function markPins(s, list) {
+    const pins = s._pins || [], tol = s.span * 1e-6;
+    for (const q of list) q.pinned = pins.some((p) => Math.abs(p.x - q.x) <= tol && Math.abs(p.y - q.y) <= tol);
+    return list;
+  }
+  /* "(x; y)", rounded to what can be told apart in the view (whole numbers stay whole). */
+  WB.plotLabel = function (q) {
+    const n = (v) => {
+      if (Math.abs(v) < 1e-10) return '0';
+      const r = Math.round(v * 1e4) / 1e4;
+      return (Math.abs(r - Math.round(r)) < 1e-9 ? String(Math.round(r)) : String(r)).replace('-', '−');
+    };
+    return `(${n(q.x)}; ${n(q.y)})`;
+  };
+  /* The special point at a spot in the graph's own frame (lx, ly), within tol, or null. */
+  WB.plotPointAt = function (s, lx, ly, tol) {
+    const u = s.w / s.span;
+    let best = null, bd = tol;
+    for (const q of WB.plotPoints(s)) {
+      const d = Math.hypot((q.x - s.cx) * u - lx, -(q.y - s.cy) * u - ly);
+      if (d <= bd) { bd = d; best = q; }
+    }
+    return best;
+  };
+  /* Show or hide the coordinates of a special point (kept while the board is open). */
+  WB.plotTogglePin = function (s, q) {
+    const pins = s._pins || (s._pins = []), tol = s.span * 1e-6;
+    const i = pins.findIndex((p) => Math.abs(p.x - q.x) <= tol && Math.abs(p.y - q.y) <= tol);
+    if (i >= 0) pins.splice(i, 1); else pins.push({ x: q.x, y: q.y });
   };
 
   /* Zoom the graph's view by factor k (> 1 zooms out) about a point given in its own frame. */

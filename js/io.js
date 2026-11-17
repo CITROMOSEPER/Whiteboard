@@ -20,7 +20,15 @@
     if (doc.pages && doc.pages.length) {
       out += '  "pages": [\n' + doc.pages.map((p) => `    { "x": ${f(p.x)}, "y": ${f(p.y)}, "w": ${f(p.w)}, "h": ${f(p.h)}${p.src ? `, "src": ${JSON.stringify(p.src)}` : ''} }`).join(',\n') + '\n  ],\n';
     }
-    const lines = doc.strokes.map((s) => {
+    // An object's erasing: [{ "width", "opacity", "smooth", "points": [[x, y], ...] }], after its other fields.
+    const erasing = (s) => !(s.erase && s.erase.length) ? '' : `, "erase": [${s.erase.map((e) => {
+      const q = []; for (let i = 0; i < e.points.length; i += 2) q.push(`[${f(e.points[i])},${f(e.points[i + 1])}]`);
+      return `{ "width": ${+e.width.toFixed(3)}, "opacity": ${+e.opacity.toFixed(3)}, "smooth": ${!!e.smooth}, "points": [${q.join(',')}] }`;
+    }).join(', ')}]`;
+    // The groups it is in, outermost first: "group": [1, 4].
+    const grouping = (s) => (s.group && s.group.length ? `, "group": [${s.group.join(',')}]` : '');
+    const lines = doc.strokes.map((s) => objectLine(s).replace(/ \}$/, erasing(s) + grouping(s) + ' }'));
+    function objectLine(s) {
       if (s.tool === 'text') {
         return `    { "tool": "text", "x": ${f(s.x)}, "y": ${f(s.y)}, ${s.rot ? `"rot": ${f((s.rot * 180) / Math.PI)}, ` : ''}"font": "${s.font}", "size": ${+s.size.toFixed(3)}, "color": "${s.color}", "opacity": ${+s.opacity.toFixed(3)}, ${s.math ? '"math": true, ' : ''}"text": ${JSON.stringify(s.text)} }`;
       }
@@ -49,7 +57,7 @@
       // Pressure: one whole number 0-100 per point.
       const press = s.tool === 'pen' && s.press && s.press.length === p.length >> 1 ? `, "pressure": [${s.press.map((v) => Math.round(v * 100)).join(',')}]` : '';
       return `    ${o}"points": [${pts.join(',')}]${press} }`;
-    });
+    }
     out += '  "strokes": [\n' + lines.join(',\n') + (lines.length ? '\n' : '') + '  ]\n}\n';
     return out;
   };
@@ -72,14 +80,41 @@
     const num = (v, def) => (typeof v === 'number' && isFinite(v) ? v : def);
     const strokes = [];
     const hex = (c) => (/^#[0-9a-f]{6}$/i.test(c) ? c.toLowerCase() : '#000000');
+    // An object's erasing, checked like a line: finite points, width and opacity in range.
+    const erasingOf = (s) => {
+      if (!s || !Array.isArray(s.erase)) return null;
+      const out = [];
+      for (const e of s.erase.slice(0, 2000)) {
+        if (!e || !Array.isArray(e.points)) continue;
+        const points = [];
+        for (const p of e.points) if (Array.isArray(p) && isFinite(p[0]) && isFinite(p[1])) points.push(+p[0], +p[1]);
+        if (points.length) out.push({ tool: 'eraser', width: Math.max(0.01, num(e.width, 20)), opacity: Math.min(1, Math.max(0.01, num(e.opacity, 1))), smooth: !!e.smooth, points });
+      }
+      return out.length ? out : null;
+    };
+    // The groups an object is in: up to 64 whole numbers 1 .. 2^31, no repeats.
+    const groupOf = (s) => {
+      if (!s || !Array.isArray(s.group)) return null;
+      const g = [...new Set(s.group.filter((v) => Number.isInteger(v) && v > 0 && v < 2 ** 31))].slice(0, 64);
+      return g.length ? g : null;
+    };
     for (const s of d.strokes) {
+      const before = strokes.length;
+      readObject(s);
+      const er = strokes.length > before && strokes[strokes.length - 1].tool !== 'eraser' ? erasingOf(s) : null;
+      if (er) strokes[strokes.length - 1].erase = er;
+      const gr = strokes.length > before && strokes[strokes.length - 1].tool !== 'eraser' ? groupOf(s) : null;
+      if (gr) strokes[strokes.length - 1].group = gr;
+    }
+    WB.adoptErasers(strokes);
+    function readObject(s) {
       if (s && s.tool === 'text') {
         if (typeof s.text === 'string' && s.text.trim() && isFinite(s.x) && isFinite(s.y)) {
           strokes.push({ tool: 'text', x: +s.x, y: +s.y, rot: (num(s.rot, 0) % 360) * Math.PI / 180, text: s.text.slice(0, 20000), font: WB.FONTS[s.font] ? s.font : 'sans',
             size: Math.max(0.01, num(s.size, 24)), color: hex(s.color), opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), width: 0 });
           if (s.math === true) strokes[strokes.length - 1].math = true;
         }
-        continue;
+        return;
       }
       if (s && s.tool === 'plot') {
         if (isFinite(s.x) && isFinite(s.y) && num(s.w, 0) > 0 && num(s.h, 0) > 0 && Array.isArray(s.fns)) {
@@ -87,14 +122,14 @@
           strokes.push({ tool: 'plot', x: +s.x, y: +s.y, w: +s.w, h: +s.h, rot: (num(s.rot, 0) % 360) * Math.PI / 180, opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))),
             cx: num(s.cx, 0), cy: num(s.cy, 0), span: Math.min(1e9, Math.max(1e-9, num(s.span, 20))), fns, width: 0 });
         }
-        continue;
+        return;
       }
       if (s && s.tool === 'image') {
         if (typeof s.src === 'string' && /^data:image\/(png|jpeg|webp|gif|bmp);base64,[A-Za-z0-9+/=]+$/.test(s.src) &&
             isFinite(s.x) && isFinite(s.y) && num(s.w, 0) > 0 && num(s.h, 0) > 0) {
           strokes.push({ tool: 'image', x: +s.x, y: +s.y, w: +s.w, h: +s.h, rot: (num(s.rot, 0) % 360) * Math.PI / 180, opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), src: s.src, width: 0 });
         }
-        continue;
+        return;
       }
       if (s && s.tool === 'fill' && Array.isArray(s.rings)) {
         const rings = [];
@@ -104,14 +139,14 @@
           if (q.length >= 6) rings.push(q);
         }
         if (rings.length) strokes.push({ tool: 'fill', color: hex(s.color), width: 0, opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), under: !!s.under, rings });
-        continue;
+        return;
       }
-      if (!s || !Array.isArray(s.points)) continue;
+      if (!s || !Array.isArray(s.points)) return;
       const points = [];
       for (const p of s.points) {
         if (Array.isArray(p) && isFinite(p[0]) && isFinite(p[1])) points.push(+p[0], +p[1]);
       }
-      if (!points.length) continue;
+      if (!points.length) return;
       const st = {
         tool: s.tool === 'eraser' ? 'eraser' : 'pen',
         color: hex(s.color),
@@ -317,20 +352,28 @@
     return d;
   }
 
-  /* A graph or a typeset maths text, as a picture with the same box: SVG and PDF have no way to
-     draw them natively, so they go in as high-resolution images (sharp at 4 px per unit). */
+  /* An object as a picture with the same box, for formats that cannot draw it natively (graphs and
+     typeset maths in SVG and PDF, erased objects in PDF): a high-resolution image, 4 px per unit. */
   WB.rasterize = function (s) {
-    const F = WB.frameOf(s), q = Math.min(4, 4000 / Math.max(F.w, F.h, 1e-6));
+    const boxed = s.tool === 'text' || s.tool === 'image' || s.tool === 'plot';
+    const fb = !boxed && WB.fullBounds(s);
+    const F = boxed ? WB.frameOf(s) : { x: fb.x0, y: fb.y0, w: Math.max(fb.x1 - fb.x0, 1e-6), h: Math.max(fb.y1 - fb.y0, 1e-6), rot: 0 };
+    const q = Math.min(4, 4000 / Math.max(F.w, F.h, 1e-6));
     const cv = document.createElement('canvas');
     cv.width = Math.max(1, Math.ceil(F.w * q)); cv.height = Math.max(1, Math.ceil(F.h * q));
     const g = cv.getContext('2d');
     g.setTransform(q, 0, 0, q, -F.x * q, -F.y * q);
-    const flat = { ...s, rot: 0, opacity: 1 };
-    if (s.tool === 'text') { flat.x = F.x; flat.y = F.y; delete flat._t; delete flat._b; }
+    const flat = boxed ? { ...s, rot: 0, opacity: 1 } : s;
+    if (boxed && s.erase) {        // the erasing turns back with the box
+      const c = Math.cos(-(F.rot || 0)), n = Math.sin(-(F.rot || 0)), mx = F.x + F.w / 2, my = F.y + F.h / 2;
+      flat.erase = s.erase.map((e) => { const p = e.points.slice(); for (let i = 0; i < p.length; i += 2) { const dx = p[i] - mx, dy = p[i + 1] - my; p[i] = mx + dx * c - dy * n; p[i + 1] = my + dx * n + dy * c; } return { ...e, points: p, _path: undefined }; });
+    }
+    if (boxed) { delete flat._fb; delete flat._b; }
+    if (s.tool === 'text') { flat.x = F.x; flat.y = F.y; delete flat._t; }
     WB.paint(g, flat);
-    return { tool: 'image', x: F.x, y: F.y, w: F.w, h: F.h, rot: F.rot || 0, opacity: s.opacity, src: cv.toDataURL('image/png'), width: 0 };
+    return { tool: 'image', x: F.x, y: F.y, w: F.w, h: F.h, rot: F.rot || 0, opacity: boxed ? s.opacity : 1, src: cv.toDataURL('image/png'), width: 0 };
   };
-  const flatten = (strokes) => strokes.map((s) => (s.tool === 'plot' || (s.tool === 'text' && s.math) ? WB.rasterize(s) : s));
+  const flatten = (strokes, erased) => strokes.map((s) => (s.tool === 'plot' || (s.tool === 'text' && s.math) || (erased && s.erase && s.erase.length) ? WB.rasterize(s) : s));
 
   WB.toSVG = function (strokes, b, bg, payload, pages, pattern) {
     strokes = flatten(strokes);
@@ -341,26 +384,36 @@
     for (const run of runs(strokes)) {
       if (run.kind === 'ink') {
         for (const s of run.items) {
+          let el, under = false;
           if (s.tool === 'image') {
             const turn = s.rot ? ` transform="rotate(${f((s.rot * 180) / Math.PI)} ${f(s.x + s.w / 2)} ${f(s.y + s.h / 2)})"` : '';
-            body += `<image x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" preserveAspectRatio="none"${turn}${s.opacity < 1 ? ` opacity="${f(s.opacity)}"` : ''} xlink:href="${s.src}"/>\n`;
+            el = `<image x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" preserveAspectRatio="none"${turn}${s.opacity < 1 ? ` opacity="${f(s.opacity)}"` : ''} xlink:href="${s.src}"/>\n`;
           } else if (s.tool === 'text') {
             const L = WB.textLayout(s);
-            body += `<text${s.rot ? ` transform="rotate(${f((s.rot * 180) / Math.PI)} ${f(s.x)} ${f(s.y)})"` : ''} font-family="${esc(WB.FONTS[s.font] || WB.FONTS.sans)}" font-size="${f(s.size)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none" xml:space="preserve">` +
+            el = `<text${s.rot ? ` transform="rotate(${f((s.rot * 180) / Math.PI)} ${f(s.x)} ${f(s.y)})"` : ''} font-family="${esc(WB.FONTS[s.font] || WB.FONTS.sans)}" font-size="${f(s.size)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none" xml:space="preserve">` +
               L.lines.map((l, i) => `<tspan x="${f(s.x)}" y="${f(s.y + i * L.lh + L.base)}">${esc(l)}</tspan>`).join('') + '</text>\n';
           } else if (s.tool === 'fill') {
             // An "under" fill sits beneath everything drawn before it, so it goes first in the document.
-            const el = `<path d="${svgPath(s)}" fill="${s.color}" fill-rule="evenodd"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
-            body = s.under ? el + body : body + el;
+            el = `<path d="${svgPath(s)}" fill="${s.color}" fill-rule="evenodd"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
+            under = !!s.under;
           } else if (WB.hasPress(s)) {
-            body += `<path d="${svgPath(s, true)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
+            el = `<path d="${svgPath(s, true)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
           } else if (s.hl) {
             // A highlighter sits beneath what was drawn before it, like an "under" fill.
-            body = `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}" stroke-linecap="square"${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n` + body;
+            el = `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}" stroke-linecap="square"${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n`;
+            under = true;
           } else {
             const dash = WB.dashOf(s);
-            body += `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}"${dash ? ` stroke-dasharray="${dash.map(f).join(' ')}"` : ''}${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n`;
+            el = `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}"${dash ? ` stroke-dasharray="${dash.map(f).join(' ')}"` : ''}${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n`;
           }
+          if (s.erase && s.erase.length) {          // its own erasing hides parts of it, and nothing else
+            const id = 'cut' + (++n);
+            defs += `<mask id="${id}" maskUnits="userSpaceOnUse" ${box}>\n<rect ${box} fill="#fff" stroke="none"/>\n`;
+            for (const e of s.erase) defs += `<path d="${svgPath(e)}" stroke="#000" stroke-width="${f(e.width)}"${e.opacity < 1 ? ` stroke-opacity="${f(e.opacity)}"` : ''}/>\n`;
+            defs += '</mask>\n';
+            el = `<g mask="url(#${id})">\n${el}</g>\n`;
+          }
+          body = under ? el + body : body + el;
         }
       } else if (body) {
         const id = 'erase' + (++n);
@@ -424,7 +477,7 @@
      (board units are CSS pixels, 96 per inch; PDF units are points, 72 per inch). Without pages
      the whole drawing (b) becomes one page, one unit per point as before. */
   WB.toPDF = async function (strokes, b, bg, payload, pages, pattern) {
-    strokes = flatten(strokes);
+    strokes = flatten(strokes, true);
     const sheet = pages && pages.length ? pages : null;
     const pageList = sheet || [b];
     const k = sheet ? 0.75 : Math.min(1, 14400 / b.w, 14400 / b.h); // PDF pages max out at 14400 units

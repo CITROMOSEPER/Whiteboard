@@ -440,6 +440,13 @@ body.pipetting #canvas { cursor: crosshair; }
 #ss-dashes { display: flex; gap: 2px; }
 #ss-dashes .ibtn svg { stroke-width: 2.4; }
 #ss-dashes .ibtn[aria-checked="true"] { background: var(--fill-strong); }
+#sel-style.no-group .ss-group { display: none; }
+#ss-group { height: 32px; }
+#ss-group span { display: inline; }
+#sel-style .ss-ungroup, #sel-style.ungroup .ss-grouped { display: none; }
+#sel-style.ungroup .ss-ungroup { display: inline; }
+.g-cat { grid-column: 1 / -1; margin: 6px 4px -8px !important; }
+.g-cat:first-child { margin-top: 0 !important; }
 
 /* ---------- Gallery ---------- */
 .sheet.wide { width: min(58rem, 100%); height: min(44rem, calc(100% - 16px)); display: flex; flex-direction: column; overflow: hidden; }
@@ -823,6 +830,12 @@ body.pipetting #canvas { cursor: crosshair; }
     <span class="sep"></span>
     <div id="ss-dashes" role="radiogroup"></div>
   </div>
+  <div class="ss-row ss-group">
+    <button class="sel-btn" id="ss-group">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" stroke-dasharray="3 3"/><rect x="7" y="7" width="6" height="6" rx="1.2"/><circle cx="15" cy="15" r="2.8"/></svg>
+      <span class="ss-grouped" data-i18n="group"></span><span class="ss-ungroup" data-i18n="ungroup"></span>
+    </button>
+  </div>
 </div>
 
 <!-- Other readings of the character that was just converted from handwriting -->
@@ -1000,7 +1013,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.16.01.</p>
+      <p id="app-version">version: 2026.11.17.01.</p>
       <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
@@ -1945,6 +1958,15 @@ body.pipetting #canvas { cursor: crosshair; }
   };
   for (const code in SAVE_HERE) { D[code].gSaving = SAVE_HERE[code][0]; D[code].gSaveHere = SAVE_HERE[code][1]; }
 
+  /* Grouping the selection, on its style bar. */
+  const GROUPS = {
+    en: ['Group', 'Ungroup'], hu: ['Csoportosítás', 'Csoport bontása'], de: ['Gruppieren', 'Gruppierung aufheben'],
+    fr: ['Grouper', 'Dissocier'], it: ['Raggruppa', 'Separa'], es: ['Agrupar', 'Desagrupar'], pt: ['Agrupar', 'Desagrupar'],
+    ru: ['Сгруппировать', 'Разгруппировать'], uk: ['Згрупувати', 'Розгрупувати'], tr: ['Grupla', 'Grubu çöz'],
+    zh: ['组合', '取消组合'], ja: ['グループ化', 'グループ解除'], ar: ['تجميع', 'فك التجميع'], hi: ['समूह बनाएँ', 'समूह तोड़ें'],
+  };
+  for (const code in GROUPS) { D[code].group = GROUPS[code][0]; D[code].ungroup = GROUPS[code][1]; }
+
   /* Line types, the selection's style bar, duplicate and stickers. Keys in order:
      lineType, dash_solid, dash_dotted, dash_dashed, dash_long, dash_dashdot, thinner, thicker,
      duplicate, saveSticker, addSticker, mStickers, mStickersMenu, sticker, sSetup, sSaving,
@@ -2338,6 +2360,24 @@ body.pipetting #canvas { cursor: crosshair; }
     tAiModels: '{n} modell érhető el', tAiForgot: 'API-kulcsok törölve', aiCheckFail: 'ellenőrzés: ez a válasz nem elégíti ki a feladatot',
   });
 
+  /* Built-in stickers (a fixed folder in the sticker gallery). Other languages fall back to English. */
+  Object.assign(D.en, {
+    sBuiltIn: 'Built-in stickers', sBuiltInNote: 'Part of the app: always here, made to suit your canvas colour.', sBuiltInNoSave: 'Stickers can’t be saved into the built-in folder. Pick another folder.',
+    bGraphs: 'Graphs', bAxes: 'Coordinate systems', bVenn: 'Venn diagrams', bKarnaugh: 'Karnaugh maps', bVeitch: 'Veitch maps', bTruth: 'Truth tables',
+    bGraphEmpty: 'Empty graph', bGraphOf: 'Graph of {f}', bAllQuadrants: 'All four quadrants', bQuadrant: 'Quadrant {q}', bQuadrants: 'Quadrants {q}',
+    bVennTwo: 'Two sets', bVennThree: 'Three sets', bVennFour: 'Four sets', bVennTwoU: 'Two sets in a universe', bVennThreeU: 'Three sets in a universe',
+    bVennSubset: 'Subset', bVennDisjoint: 'Disjoint sets', bDisj: 'disjunctive', bConj: 'conjunctive', bTruthVars: '{n} variables',
+  });
+  Object.assign(D.hu, {
+    sBuiltIn: 'Beépített matricák', sBuiltInNote: 'Az app része: mindig itt van, és a vászon színéhez igazodik.', sBuiltInNoSave: 'A beépített mappába nem lehet matricát menteni. Válassz másik mappát.',
+    bGraphs: 'Grafikonok', bAxes: 'Koordináta-rendszerek', bVenn: 'Venn-diagramok', bKarnaugh: 'Karnaugh-táblák', bVeitch: 'Veitch-táblák', bTruth: 'Igazságtáblák',
+    bGraphEmpty: 'Üres grafikon', bGraphOf: '{f} grafikonja', bAllQuadrants: 'Mind a négy síknegyed', bQuadrant: '{q}. síknegyed', bQuadrants: '{q}. síknegyed',
+    bVennTwo: 'Két halmaz', bVennThree: 'Három halmaz', bVennFour: 'Négy halmaz', bVennTwoU: 'Két halmaz alaphalmazban', bVennThreeU: 'Három halmaz alaphalmazban',
+    bVennSubset: 'Részhalmaz', bVennDisjoint: 'Diszjunkt halmazok', bDisj: 'diszjunktív', bConj: 'konjunktív', bTruthVars: '{n} változó',
+  });
+  Object.assign(D.en, { plotEditNote: 'One per line, e.g. f(x) = sin(x) or y = x^2 − 1. While exploring, drag to move around and scroll or pinch to zoom. Tap a dot on a curve to see its coordinates.' });
+  Object.assign(D.hu, { plotEditNote: 'Soronként egy, pl. f(x) = sin(x) vagy y = x^2 − 1. Felfedezés közben húzással mozoghatsz, görgetéssel vagy csippentéssel nagyíthatsz. Egy görbe pontjára koppintva látod a koordinátáit.' });
+
   /* The best supported language for this device's preferences. */
   WB.systemLang = function () {
     for (const l of navigator.languages || [navigator.language || 'en']) {
@@ -2584,8 +2624,86 @@ body.pipetting #canvas { cursor: crosshair; }
     return Promise.all(all.map((s) => WB.imageReady(WB.imageOf(s))));
   };
 
-  /* over: paint a highlighter normally instead of beneath (the live stroke is drawn under the ink layer instead). */
+  /* ---- Erasing ----------------------------------------------------------
+     Erasing belongs to the objects it passed over: each one keeps the eraser strokes that touched
+     it in s.erase ([{ tool:'eraser', width, opacity, smooth, points }], board coordinates). They
+     move, turn, scale and get copied along with it, and only ever hide that object. Painting
+     draws the object on its own layer, cuts the erasers out of that layer, and puts the layer down.
+     (Boards from before this kept erasers as separate strokes that hid everything drawn before
+     them; WB.adoptErasers hands those over to the objects they touch.) */
+  let layer = null;
   WB.paint = function (c, s, path, over) {
+    if (!(s.erase && s.erase.length && c.canvas && s.tool !== 'eraser')) return paintPlain(c, s, path, over);
+    const t = c.getTransform(), b = WB.fullBounds(s), cv = c.canvas;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1]]) {
+      const px = t.a * x + t.c * y + t.e, py = t.b * x + t.d * y + t.f;
+      x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+    }
+    x0 = Math.max(0, Math.floor(x0) - 2); y0 = Math.max(0, Math.floor(y0) - 2);
+    x1 = Math.min(cv.width, Math.ceil(x1) + 2); y1 = Math.min(cv.height, Math.ceil(y1) + 2);
+    const w = x1 - x0, h = y1 - y0;
+    if (w <= 0 || h <= 0) return;
+    if (!layer) layer = document.createElement('canvas');
+    if (layer.width < w || layer.height < h) { layer.width = Math.max(layer.width, w); layer.height = Math.max(layer.height, h); }
+    const g = layer.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    g.clearRect(0, 0, w, h);
+    g.setTransform(t.a, t.b, t.c, t.d, t.e - x0, t.f - y0);
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    paintPlain(g, s.tool === 'fill' && s.under ? { ...s, under: false } : s, path, true);
+    g.globalCompositeOperation = 'destination-out';
+    g.strokeStyle = '#000'; g.setLineDash(NO_DASH);
+    for (const e of s.erase) { g.globalAlpha = e.opacity; g.lineWidth = e.width; g.stroke(WB.pathOf(e)); }
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalAlpha = 1;
+    // Highlighters and "under" fills still slide beneath what is already there.
+    c.globalCompositeOperation = (s.hl && !over) || (s.tool === 'fill' && s.under) ? 'destination-over' : 'source-over';
+    c.drawImage(layer, 0, 0, w, h, x0, y0, w, h);
+    c.restore();
+  };
+  /* Is board point (x, y) erased on this object? (Erasers at least half strong count.) `shrink`
+     narrows each eraser, to ask whether a whole line width around the point is gone. */
+  WB.covered = function (s, x, y, shrink) {
+    if (!s.erase) return false;
+    mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.lineCap = 'round'; mctx.lineJoin = 'round';
+    for (const e of s.erase) {
+      if (e.opacity < 0.5) continue;
+      const w = e.width - (shrink || 0);
+      if (w <= 0) continue;
+      mctx.lineWidth = w;
+      if (mctx.isPointInStroke(WB.pathOf(e), x, y)) return true;
+    }
+    return false;
+  };
+  /* Old boards: separate eraser strokes become part of the objects drawn before them that they touch. */
+  WB.adoptErasers = function (strokes) {
+    if (!strokes.some((s) => s.tool === 'eraser')) return strokes;
+    const out = [];
+    for (const s of strokes) {
+      if (s.tool !== 'eraser') { out.push(s); continue; }
+      const b = WB.boundsOf(s), pts = WB.resampleFlat(s.points, Math.max(2, Math.min(200, Math.ceil(pathLength(s.points) / Math.max(1e-6, s.width / 2)))));
+      for (const o of out) {
+        const q = WB.fullBounds(o);
+        if (q.x1 < b.x0 || q.x0 > b.x1 || q.y1 < b.y0 || q.y0 > b.y1) continue;
+        let touch = false;
+        for (let k = 0; k < pts.length && !touch; k += 2) touch = WB.hit(o, pts[k], pts[k + 1], s.width / 2, true);
+        if (!touch) continue;
+        (o.erase || (o.erase = [])).push({ tool: 'eraser', width: s.width, opacity: s.opacity, smooth: !!s.smooth, points: s.points.slice() });
+        delete o._b;
+      }
+    }
+    strokes.length = 0;
+    for (const s of out) strokes.push(s);
+    return strokes;
+  };
+  function pathLength(p) { let l = 0; for (let i = 2; i < p.length; i += 2) l += hyp(p[i] - p[i - 2], p[i + 1] - p[i - 1]); return l; }
+  WB.pathLength = pathLength;
+
+  /* over: paint a highlighter normally instead of beneath (the live stroke is drawn under the ink layer instead). */
+  function paintPlain(c, s, path, over) {
     if (s.tool === 'plot') { WB.paintPlot(c, s); return; }
     if (s.tool === 'image') {
       const img = WB.imageOf(s);
@@ -2641,7 +2759,7 @@ body.pipetting #canvas { cursor: crosshair; }
     c.stroke(path || WB.pathOf(s));
     c.setLineDash(NO_DASH);
     if (s.hl) c.lineCap = 'round';
-  };
+  }
 
   /* ---- Sheets ------------------------------------------------------------
      A board may have pages: [{ x, y, w, h, src? }], fixed areas that exports are limited to (a paper
@@ -2673,11 +2791,28 @@ body.pipetting #canvas { cursor: crosshair; }
   WB.DASHES = { solid: null, dotted: [0, 2], dashed: [2, 2.5], long: [5, 3], dashdot: [4, 2.5, 0, 2.5] };
   WB.dashOf = (s) => { const d = s.dash && WB.DASHES[s.dash]; return d ? d.map((k) => k * s.width) : null; };
 
+  /* The bounds of what is still visible: an erased part of a line no longer counts (the selection
+     frame and what a lasso needs to take hug what is left). */
   WB.boundsOf = function (s) {
     if (s._b) return s._b;
+    if (s.erase && s.erase.length && s.points && !s.rings) {
+      const p = s.points;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let i = 0; i < p.length; i += 2) {
+        if (WB.covered(s, p[i], p[i + 1])) continue;
+        if (p[i] < x0) x0 = p[i]; if (p[i] > x1) x1 = p[i];
+        if (p[i + 1] < y0) y0 = p[i + 1]; if (p[i + 1] > y1) y1 = p[i + 1];
+      }
+      if (x0 !== Infinity) { const r = s.width * 0.75; return (s._b = { x0: x0 - r, y0: y0 - r, x1: x1 + r, y1: y1 + r }); }
+    }
+    return (s._b = WB.fullBounds(s));
+  };
+  /* The bounds of the whole object, erased parts included. */
+  WB.fullBounds = function (s) {
+    if (s._fb) return s._fb;
     if (s.tool === 'text' || s.tool === 'image' || s.tool === 'plot') {
       const q = WB.corners(s);
-      return (s._b = { x0: Math.min(q[0], q[2], q[4], q[6]), y0: Math.min(q[1], q[3], q[5], q[7]), x1: Math.max(q[0], q[2], q[4], q[6]), y1: Math.max(q[1], q[3], q[5], q[7]) });
+      return (s._fb = { x0: Math.min(q[0], q[2], q[4], q[6]), y0: Math.min(q[1], q[3], q[5], q[7]), x1: Math.max(q[0], q[2], q[4], q[6]), y1: Math.max(q[1], q[3], q[5], q[7]) });
     }
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const p of s.rings || [s.points]) {
@@ -2687,7 +2822,7 @@ body.pipetting #canvas { cursor: crosshair; }
       }
     }
     const r = s.rings ? 0 : s.width / 2;
-    return (s._b = { x0: x0 - r, y0: y0 - r, x1: x1 + r, y1: y1 + r });
+    return (s._fb = { x0: x0 - r, y0: y0 - r, x1: x1 + r, y1: y1 + r });
   };
 
   /* Bounds of everything visible (erasers never extend the drawing). */
@@ -2704,9 +2839,10 @@ body.pipetting #canvas { cursor: crosshair; }
 
   /* ---- Selection hit-testing ----------------------------------------- */
   /* Is world point (x, y) on this object, within `tol`? Erasers are not objects. */
-  WB.hit = function (s, x, y, tol) {
+  WB.hit = function (s, x, y, tol, ignoreErase) {
     if (s.tool === 'eraser') return false;
-    const b = WB.boundsOf(s);
+    if (!ignoreErase && s.erase && WB.covered(s, x, y)) return false;   // an erased part is not there any more
+    const b = WB.fullBounds(s);
     if (x < b.x0 - tol || x > b.x1 + tol || y < b.y0 - tol || y > b.y1 + tol) return false;
     if (s.tool === 'text' || s.tool === 'image' || s.tool === 'plot') { const F = WB.frameOf(s), p = WB.toLocal(F, x, y); return Math.abs(p.x) <= F.w / 2 + tol && Math.abs(p.y) <= F.h / 2 + tol; }
     mctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2725,6 +2861,7 @@ body.pipetting #canvas { cursor: crosshair; }
     let inside = 0, total = 0;
     for (let i = 0; i < n; i += step) {
       const x = pts[2 * i], y = pts[2 * i + 1];
+      if (s.erase && WB.covered(s, x, y)) continue;   // only what is still visible has to be inside
       let c = false;
       for (let a = 0, b = m - 2; a < m; b = a, a += 2) {
         const ya = poly[a + 1], yb = poly[b + 1];
@@ -3815,6 +3952,29 @@ body.pipetting #canvas { cursor: crosshair; }
       c.stroke();
     });
 
+    // Special points: a small dot each; the ones tapped show their coordinates.
+    const pts = WB.plotPoints(s), dr = 3.6 * px;
+    for (const q of pts) {
+      c.beginPath(); c.arc(X(q.x), Y(q.y), dr, 0, Math.PI * 2);
+      c.fillStyle = q.color; c.fill();
+      c.lineWidth = 1.4 * px; c.strokeStyle = '#ffffff'; c.stroke();
+    }
+    const fsl = Math.max(9, Math.min(15, Math.min(w, h) * 0.045));
+    c.font = `${fsl}px -apple-system, "Segoe UI", system-ui, sans-serif`;
+    c.textAlign = 'left'; c.textBaseline = 'middle';
+    for (const q of pts) {
+      if (!q.pinned) continue;
+      const label = WB.plotLabel(q), tw = c.measureText(label).width, pw = tw + fsl * 0.9, ph = fsl * 1.6;
+      let lx = X(q.x) + fsl * 0.6, ly = Y(q.y) - fsl * 0.6 - ph;
+      if (lx + pw > w / 2 - 2) lx = X(q.x) - fsl * 0.6 - pw;
+      if (ly < -h / 2 + 2) ly = Y(q.y) + fsl * 0.6;
+      c.beginPath();
+      if (c.roundRect) c.roundRect(lx, ly, pw, ph, ph * 0.3); else c.rect(lx, ly, pw, ph);
+      c.fillStyle = 'rgba(255,255,255,0.95)'; c.fill();
+      c.lineWidth = px; c.strokeStyle = q.color; c.stroke();
+      c.fillStyle = '#24272c'; c.fillText(label, lx + fsl * 0.45, ly + ph / 2);
+    }
+
     // The functions, typeset, in a card at the top left.
     const ls = Math.max(8, Math.min(18, Math.min(w, h) * 0.055));
     const rows = fns.map((F, i) => {
@@ -3844,6 +4004,124 @@ body.pipetting #canvas { cursor: crosshair; }
     if (c.roundRect) c.roundRect(-w / 2, -h / 2, w, h, r); else c.rect(-w / 2, -h / 2, w, h);
     c.strokeStyle = '#b8bec8'; c.lineWidth = px; c.stroke();
     c.restore();
+  };
+
+  /* ---- Special points ------------------------------------------------------
+     Where each curve crosses the axes, its local highest and lowest points, its inflection points,
+     and where two curves meet, within the part of the plane in view. Found numerically: the curve
+     is sampled finely, then every sign change (of the value, its slope or its curvature, or of
+     the difference of two curves) is narrowed down by bisection. Jumps across an asymptote are
+     not crossings. Worked out again only when the view or the functions change.
+     Each: { x, y, kind: 'root' | 'yint' | 'max' | 'min' | 'infl' | 'cross', color, pinned }. */
+  const N = 480;
+  function bisect(g, a, b, ga) {
+    for (let k = 0; k < 60; k++) {
+      const m = (a + b) / 2, gm = g(m);
+      if (!isFinite(gm)) return NaN;
+      if ((gm > 0) === (ga > 0)) { a = m; ga = gm; } else b = m;
+    }
+    return (a + b) / 2;
+  }
+  function golden(g, a, b, max) {            // the highest (or lowest) point of g between a and b
+    const r = (Math.sqrt(5) - 1) / 2, sgn = max ? -1 : 1;
+    let x1 = b - r * (b - a), x2 = a + r * (b - a), f1 = sgn * g(x1), f2 = sgn * g(x2);
+    for (let k = 0; k < 80; k++) {
+      if (f1 < f2) { b = x2; x2 = x1; f2 = f1; x1 = b - r * (b - a); f1 = sgn * g(x1); }
+      else { a = x1; x1 = x2; f1 = f2; x2 = a + r * (b - a); f2 = sgn * g(x2); }
+    }
+    return (a + b) / 2;
+  }
+  WB.plotPoints = function (s) {
+    const fns = WB.plotFns(s), u = s.w / s.span;
+    const x0 = s.cx - s.w / 2 / u, x1 = s.cx + s.w / 2 / u, y0 = s.cy - s.h / 2 / u, y1 = s.cy + s.h / 2 / u;
+    const key = [s.cx, s.cy, s.span, s.w, s.h, s._fx && s._fx.key].join('|');
+    if (s._pts && s._pts.key === key) return markPins(s, s._pts.list);
+    const out = [], H = y1 - y0, dx = (x1 - x0) / N, eps = H * 1e-9;
+    const inView = (x, y) => isFinite(x) && isFinite(y) && x >= x0 && x <= x1 && y >= y0 && y <= y1;
+    const add = (x, y, kind, color) => {
+      if (!inView(x, y)) return;
+      const tol = (x1 - x0) * 2e-4;
+      if (out.some((q) => Math.abs(q.x - x) < tol && Math.abs(q.y - y) < tol)) return;   // already there (a root that is also a minimum…)
+      out.push({ x, y, kind, color });
+    };
+    const safe = (f) => (x) => { try { return f(x); } catch (e) { return NaN; } };
+    const curves = fns.map((F, i) => ({ f: F.f && safe(F.f), color: s.fns[i].color || WB.PLOT_COLORS[i % WB.PLOT_COLORS.length] })).filter((c) => c.f);
+    const xs = [];
+    for (let k = 0; k <= N; k++) xs.push(x0 + k * dx);
+    // Is the step from k to k+1 a smooth stretch (not across an asymptote or a gap)?
+    const smooth = (ys, k) => isFinite(ys[k]) && isFinite(ys[k + 1]) && Math.abs(ys[k + 1] - ys[k]) < H * 0.5;
+    for (const C of curves) {
+      const f = C.f, ys = xs.map(f);
+      // Where it meets the y axis.
+      if (x0 <= 0 && x1 >= 0) add(0, f(0), 'yint', C.color);
+      // Where it meets the x axis: a sign change, or a sample right on it.
+      for (let k = 0; k < N; k++) {
+        if (!smooth(ys, k)) continue;
+        if (ys[k] === 0) add(xs[k], 0, 'root', C.color);
+        else if (ys[k] * ys[k + 1] < 0) { const r = bisect(f, xs[k], xs[k + 1], ys[k]); if (Math.abs(f(r)) < H * 1e-6) add(r, 0, 'root', C.color); }
+      }
+      // Highest and lowest points: the slope changes sign.
+      for (let k = 1; k < N; k++) {
+        if (!smooth(ys, k - 1) || !smooth(ys, k)) continue;
+        const a = ys[k] - ys[k - 1], b = ys[k + 1] - ys[k];
+        if (Math.abs(a) < eps && Math.abs(b) < eps) continue;         // flat: no single highest point
+        if (a > 0 && b <= 0 || a >= 0 && b < 0) { const x = golden(f, xs[k - 1], xs[k + 1], true); add(x, f(x), 'max', C.color); }
+        else if (a < 0 && b >= 0 || a <= 0 && b > 0) { const x = golden(f, xs[k - 1], xs[k + 1], false); add(x, f(x), 'min', C.color); }
+      }
+      // Inflection points: the curvature changes sign.
+      const h = dx;
+      const curv = (x) => (f(x + h) - 2 * f(x) + f(x - h));
+      const cs = xs.map((x, k) => (k > 0 && k < N && smooth(ys, k - 1) && smooth(ys, k) ? ys[k + 1] - 2 * ys[k] + ys[k - 1] : NaN));
+      const noise = H * 1e-9;
+      for (let k = 1; k < N - 1; k++) {
+        const a = cs[k], b = cs[k + 1];
+        if (!isFinite(a) || !isFinite(b) || Math.abs(a) < noise || Math.abs(b) < noise || a * b >= 0) continue;
+        if (Math.max(Math.abs(a), Math.abs(b)) > H * 0.2) continue;   // a corner or a near-asymptote, not a bend
+        const x = bisect(curv, xs[k], xs[k + 1], a);
+        if (isFinite(x)) add(x, f(x), 'infl', C.color);
+      }
+    }
+    // Where two curves meet.
+    for (let i = 0; i < curves.length; i++) for (let j = i + 1; j < curves.length; j++) {
+      const f = curves[i].f, g = curves[j].f, d = (x) => f(x) - g(x), ds = xs.map(d), fy = xs.map(f), gy = xs.map(g);
+      for (let k = 0; k < N; k++) {
+        if (!smooth(fy, k) || !smooth(gy, k) || !(ds[k] * ds[k + 1] <= 0) || ds[k] === ds[k + 1]) continue;
+        const x = ds[k] === 0 ? xs[k] : bisect(d, xs[k], xs[k + 1], ds[k]);
+        if (Math.abs(d(x)) < H * 1e-6) add(x, f(x), 'cross', '#5a6270');
+      }
+    }
+    s._pts = { key, list: out };
+    return markPins(s, out);
+  };
+  function markPins(s, list) {
+    const pins = s._pins || [], tol = s.span * 1e-6;
+    for (const q of list) q.pinned = pins.some((p) => Math.abs(p.x - q.x) <= tol && Math.abs(p.y - q.y) <= tol);
+    return list;
+  }
+  /* "(x; y)", rounded to what can be told apart in the view (whole numbers stay whole). */
+  WB.plotLabel = function (q) {
+    const n = (v) => {
+      if (Math.abs(v) < 1e-10) return '0';
+      const r = Math.round(v * 1e4) / 1e4;
+      return (Math.abs(r - Math.round(r)) < 1e-9 ? String(Math.round(r)) : String(r)).replace('-', '−');
+    };
+    return `(${n(q.x)}; ${n(q.y)})`;
+  };
+  /* The special point at a spot in the graph's own frame (lx, ly), within tol, or null. */
+  WB.plotPointAt = function (s, lx, ly, tol) {
+    const u = s.w / s.span;
+    let best = null, bd = tol;
+    for (const q of WB.plotPoints(s)) {
+      const d = Math.hypot((q.x - s.cx) * u - lx, -(q.y - s.cy) * u - ly);
+      if (d <= bd) { bd = d; best = q; }
+    }
+    return best;
+  };
+  /* Show or hide the coordinates of a special point (kept while the board is open). */
+  WB.plotTogglePin = function (s, q) {
+    const pins = s._pins || (s._pins = []), tol = s.span * 1e-6;
+    const i = pins.findIndex((p) => Math.abs(p.x - q.x) <= tol && Math.abs(p.y - q.y) <= tol);
+    if (i >= 0) pins.splice(i, 1); else pins.push({ x: q.x, y: q.y });
   };
 
   /* Zoom the graph's view by factor k (> 1 zooms out) about a point given in its own frame. */
@@ -4033,6 +4311,236 @@ body.pipetting #canvas { cursor: crosshair; }
 
 </script>
 <script>
+/* Built-in stickers: ready-made drawings that come with the app, in their own folder of the
+   sticker gallery ("Built-in stickers"). They live in the app's code, not in the sticker folder,
+   so they are always there (no folder needs choosing first) and cannot be renamed, moved or
+   deleted. Each is made fresh when shown or placed, from real lines and texts (so it can be
+   recoloured, erased and edited like anything drawn by hand), in the ink colour that suits the
+   canvas, and sized to look right at 100 % zoom.
+
+   WB.builtins.tree(ink) -> [{ key, items: [{ key, label, make() -> board text }] }] */
+(function () {
+  'use strict';
+  const WB = (window.WB = window.WB || {});
+  const tr = (k, v) => WB.t(k, v);
+
+  /* ---- Drawing helpers (board units = screen pixels at 100 %) ----------------- */
+  function kit(ink) {
+    const out = [];
+    const line = (pts, w = 2, op = 1, closed = false) => out.push({ tool: 'pen', color: ink, width: w, opacity: op, points: pts.flat(), smooth: false, closed });
+    const seg = (x1, y1, x2, y2, w, op) => line([[x1, y1], [x2, y2]], w, op);
+    const rect = (x, y, w, h, lw = 2) => line([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], lw, 1, true);
+    function ellipse(cx, cy, rx, ry, rot = 0, w = 2.5) {
+      const p = [], c = Math.cos(rot), s = Math.sin(rot);
+      for (let i = 0; i < 120; i++) { const a = (i / 120) * Math.PI * 2, x = Math.cos(a) * rx, y = Math.sin(a) * ry; p.push([cx + x * c - y * s, cy + x * s + y * c]); }
+      out.push({ tool: 'pen', color: ink, width: w, opacity: 1, points: p.flat(), smooth: true, closed: true, shape: rx === ry ? 'circle' : 'ellipse' });
+    }
+    /* A text placed by an anchor: ax 'left' | 'center' | 'right', ay 'top' | 'middle' | 'bottom'. */
+    function text(x, y, t, size = 14, ax = 'center', ay = 'middle', font = 'sans') {
+      const L = WB.textLayout({ text: t, font, size });
+      const left = ax === 'left' ? x : ax === 'right' ? x - L.w : x - L.w / 2;
+      const top = ay === 'top' ? y : ay === 'bottom' ? y - L.h : y - L.h / 2;
+      out.push({ tool: 'text', x: left, y: top, rot: 0, text: t, font, size, color: ink, opacity: 1, width: 0 });
+    }
+    function arrowHead(x, y, dx, dy, size = 9, w = 2) {
+      const a = Math.atan2(dy, dx);
+      line([[x - size * Math.cos(a - 0.42), y - size * Math.sin(a - 0.42)], [x, y], [x - size * Math.cos(a + 0.42), y - size * Math.sin(a + 0.42)]], w);
+    }
+    return { out, line, seg, rect, ellipse, text, arrowHead };
+  }
+  const board = (title, strokes) => WB.serialize({ title, created: 0, strokes, pages: [] }, { x: 0, y: 0, zoom: 1 });
+
+  /* ---- Coordinate systems ------------------------------------------------------
+     1 unit = 32 px (the canvas dot spacing). Q: the quarters shown, as 1–4 (counter-clockwise from
+     the top right, as in maths). Grid only in those quarters; both axes, with arrows, ticks and
+     numbers wherever a shown quarter touches them. */
+  function axes(ink, Q, N) {
+    const K = kit(ink), u = 32, has = (q) => Q.includes(q);
+    const R = has(1) || has(4) ? N : 0, L = has(2) || has(3) ? N : 0, T = has(1) || has(2) ? N : 0, B = has(3) || has(4) ? N : 0;
+    // Grid: each line covers the shown quarters it passes through, joined where they meet.
+    const spans = (a, b) => (a && b ? [[-N, N]] : a ? [[0, N]] : b ? [[-N, 0]] : []);
+    for (let k = -L; k <= R; k++) {
+      if (!k) continue;
+      for (const [a, b] of spans(k > 0 ? has(1) : has(2), k > 0 ? has(4) : has(3))) K.seg(k * u, -b * u, k * u, -a * u, 1, 0.22);
+    }
+    for (let k = -B; k <= T; k++) {
+      if (!k) continue;
+      for (const [a, b] of spans(k > 0 ? has(1) : has(4), k > 0 ? has(2) : has(3))) K.seg(a * u, -k * u, b * u, -k * u, 1, 0.22);
+    }
+    // Axes, reaching a little past the grid on the positive side, with arrows.
+    const xr = (R + 0.8) * u, yt = -(T + 0.8) * u;
+    K.seg(-L * u, 0, xr, 0, 2); K.arrowHead(xr, 0, 1, 0);
+    K.seg(0, B * u, 0, yt, 2); K.arrowHead(0, yt, 0, -1);
+    K.text(xr + 2, 6, 'x', 17, 'left', 'top', 'serif');
+    K.text(8, yt - 2, 'y', 17, 'left', 'bottom', 'serif');
+    // Ticks, left unnumbered: the scale is for whoever uses it to write in.
+    for (let k = -L; k <= R; k++) if (k) K.seg(k * u, -4, k * u, 4, 1.5);
+    for (let k = -B; k <= T; k++) if (k) K.seg(-4, -k * u, 4, -k * u, 1.5);
+    return K.out;
+  }
+
+  /* ---- Venn diagrams --------------------------------------------------------- */
+  function venn(ink, kind) {
+    const K = kit(ink), S = 22;
+    const universe = (x0, y0, x1, y1) => { K.rect(x0, y0, x1 - x0, y1 - y0, 2); K.text(x0 + 10, y0 + 8, 'U', 18, 'left', 'top'); };
+    if (kind === 'two' || kind === 'twoU') {
+      K.ellipse(-55, 0, 92, 92); K.ellipse(55, 0, 92, 92);
+      K.text(-128, -78, 'A', S); K.text(128, -78, 'B', S);
+      if (kind === 'twoU') universe(-185, -125, 185, 125);
+    } else if (kind === 'three' || kind === 'threeU') {
+      K.ellipse(-55, -32, 92, 92); K.ellipse(55, -32, 92, 92); K.ellipse(0, 63, 92, 92);
+      K.text(-128, -110, 'A', S); K.text(128, -110, 'B', S); K.text(0, 180, 'C', S);
+      if (kind === 'threeU') universe(-185, -160, 185, 205);
+    } else if (kind === 'four') {
+      // Four ellipses: every combination of the four sets has its own region (16 in all).
+      const a = 150, b = 82, t = Math.PI / 4, E = [[-48, 28, t], [-8, -22, t], [8, -22, -t], [48, 28, -t]];
+      const inside = ([cx, cy, r], x, y) => { const c = Math.cos(r), s = Math.sin(r), dx = x - cx, dy = y - cy, u = dx * c + dy * s, v = -dx * s + dy * c; return (u * u) / (a * a) + (v * v) / (b * b) < 1; };
+      E.forEach(([cx, cy, r]) => K.ellipse(cx, cy, a, b, r));
+      // Each letter goes just outside the part that belongs to its set alone, straight out from the middle.
+      E.forEach((e, i) => {
+        let sx = 0, sy = 0, n = 0;
+        for (let x = -240; x <= 240; x += 6) for (let y = -200; y <= 200; y += 6) {
+          if (inside(e, x, y) && E.every((o, j) => j === i || !inside(o, x, y))) { sx += x; sy += y; n++; }
+        }
+        let x = sx / n, y = sy / n;
+        const d = Math.hypot(x, y) || 1, ux = x / d, uy = y / d;
+        while (inside(e, x, y)) { x += ux * 3; y += uy * 3; }
+        K.text(x + ux * 16, y + uy * 16, 'ABCD'[i], S);
+      });
+    } else if (kind === 'subset') {
+      K.ellipse(0, 0, 115, 115); K.ellipse(28, 22, 50, 50);
+      K.text(-70, -60, 'A', S); K.text(28, 22, 'B', S);
+      universe(-150, -145, 150, 145);
+    } else if (kind === 'disjoint') {
+      K.ellipse(-82, 0, 66, 66); K.ellipse(82, 0, 66, 66);
+      K.text(-82, 0, 'A', S); K.text(82, 0, 'B', S);
+      universe(-175, -105, 175, 105);
+    }
+    return K.out;
+  }
+
+  /* ---- Karnaugh and Veitch maps ---------------------------------------------------
+     rows / cols: the variables along each side (one or two each). The order of the cells is the
+     Gray code (00 01 11 10), so neighbouring cells differ in one variable. Each cell shows its
+     number in the corner: the minterm's (disjunctive) or the maxterm's (conjunctive, 2ⁿ−1−m).
+     Karnaugh maps write the codes along the sides; Veitch maps mark, with a bracket, the rows and
+     columns where each variable is 1. Both have the corner with the variables split by a diagonal. */
+  const GRAY = { 1: [0, 1], 2: [0, 1, 3, 2] };
+  const bin = (v, n) => v.toString(2).padStart(n, '0');
+  function kmap(ink, rows, cols, veitch, conj) {
+    const K = kit(ink), C = 56, nr = rows.length, nc = cols.length, R = GRAY[nr], Cc = GRAY[nc], W = Cc.length * C, H = R.length * C;
+    const n = nr + nc, top = (1 << n) - 1;
+    // Grid
+    K.rect(0, 0, W, H, 2);
+    for (let i = 1; i < Cc.length; i++) K.seg(i * C, 0, i * C, H, 2);
+    for (let i = 1; i < R.length; i++) K.seg(0, i * C, W, i * C, 2);
+    // Cell numbers, in the bottom right corner of each cell.
+    R.forEach((rv, ri) => Cc.forEach((cv, ci) => {
+      const m = (rv << nc) | cv;
+      K.text((ci + 1) * C - 5, (ri + 1) * C - 4, String(conj ? top - m : m), 11, 'right', 'bottom');
+    }));
+    // The corner: row variables below the diagonal, column variables above it.
+    K.seg(0, 0, -30, -36, 1.5);
+    K.text(-30, -12, rows.join(''), 15, 'right', 'middle');
+    K.text(-10, -38, cols.join(''), 15, 'left', 'bottom');
+    if (!veitch) {
+      Cc.forEach((cv, ci) => K.text(ci * C + C / 2, -8, bin(cv, nc), 15, 'center', 'bottom'));
+      R.forEach((rv, ri) => K.text(-12, ri * C + C / 2, bin(rv, nr), 15, 'right', 'middle'));
+      return K.out;
+    }
+    // Veitch: a bracket over the stretch of rows or columns where the variable is 1.
+    const stretch = (codes, j, len) => {
+      const on = codes.map((v, i) => ((v >> (len - 1 - j)) & 1 ? i : -1)).filter((i) => i >= 0);
+      return [on[0], on[on.length - 1] + 1];
+    };
+    const D = 16, hook = 7, inset = 5, S = 19;
+    cols.forEach((v, j) => {
+      const [a, b] = stretch(Cc, j, nc), x0 = a * C + inset, x1 = b * C - inset, below = j === 1, y = below ? H + D : -D, hy = below ? y - hook : y + hook;
+      K.line([[x0, hy], [x0, y], [x1, y], [x1, hy]], 2);
+      K.text((x0 + x1) / 2, below ? y + 6 : y - 6, v, S, 'center', below ? 'top' : 'bottom');
+    });
+    rows.forEach((v, j) => {
+      const [a, b] = stretch(R, j, nr), y0 = a * C + inset, y1 = b * C - inset, right = j === 1, x = right ? W + D : -D, hx = right ? x - hook : x + hook;
+      K.line([[hx, y0], [x, y0], [x, y1], [hx, y1]], 2);
+      K.text(right ? x + 8 : x - 8, (y0 + y1) / 2, v, S, right ? 'left' : 'right', 'middle');
+    });
+    return K.out;
+  }
+
+  /* ---- Truth tables ---------------------------------------------------------------
+     Columns: the row's number counted disjunctively (0 at the top) and conjunctively (2ⁿ−1 at the
+     top), then the variables, then F (empty, to be filled in), set off by a double line. */
+  function truth(ink, n) {
+    const K = kit(ink), vars = 'ABCD'.slice(0, n).split(''), rows = 1 << n;
+    const IW = 34, VW = 30, FW = 42, RH = 24, HH = 30, GAP = 4;
+    const xs = [0, IW, 2 * IW];
+    for (let i = 1; i <= n; i++) xs.push(2 * IW + i * VW);
+    const xF = xs[xs.length - 1], W = xF + GAP + FW, H = HH + rows * RH;
+    K.rect(0, 0, W, H, 2);
+    for (let i = 1; i < xs.length - 1; i++) K.seg(xs[i], 0, xs[i], H, i === 2 ? 2 : 1.5);
+    K.seg(xF, 0, xF, H, 1.5); K.seg(xF + GAP, 0, xF + GAP, H, 1.5);
+    K.seg(0, HH, W, HH, 2);
+    for (let r = 1; r < rows; r++) K.seg(0, HH + r * RH, W, HH + r * RH, 1, 0.45);
+    vars.forEach((v, i) => K.text(xs[2 + i] + VW / 2, HH / 2, v, 16));
+    K.text(xF + GAP + FW / 2, HH / 2, 'F', 16);
+    for (let r = 0; r < rows; r++) {
+      const y = HH + r * RH + RH / 2;
+      K.text(IW / 2, y, String(r), 13);
+      K.text(IW + IW / 2, y, String(rows - 1 - r), 13);
+      vars.forEach((_, i) => K.text(xs[2 + i] + VW / 2, y, String((r >> (n - 1 - i)) & 1), 13));
+    }
+    return K.out;
+  }
+
+  /* ---- Graphs ----------------------------------------------------------------------- */
+  const graph = (fns) => [{ tool: 'plot', x: 0, y: 0, w: 480, h: 340, rot: 0, opacity: 1, width: 0, cx: 0, cy: 0, span: 16,
+    fns: fns.map((src, i) => ({ src, color: WB.PLOT_COLORS[i % WB.PLOT_COLORS.length] })) }];
+
+  /* ---- The folder ---------------------------------------------------------------------- */
+  const ROMAN = ['', 'I', 'II', 'III', 'IV'];
+  WB.builtins = {
+    tree(ink) {
+      const item = (key, label, strokes) => ({ key, label, make: () => board(label, strokes()) });
+      const quad = (Q) => {
+        const name = Q.length === 4 ? tr('bAllQuadrants') : Q.length === 1 ? tr('bQuadrant', { q: ROMAN[Q[0]] }) : tr('bQuadrants', { q: Q.map((q) => ROMAN[q]).join(' + ') });
+        return item('axes' + Q.join(''), name, () => axes(ink, Q, Q.length === 1 ? 10 : 8));
+      };
+      const sizes = [[['A'], ['B'], '2×2'], [['A'], ['B', 'C'], '2×4'], [['A', 'B'], ['C'], '4×2'], [['A', 'B'], ['C', 'D'], '4×4']];
+      const maps = (veitch) => sizes.flatMap(([r, c, dim]) => [false, true].map((conj) =>
+        item((veitch ? 'veitch' : 'karnaugh') + dim + (conj ? 'c' : 'd'), `${dim} · ${tr(conj ? 'bConj' : 'bDisj')}`, () => kmap(ink, r, c, veitch, conj))));
+      return [
+        { key: 'bGraphs', items: [
+          item('graph0', tr('bGraphEmpty'), () => graph([])),
+          item('graphSq', tr('bGraphOf', { f: 'x²' }), () => graph(['f(x) = x^2'])),
+          item('graphSin', tr('bGraphOf', { f: 'sin x' }), () => graph(['f(x) = sin(x)'])),
+        ] },
+        { key: 'bAxes', items: [[1, 2, 3, 4], [1], [2], [3], [4], [1, 2], [3, 4], [1, 4], [2, 3], [1, 3], [2, 4]].map(quad) },
+        { key: 'bVenn', items: [
+          item('venn2', tr('bVennTwo'), () => venn(ink, 'two')),
+          item('venn3', tr('bVennThree'), () => venn(ink, 'three')),
+          item('venn4', tr('bVennFour'), () => venn(ink, 'four')),
+          item('venn2u', tr('bVennTwoU'), () => venn(ink, 'twoU')),
+          item('venn3u', tr('bVennThreeU'), () => venn(ink, 'threeU')),
+          item('vennSub', tr('bVennSubset'), () => venn(ink, 'subset')),
+          item('vennDis', tr('bVennDisjoint'), () => venn(ink, 'disjoint')),
+        ] },
+        { key: 'bKarnaugh', items: maps(false) },
+        { key: 'bVeitch', items: maps(true) },
+        { key: 'bTruth', items: [2, 3, 4].map((n) => item('truth' + n, tr('bTruthVars', { n }), () => truth(ink, n))) },
+      ];
+    },
+    /* The ink colour that reads on a canvas colour: white on dark canvases, near-black on light ones. */
+    inkFor(bg) {
+      const m = /^#?([0-9a-f]{6})$/i.exec(String(bg || '').trim());
+      if (!m) return '#111111';
+      const v = parseInt(m[1], 16), r = v >> 16, g = (v >> 8) & 255, b = v & 255;
+      return 0.299 * r + 0.587 * g + 0.114 * b < 128 ? '#ffffff' : '#111111';
+    },
+  };
+})();
+
+</script>
+<script>
 /* File formats: .whtbd (native), bitmap, SVG, PDF. */
 (function () {
   'use strict';
@@ -4055,7 +4563,15 @@ body.pipetting #canvas { cursor: crosshair; }
     if (doc.pages && doc.pages.length) {
       out += '  "pages": [\n' + doc.pages.map((p) => `    { "x": ${f(p.x)}, "y": ${f(p.y)}, "w": ${f(p.w)}, "h": ${f(p.h)}${p.src ? `, "src": ${JSON.stringify(p.src)}` : ''} }`).join(',\n') + '\n  ],\n';
     }
-    const lines = doc.strokes.map((s) => {
+    // An object's erasing: [{ "width", "opacity", "smooth", "points": [[x, y], ...] }], after its other fields.
+    const erasing = (s) => !(s.erase && s.erase.length) ? '' : `, "erase": [${s.erase.map((e) => {
+      const q = []; for (let i = 0; i < e.points.length; i += 2) q.push(`[${f(e.points[i])},${f(e.points[i + 1])}]`);
+      return `{ "width": ${+e.width.toFixed(3)}, "opacity": ${+e.opacity.toFixed(3)}, "smooth": ${!!e.smooth}, "points": [${q.join(',')}] }`;
+    }).join(', ')}]`;
+    // The groups it is in, outermost first: "group": [1, 4].
+    const grouping = (s) => (s.group && s.group.length ? `, "group": [${s.group.join(',')}]` : '');
+    const lines = doc.strokes.map((s) => objectLine(s).replace(/ \}$/, erasing(s) + grouping(s) + ' }'));
+    function objectLine(s) {
       if (s.tool === 'text') {
         return `    { "tool": "text", "x": ${f(s.x)}, "y": ${f(s.y)}, ${s.rot ? `"rot": ${f((s.rot * 180) / Math.PI)}, ` : ''}"font": "${s.font}", "size": ${+s.size.toFixed(3)}, "color": "${s.color}", "opacity": ${+s.opacity.toFixed(3)}, ${s.math ? '"math": true, ' : ''}"text": ${JSON.stringify(s.text)} }`;
       }
@@ -4084,7 +4600,7 @@ body.pipetting #canvas { cursor: crosshair; }
       // Pressure: one whole number 0-100 per point.
       const press = s.tool === 'pen' && s.press && s.press.length === p.length >> 1 ? `, "pressure": [${s.press.map((v) => Math.round(v * 100)).join(',')}]` : '';
       return `    ${o}"points": [${pts.join(',')}]${press} }`;
-    });
+    }
     out += '  "strokes": [\n' + lines.join(',\n') + (lines.length ? '\n' : '') + '  ]\n}\n';
     return out;
   };
@@ -4107,14 +4623,41 @@ body.pipetting #canvas { cursor: crosshair; }
     const num = (v, def) => (typeof v === 'number' && isFinite(v) ? v : def);
     const strokes = [];
     const hex = (c) => (/^#[0-9a-f]{6}$/i.test(c) ? c.toLowerCase() : '#000000');
+    // An object's erasing, checked like a line: finite points, width and opacity in range.
+    const erasingOf = (s) => {
+      if (!s || !Array.isArray(s.erase)) return null;
+      const out = [];
+      for (const e of s.erase.slice(0, 2000)) {
+        if (!e || !Array.isArray(e.points)) continue;
+        const points = [];
+        for (const p of e.points) if (Array.isArray(p) && isFinite(p[0]) && isFinite(p[1])) points.push(+p[0], +p[1]);
+        if (points.length) out.push({ tool: 'eraser', width: Math.max(0.01, num(e.width, 20)), opacity: Math.min(1, Math.max(0.01, num(e.opacity, 1))), smooth: !!e.smooth, points });
+      }
+      return out.length ? out : null;
+    };
+    // The groups an object is in: up to 64 whole numbers 1 .. 2^31, no repeats.
+    const groupOf = (s) => {
+      if (!s || !Array.isArray(s.group)) return null;
+      const g = [...new Set(s.group.filter((v) => Number.isInteger(v) && v > 0 && v < 2 ** 31))].slice(0, 64);
+      return g.length ? g : null;
+    };
     for (const s of d.strokes) {
+      const before = strokes.length;
+      readObject(s);
+      const er = strokes.length > before && strokes[strokes.length - 1].tool !== 'eraser' ? erasingOf(s) : null;
+      if (er) strokes[strokes.length - 1].erase = er;
+      const gr = strokes.length > before && strokes[strokes.length - 1].tool !== 'eraser' ? groupOf(s) : null;
+      if (gr) strokes[strokes.length - 1].group = gr;
+    }
+    WB.adoptErasers(strokes);
+    function readObject(s) {
       if (s && s.tool === 'text') {
         if (typeof s.text === 'string' && s.text.trim() && isFinite(s.x) && isFinite(s.y)) {
           strokes.push({ tool: 'text', x: +s.x, y: +s.y, rot: (num(s.rot, 0) % 360) * Math.PI / 180, text: s.text.slice(0, 20000), font: WB.FONTS[s.font] ? s.font : 'sans',
             size: Math.max(0.01, num(s.size, 24)), color: hex(s.color), opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), width: 0 });
           if (s.math === true) strokes[strokes.length - 1].math = true;
         }
-        continue;
+        return;
       }
       if (s && s.tool === 'plot') {
         if (isFinite(s.x) && isFinite(s.y) && num(s.w, 0) > 0 && num(s.h, 0) > 0 && Array.isArray(s.fns)) {
@@ -4122,14 +4665,14 @@ body.pipetting #canvas { cursor: crosshair; }
           strokes.push({ tool: 'plot', x: +s.x, y: +s.y, w: +s.w, h: +s.h, rot: (num(s.rot, 0) % 360) * Math.PI / 180, opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))),
             cx: num(s.cx, 0), cy: num(s.cy, 0), span: Math.min(1e9, Math.max(1e-9, num(s.span, 20))), fns, width: 0 });
         }
-        continue;
+        return;
       }
       if (s && s.tool === 'image') {
         if (typeof s.src === 'string' && /^data:image\/(png|jpeg|webp|gif|bmp);base64,[A-Za-z0-9+/=]+$/.test(s.src) &&
             isFinite(s.x) && isFinite(s.y) && num(s.w, 0) > 0 && num(s.h, 0) > 0) {
           strokes.push({ tool: 'image', x: +s.x, y: +s.y, w: +s.w, h: +s.h, rot: (num(s.rot, 0) % 360) * Math.PI / 180, opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), src: s.src, width: 0 });
         }
-        continue;
+        return;
       }
       if (s && s.tool === 'fill' && Array.isArray(s.rings)) {
         const rings = [];
@@ -4139,14 +4682,14 @@ body.pipetting #canvas { cursor: crosshair; }
           if (q.length >= 6) rings.push(q);
         }
         if (rings.length) strokes.push({ tool: 'fill', color: hex(s.color), width: 0, opacity: Math.min(1, Math.max(0.01, num(s.opacity, 1))), under: !!s.under, rings });
-        continue;
+        return;
       }
-      if (!s || !Array.isArray(s.points)) continue;
+      if (!s || !Array.isArray(s.points)) return;
       const points = [];
       for (const p of s.points) {
         if (Array.isArray(p) && isFinite(p[0]) && isFinite(p[1])) points.push(+p[0], +p[1]);
       }
-      if (!points.length) continue;
+      if (!points.length) return;
       const st = {
         tool: s.tool === 'eraser' ? 'eraser' : 'pen',
         color: hex(s.color),
@@ -4352,20 +4895,28 @@ body.pipetting #canvas { cursor: crosshair; }
     return d;
   }
 
-  /* A graph or a typeset maths text, as a picture with the same box: SVG and PDF have no way to
-     draw them natively, so they go in as high-resolution images (sharp at 4 px per unit). */
+  /* An object as a picture with the same box, for formats that cannot draw it natively (graphs and
+     typeset maths in SVG and PDF, erased objects in PDF): a high-resolution image, 4 px per unit. */
   WB.rasterize = function (s) {
-    const F = WB.frameOf(s), q = Math.min(4, 4000 / Math.max(F.w, F.h, 1e-6));
+    const boxed = s.tool === 'text' || s.tool === 'image' || s.tool === 'plot';
+    const fb = !boxed && WB.fullBounds(s);
+    const F = boxed ? WB.frameOf(s) : { x: fb.x0, y: fb.y0, w: Math.max(fb.x1 - fb.x0, 1e-6), h: Math.max(fb.y1 - fb.y0, 1e-6), rot: 0 };
+    const q = Math.min(4, 4000 / Math.max(F.w, F.h, 1e-6));
     const cv = document.createElement('canvas');
     cv.width = Math.max(1, Math.ceil(F.w * q)); cv.height = Math.max(1, Math.ceil(F.h * q));
     const g = cv.getContext('2d');
     g.setTransform(q, 0, 0, q, -F.x * q, -F.y * q);
-    const flat = { ...s, rot: 0, opacity: 1 };
-    if (s.tool === 'text') { flat.x = F.x; flat.y = F.y; delete flat._t; delete flat._b; }
+    const flat = boxed ? { ...s, rot: 0, opacity: 1 } : s;
+    if (boxed && s.erase) {        // the erasing turns back with the box
+      const c = Math.cos(-(F.rot || 0)), n = Math.sin(-(F.rot || 0)), mx = F.x + F.w / 2, my = F.y + F.h / 2;
+      flat.erase = s.erase.map((e) => { const p = e.points.slice(); for (let i = 0; i < p.length; i += 2) { const dx = p[i] - mx, dy = p[i + 1] - my; p[i] = mx + dx * c - dy * n; p[i + 1] = my + dx * n + dy * c; } return { ...e, points: p, _path: undefined }; });
+    }
+    if (boxed) { delete flat._fb; delete flat._b; }
+    if (s.tool === 'text') { flat.x = F.x; flat.y = F.y; delete flat._t; }
     WB.paint(g, flat);
-    return { tool: 'image', x: F.x, y: F.y, w: F.w, h: F.h, rot: F.rot || 0, opacity: s.opacity, src: cv.toDataURL('image/png'), width: 0 };
+    return { tool: 'image', x: F.x, y: F.y, w: F.w, h: F.h, rot: F.rot || 0, opacity: boxed ? s.opacity : 1, src: cv.toDataURL('image/png'), width: 0 };
   };
-  const flatten = (strokes) => strokes.map((s) => (s.tool === 'plot' || (s.tool === 'text' && s.math) ? WB.rasterize(s) : s));
+  const flatten = (strokes, erased) => strokes.map((s) => (s.tool === 'plot' || (s.tool === 'text' && s.math) || (erased && s.erase && s.erase.length) ? WB.rasterize(s) : s));
 
   WB.toSVG = function (strokes, b, bg, payload, pages, pattern) {
     strokes = flatten(strokes);
@@ -4376,26 +4927,36 @@ body.pipetting #canvas { cursor: crosshair; }
     for (const run of runs(strokes)) {
       if (run.kind === 'ink') {
         for (const s of run.items) {
+          let el, under = false;
           if (s.tool === 'image') {
             const turn = s.rot ? ` transform="rotate(${f((s.rot * 180) / Math.PI)} ${f(s.x + s.w / 2)} ${f(s.y + s.h / 2)})"` : '';
-            body += `<image x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" preserveAspectRatio="none"${turn}${s.opacity < 1 ? ` opacity="${f(s.opacity)}"` : ''} xlink:href="${s.src}"/>\n`;
+            el = `<image x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" preserveAspectRatio="none"${turn}${s.opacity < 1 ? ` opacity="${f(s.opacity)}"` : ''} xlink:href="${s.src}"/>\n`;
           } else if (s.tool === 'text') {
             const L = WB.textLayout(s);
-            body += `<text${s.rot ? ` transform="rotate(${f((s.rot * 180) / Math.PI)} ${f(s.x)} ${f(s.y)})"` : ''} font-family="${esc(WB.FONTS[s.font] || WB.FONTS.sans)}" font-size="${f(s.size)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none" xml:space="preserve">` +
+            el = `<text${s.rot ? ` transform="rotate(${f((s.rot * 180) / Math.PI)} ${f(s.x)} ${f(s.y)})"` : ''} font-family="${esc(WB.FONTS[s.font] || WB.FONTS.sans)}" font-size="${f(s.size)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none" xml:space="preserve">` +
               L.lines.map((l, i) => `<tspan x="${f(s.x)}" y="${f(s.y + i * L.lh + L.base)}">${esc(l)}</tspan>`).join('') + '</text>\n';
           } else if (s.tool === 'fill') {
             // An "under" fill sits beneath everything drawn before it, so it goes first in the document.
-            const el = `<path d="${svgPath(s)}" fill="${s.color}" fill-rule="evenodd"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
-            body = s.under ? el + body : body + el;
+            el = `<path d="${svgPath(s)}" fill="${s.color}" fill-rule="evenodd"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
+            under = !!s.under;
           } else if (WB.hasPress(s)) {
-            body += `<path d="${svgPath(s, true)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
+            el = `<path d="${svgPath(s, true)}" fill="${s.color}"${s.opacity < 1 ? ` fill-opacity="${f(s.opacity)}"` : ''} stroke="none"/>\n`;
           } else if (s.hl) {
             // A highlighter sits beneath what was drawn before it, like an "under" fill.
-            body = `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}" stroke-linecap="square"${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n` + body;
+            el = `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}" stroke-linecap="square"${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n`;
+            under = true;
           } else {
             const dash = WB.dashOf(s);
-            body += `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}"${dash ? ` stroke-dasharray="${dash.map(f).join(' ')}"` : ''}${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n`;
+            el = `<path d="${svgPath(s)}" stroke="${s.color}" stroke-width="${f(s.width)}"${dash ? ` stroke-dasharray="${dash.map(f).join(' ')}"` : ''}${s.opacity < 1 ? ` stroke-opacity="${f(s.opacity)}"` : ''}/>\n`;
           }
+          if (s.erase && s.erase.length) {          // its own erasing hides parts of it, and nothing else
+            const id = 'cut' + (++n);
+            defs += `<mask id="${id}" maskUnits="userSpaceOnUse" ${box}>\n<rect ${box} fill="#fff" stroke="none"/>\n`;
+            for (const e of s.erase) defs += `<path d="${svgPath(e)}" stroke="#000" stroke-width="${f(e.width)}"${e.opacity < 1 ? ` stroke-opacity="${f(e.opacity)}"` : ''}/>\n`;
+            defs += '</mask>\n';
+            el = `<g mask="url(#${id})">\n${el}</g>\n`;
+          }
+          body = under ? el + body : body + el;
         }
       } else if (body) {
         const id = 'erase' + (++n);
@@ -4459,7 +5020,7 @@ body.pipetting #canvas { cursor: crosshair; }
      (board units are CSS pixels, 96 per inch; PDF units are points, 72 per inch). Without pages
      the whole drawing (b) becomes one page, one unit per point as before. */
   WB.toPDF = async function (strokes, b, bg, payload, pages, pattern) {
-    strokes = flatten(strokes);
+    strokes = flatten(strokes, true);
     const sheet = pages && pages.length ? pages : null;
     const pageList = sheet || [b];
     const k = sheet ? 0.75 : Math.min(1, 14400 / b.w, 14400 / b.h); // PDF pages max out at 14400 units
@@ -5940,6 +6501,33 @@ body.pipetting #canvas { cursor: crosshair; }
     return new VDir(tree, DIR_NAME);
   }
 
+  /* ---- Built-in stickers ------------------------------------------------
+     A folder that is part of the app (js/builtins.js), shown first in the sticker gallery. It reads
+     like any folder but can't be changed: no new folders, saving, renaming, moving, copying or
+     deleting, and nothing can be dropped into it. It needs no sticker folder to be chosen first.
+     Its stickers are made when listed, in the ink colour of the current canvas. */
+  class BFile {
+    constructor(it, cat) { this.it = it; this.cat = cat; this.label = it.label; this.name = it.key + EXT; this.kind = 'file'; this.builtin = true; }
+    async getFile() { return new File([this.it.make()], this.name); }
+  }
+  class BDir {
+    constructor(name, kids) { this.name = name; this.kids = kids; this.kind = 'directory'; this.builtin = true; }
+    async *entries() { for (const k of this.kids()) yield [k.name, k]; }
+    async *keys() { for (const k of this.kids()) yield k.name; }
+    async *values() { for (const k of this.kids()) yield k; }
+    async getFileHandle(name) { const k = this.kids().find((h) => h.kind === 'file' && h.name === name); if (!k) throw missing(name); return k; }
+    async getDirectoryHandle(name) { throw Object.assign(new Error('the built-in stickers cannot be changed'), { name: 'NotAllowedError' }); }
+    async removeEntry() { throw Object.assign(new Error('the built-in stickers cannot be changed'), { name: 'NotAllowedError' }); }
+    async isSameEntry(o) { return o === this; }
+    async resolve() { return null; }
+  }
+  // One folder, its stickers listed under their categories' headings (like the sizes of a new sheet).
+  const BUILTIN = new BDir('builtin', () => WB.builtins.tree(WB.builtins.inkFor(host.canvasColor())).flatMap((c) => c.items.map((it) => new BFile(it, tr(c.key)))));
+  const isBuiltin = (h) => !!(h && h.builtin);
+  const inBuiltin = () => mode === 'stickers' && path.length > 0 && isBuiltin(path[0].handle);
+  const BUILTIN_ICON = '<svg viewBox="0 0 64 52" aria-hidden="true"><path d="M4 10a6 6 0 0 1 6-6h13.5a6 6 0 0 1 4.6 2.2L31 10h23a6 6 0 0 1 6 6v26a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6z" fill="currentColor"/><path d="M4 18h56v24a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6z" fill="#fff" fill-opacity="0.22"/><path d="M32 19.5l2.9 7.1 7.6.4-5.9 4.8 2 7.4L32 35l-6.6 4.2 2-7.4-5.9-4.8 7.6-.4z" fill="#fff"/></svg>';
+  const BUILTIN_COLOR = '#af52de';
+
   /* ---- Where the gallery lives ---------------------------------------- */
   /* A page opened straight from a local file may show the folder dialog, but the browser then
      refuses to let it change anything that already exists, so real folders are only offered
@@ -6055,6 +6643,11 @@ body.pipetting #canvas { cursor: crosshair; }
   }
   /* Entries of a folder: [{ kind: 'dir' | 'file', name, handle, label, color }], folders first. */
   async function list(dir) {
+    if (isBuiltin(dir)) {
+      const out = [];
+      for await (const [name, h] of dir.entries()) out.push({ kind: 'file', name, handle: h, label: h.label, cat: h.cat, builtin: true });
+      return out;
+    }
     const idx = await readIndex(dir), out = [];
     for await (const [name, handle] of dir.entries()) {
       if (handle.kind === 'directory') { const m = metaOf(idx, name); out.push({ kind: 'dir', name, handle, label: m.label || name, color: m.color || '' }); }
@@ -6335,16 +6928,19 @@ body.pipetting #canvas { cursor: crosshair; }
   async function show(ask) {
     const my = ++token, grid = $('#g-grid'), msg = $('#g-msg');
     let state;
-    try { state = await connect(!!ask); } catch (e) { state = 'setup'; }
+    if (inBuiltin()) state = 'ready';                       // part of the app: nothing to connect to
+    else { try { state = await connect(!!ask); } catch (e) { state = 'setup'; } }
     if (my !== token) return;
-    const browsing = state === 'ready';
-    grid.hidden = !browsing; msg.hidden = browsing;
-    $('#g-crumbs').hidden = $('#g-new').hidden = !browsing;
+    const browsing = state === 'ready', builtinTile = !browsing && mode === 'stickers';
+    grid.hidden = !browsing && !builtinTile; msg.hidden = browsing;
+    $('#g-crumbs').hidden = !browsing;
+    $('#g-new').hidden = !browsing || inBuiltin();
     $('#g-new-board').hidden = !browsing || mode !== 'boards';
     $('#gallery-title').textContent = tr(cfg.title);
     const back = $('#g-back');
     back.disabled = !browsing || !path.length;
     back._dir = browsing && path.length ? (path.length > 1 ? path[path.length - 2].handle : root) : null;   // also a drop target
+    if (isBuiltin(back._dir)) back._dir = null;                 // nothing is dropped into the built-in stickers
     renderBar(); renderFoot(browsing);
     if (!browsing) {
       msg.textContent = '';
@@ -6356,6 +6952,7 @@ body.pipetting #canvas { cursor: crosshair; }
       if (state === 'setup' && canUseBrowser()) row.appendChild(button(tr('gPrivate'), 'pill-btn quiet', async () => { try { await useBrowser(); afterConnect(); } catch (e) { fail(e); } }));
       msg.appendChild(row);
       if (lastError) msg.appendChild(el('p', 'g-error', lastError));
+      if (builtinTile) { grid.textContent = ''; grid.appendChild(builtinTileEl()); }   // usable before a sticker folder is chosen
       return;
     }
     // Breadcrumbs
@@ -6364,7 +6961,7 @@ body.pipetting #canvas { cursor: crosshair; }
     [{ label: tr(cfg.title) }, ...path].forEach((p, i) => {
       if (i) crumbs.appendChild(el('span', 'g-sep', '›'));
       const b = el('button', i === path.length ? 'g-crumb here' : 'g-crumb', p.label);
-      b._dir = p.handle || root;
+      b._dir = isBuiltin(p.handle) ? null : p.handle || root;     // nothing can be dropped into the built-in stickers
       b.addEventListener('click', () => { path = path.slice(0, i); show(); });
       crumbs.appendChild(b);
     });
@@ -6380,9 +6977,13 @@ body.pipetting #canvas { cursor: crosshair; }
     }
     if (my !== token) return;
     grid.textContent = '';
-    if (!items.length) grid.appendChild(el('p', 'g-empty', tr('gEmpty')));
+    if (mode === 'stickers' && !path.length) grid.appendChild(builtinTileEl());
+    if (!items.length && !(mode === 'stickers' && !path.length)) grid.appendChild(el('p', 'g-empty', tr('gEmpty')));
     const files = [];
+    let cat = null;
     for (const item of items) {
+      if (item.cat && item.cat !== cat) { cat = item.cat; grid.appendChild(el('h3', 'g-cat', cat)); }
+      if (item.builtin) { const t = builtinTileEl(item); grid.appendChild(t); if (item.kind === 'file') files.push({ item, icon: t.firstChild, name: t.lastChild }); continue; }
       const tile = el('div', 'g-tile'), icon = el('button', 'g-icon'), more = el('button', 'g-more', '⋯'), name = el('button', 'g-name', item.label);
       if (item.kind === 'dir') { icon.innerHTML = FOLDER_ICON; if (item.color) icon.style.color = item.color; tile._dir = item.handle; }
       else files.push({ item, icon, name });
@@ -6413,6 +7014,17 @@ body.pipetting #canvas { cursor: crosshair; }
     }
   }
   function button(text, cls, fn) { const b = el('button', cls, text); b.addEventListener('click', fn); return b; }
+  /* A tile of the built-in stickers (the folder itself when no item is given): it opens, and that is all. */
+  function builtinTileEl(item) {
+    item = item || { kind: 'dir', name: 'builtin', handle: BUILTIN, label: tr('sBuiltIn'), builtin: true, top: true };
+    const tile = el('div', 'g-tile builtin'), icon = el('button', 'g-icon'), name = el('span', 'g-name', item.label);
+    if (item.kind === 'dir') { icon.innerHTML = item.top ? BUILTIN_ICON : FOLDER_ICON; icon.style.color = BUILTIN_COLOR; }
+    icon.setAttribute('aria-label', tr('gOpen') + ': ' + item.label);
+    icon.title = item.label;
+    icon.addEventListener('click', () => openItem(item));
+    tile.append(icon, name);
+    return tile;
+  }
 
   function preview(strokes, pages) {
     const b = WB.contentBounds(strokes), bg = host.canvasColor();
@@ -6437,7 +7049,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const dir = here();
     item.handle.getFile().then((f) => f.text()).then((text) => {
       host.closeSheets();
-      if (mode === 'stickers') host.placeSticker(text);
+      if (mode === 'stickers') host.placeSticker(text, { exact: !!item.builtin, group: !!item.builtin });   // built-in ones at the size they were drawn for, as one group
       else host.load(text, { dir, name: item.name });
     }).catch(fail);
   }
@@ -6504,9 +7116,9 @@ body.pipetting #canvas { cursor: crosshair; }
       bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => renderBar()));
       bar.appendChild(button(confirm.yes, 'pill-btn' + (confirm.danger ? ' danger' : ''), () => { renderBar(); confirm.run(); }));
     } else if (saving && mode === 'stickers' && sticker) {
-      bar.appendChild(el('span', '', tr('sSaving')));
+      bar.appendChild(el('span', '', tr(inBuiltin() ? 'sBuiltInNoSave' : 'sSaving')));
       bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => { saving = false; sticker = null; host.closeSheets(); }));
-      bar.appendChild(button(tr('gSaveHere'), 'pill-btn', () => writeSticker(here())));
+      if (!inBuiltin()) bar.appendChild(button(tr('gSaveHere'), 'pill-btn', () => writeSticker(here())));
     } else if (saving) {
       bar.appendChild(el('span', '', tr('gSaving', { t: host.title() })));
       bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => { saving = false; host.closeSheets(); }));
@@ -6519,7 +7131,7 @@ body.pipetting #canvas { cursor: crosshair; }
     } else if (moving) {
       bar.appendChild(el('span', '', tr('gMoving', { t: moving.item.label })));
       bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => { moving = null; renderBar(); }));
-      bar.appendChild(button(tr('gMoveHere'), 'pill-btn', async () => {
+      if (!inBuiltin()) bar.appendChild(button(tr('gMoveHere'), 'pill-btn', async () => {
         const m = moving; moving = null;
         try { await move(m.item, m.from, here()); } catch (e) { fail(e); }
         show();
@@ -6531,6 +7143,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const foot = $('#g-foot');
     foot.textContent = '';
     if (!browsing) return;
+    if (inBuiltin()) { foot.appendChild(el('span', '', tr('sBuiltInNote'))); return; }
     foot.appendChild(el('span', '', kind === 'browser' ? tr(fromLocalFile ? 'gLocalNote' : 'gBrowserNote') + (canDrop() ? ' ' + tr('gDropShort') : '') : parentName));
     const links = el('div', 'g-links');
     links.append(button(tr('gBackup'), 'g-link', () => backup(false)), button(tr('gRestore'), 'g-link', () => $('#restore-input').click()));
@@ -6769,6 +7382,8 @@ body.pipetting #canvas { cursor: crosshair; }
        u8 kind 3 fill:           uv colour · u8 opacity · u8 under · uv rings, each: points
        u8 kind 4 graph:          f x, y, w, h, rot · u8 opacity · f64 cx, cy, span · uv functions, each: uv colour · str source
        u8 kind 5 maths text:     as kind 2 (the text holds $…$ maths)
+       u8 kind 6 erasing:        of the object just before it: uv erasers, each: f width · u8 opacity · u8 smooth · points
+       u8 kind 7 groups:         of the object just before it: uv count, each: uv group number (1, 2, ... in order of appearance)
      points = u8 (grid exponent + 8) · uv count · sv x0, y0 (in grid steps) · sv dx, dy ...
    Pictures (and the page pictures of an opened PDF) are left out: they would make links far too long. */
 (function () {
@@ -6895,7 +7510,23 @@ body.pipetting #canvas { cursor: crosshair; }
     o.uv(colors.size);
     for (const c of colors.keys()) { const n = parseInt(c.slice(1), 16); o.u8(n >> 16); o.u8(n >> 8); o.u8(n); }
     o.uv(items.length);
+    const groupNo = new Map();
     for (const s of items) {
+      putObject(s);
+      if (s.group && s.group.length) {
+        o.u8(7); o.uv(s.group.length);
+        for (const g of s.group) { if (!groupNo.has(g)) groupNo.set(g, groupNo.size + 1); o.uv(groupNo.get(g)); }
+      }
+      if (s.erase && s.erase.length) {
+        o.u8(6); o.uv(s.erase.length);
+        for (const e of s.erase) {
+          o.f(e.width); o.u8(opacityByte(e.opacity)); o.u8(e.smooth ? 1 : 0);
+          const g = gridExp(Math.min(0.5, e.width / 4));
+          putPoints(o, e.points, simplify(e.points, Math.pow(2, -g) * 0.6, false), g);
+        }
+      }
+    }
+    function putObject(s) {
       if (s.tool === 'text') {
         o.u8(s.math ? 5 : 2); o.f(s.x); o.f(s.y); o.f(s.rot || 0); o.f(s.size);
         o.u8(Math.max(0, FONTS.indexOf(s.font))); o.uv(color(s.color)); o.u8(opacityByte(s.opacity)); o.str(s.text);
@@ -6945,11 +7576,23 @@ body.pipetting #canvas { cursor: crosshair; }
     for (let i = 0; i < nc; i++) colors.push('#' + [r.u8(), r.u8(), r.u8()].map((v) => v.toString(16).padStart(2, '0')).join(''));
     const col = (i) => colors[i] || '#000000';
     const n = r.uv();
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < n || (r.n < r.b.length && (r.b[r.n] === 6 || r.b[r.n] === 7)); i++) {   // (the last object's erasing and groups come after it)
       const kind = r.u8();
       if (kind === 2 || kind === 5) {
         const x = r.f(), y = r.f(), rot = r.f(), size = r.f(), font = FONTS[r.u8()] || 'sans', color = col(r.uv()), opacity = r.u8() / 255, t = r.str();
         strokes.push({ tool: 'text', x, y, rot: (rot * 180) / Math.PI, text: t, font, size, color, opacity, math: kind === 5 });
+      } else if (kind === 6) {
+        const ne = r.uv(), erase = [];
+        if (ne > r.b.length - r.n) throw new Error('the link is damaged');
+        for (let j = 0; j < ne; j++) { const width = r.f(), opacity = r.u8() / 255, smooth = !!r.u8(); erase.push({ width, opacity, smooth, points: getPoints(r) }); }
+        if (strokes.length) strokes[strokes.length - 1].erase = erase;
+        i--;                                   // part of the object before it, not an object of its own
+      } else if (kind === 7) {
+        const ng = r.uv(), group = [];
+        if (ng > r.b.length - r.n) throw new Error('the link is damaged');
+        for (let j = 0; j < ng; j++) group.push(r.uv());
+        if (strokes.length) strokes[strokes.length - 1].group = group;
+        i--;
       } else if (kind === 4) {
         const x = r.f(), y = r.f(), w = r.f(), h = r.f(), rot = r.f(), opacity = r.u8() / 255, cx = r.d(), cy = r.d(), span = r.d(), nf = r.uv(), fns = [];
         if (nf > r.b.length - r.n) throw new Error('the link is damaged');
@@ -7551,9 +8194,14 @@ body.pipetting #canvas { cursor: crosshair; }
     live = null; mode = null;
     requestFrame();
     if (cancel || !L) return updateChrome();
+    if (L.deselect && performance.now() - L.t0 < 350) {          // the tap that deselected: not a dot
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let i = 0; i < L.points.length; i += 2) { x0 = Math.min(x0, L.points[i]); x1 = Math.max(x1, L.points[i]); y0 = Math.min(y0, L.points[i + 1]); y1 = Math.max(y1, L.points[i + 1]); }
+      if (Math.max(x1 - x0, y1 - y0) * view.zoom < 6) return updateChrome();
+    }
     if (L.final) applyFinal(L);
     else if (L.tau > 0 && !L.snapped) { L.points.push(L.tx, L.ty); if (L.press) L.press.push(L.tp); }   // smoothing lags the pen: finish at the pen (never on a snapped shape)
-    if (L.tool === 'eraser' && !doc.strokes.length) return updateChrome();
+    if (L.tool === 'eraser') { applyEraser(L); return updateChrome(); }
     const s = { tool: L.tool, color: L.color, width: L.width, opacity: L.opacity, points: L.points, smooth: L.smooth, closed: L.closed };
     if (L.shape) s.shape = L.shape;
     if (L.dash) s.dash = L.dash;
@@ -7577,6 +8225,43 @@ body.pipetting #canvas { cursor: crosshair; }
     if (settings.ink && s.tool === 'pen' && !s.shape && !s.hl) inkAdd(s);
     else if (s.tool === 'pen') inkConvert();
     else inkDrop();
+  }
+
+  /* ---- Erasing ------------------------------------------------------------
+     An eraser stroke becomes part of every object it passes over (see WB.paint), so it moves,
+     turns and gets copied with them. A line erased away completely is removed instead, and an
+     eraser that touched nothing leaves nothing behind. One undo step. */
+  function applyEraser(L) {
+    const E = { tool: 'eraser', width: L.width, opacity: L.opacity, smooth: !!L.smooth, points: L.points.slice() };
+    const len = WB.pathLength(E.points), eb = WB.boundsOf(E);
+    const pts = WB.resampleFlat(E.points, Math.max(2, Math.min(400, Math.ceil(len / Math.max(1e-6, E.width / 3)) + 1)));
+    const edits = [], gone = [];
+    doc.strokes.forEach((o, i) => {
+      if (o.tool === 'eraser') return;
+      const b = WB.boundsOf(o);
+      if (b.x1 < eb.x0 || b.x0 > eb.x1 || b.y1 < eb.y0 || b.y0 > eb.y1) return;
+      let touch = false;
+      for (let k = 0; k < pts.length && !touch; k += 2) touch = WB.hit(o, pts[k], pts[k + 1], E.width / 2);
+      if (!touch) return;
+      const after = (o.erase || []).map((e) => e).concat(plainEraser(E));
+      if (E.opacity >= 0.5 && erasedAway(o, after)) gone.push({ i, s: o });
+      else edits.push({ type: 'edit', s: o, before: { erase: o.erase }, after: { erase: after } });
+    });
+    inkDrop();
+    if (!edits.length && !gone.length) return;
+    for (const a of edits) retext(a.s, a.after);
+    for (let k = gone.length - 1; k >= 0; k--) { doc.strokes.splice(gone[k].i, 1); selection.delete(gone[k].s); }
+    record({ type: 'batch', list: edits.concat(gone.length ? [{ type: 'remove', items: gone }] : []) });
+    invalidate();
+    if (selection.size) selectionChanged();
+  }
+  /* Is all of this line covered by its erasing (its whole width, along its whole length)? */
+  function erasedAway(o, erase) {
+    if (!o.points || o.rings || o.tool !== 'pen') return false;
+    const test = { erase }, len = WB.pathLength(o.points);
+    const pts = o.points.length > 2 ? WB.resampleFlat(o.points, Math.max(2, Math.min(800, Math.ceil(len / Math.max(1e-6, o.width / 2)) + 1))) : o.points;
+    for (let k = 0; k < pts.length; k += 2) if (!WB.covered(test, pts[k], pts[k + 1], o.width * 0.8)) return false;
+    return true;
   }
 
   /* ---- Scratching out ---------------------------------------------------
@@ -7772,8 +8457,9 @@ body.pipetting #canvas { cursor: crosshair; }
       if (s.tool === 'fill' && s.under) under = under || s; else hit = s;
     }
     hit = hit || under;
-    if (add) { if (hit && !selection.delete(hit)) selection.add(hit); }
-    else { selection.clear(); if (hit) selection.add(hit); }
+    const all = hit ? members(hit) : [];                  // a group is picked (and let go) as a whole
+    if (add) { if (hit && selection.has(hit)) for (const m of all) selection.delete(m); else for (const m of all) selection.add(m); }
+    else { selection.clear(); for (const m of all) selection.add(m); }
     selectionChanged();
   }
   function selectLasso(poly, add) {
@@ -7794,7 +8480,8 @@ body.pipetting #canvas { cursor: crosshair; }
     for (const s of items) {
       if (s.tool === 'text' || s.tool === 'image' || s.tool === 'plot') { s.x += dx; s.y += dy; }
       else for (const p of s.rings || [s.points]) for (let i = 0; i < p.length; i += 2) { p[i] += dx; p[i + 1] += dy; }
-      delete s._path; delete s._opath; delete s._b;
+      if (s.erase) for (const e of s.erase) { const p = e.points; for (let i = 0; i < p.length; i += 2) { p[i] += dx; p[i + 1] += dy; } delete e._path; }   // its erasing goes with it
+      delete s._path; delete s._opath; delete s._b; delete s._fb;
     }
     invalidate();
   }
@@ -7806,7 +8493,8 @@ body.pipetting #canvas { cursor: crosshair; }
     requestFrame();
   }
   function selectionChanged() {
-    const n = selection.size;
+    for (const s of [...selection]) if (outer(s)) for (const m of members(s)) selection.add(m);   // never part of a group
+    const n = units(selection).length;
     $('#sel-bar').classList.toggle('on', n > 0);
     if (n) $('#sel-count').textContent = tr('selected', { n });
     showStyleBar();
@@ -7829,9 +8517,12 @@ body.pipetting #canvas { cursor: crosshair; }
     const pad = 5 / z, F = !(selDrag && selDrag.lasso) && selFrame();
     if (F) drawHandles(F, accent);
     placeStyleBar();
-    for (const s of selection) {
-      if (selection.size === 1) break;            // one object: its frame says it all
-      const b = WB.boundsOf(s);
+    const parts = units(selection);
+    for (const u of parts) {
+      if (parts.length === 1) break;              // one object or group: its frame says it all
+      const c = WB.contentBounds(u);
+      if (!c) continue;
+      const b = { x0: c.x, y0: c.y, x1: c.x + c.w, y1: c.y + c.h };
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(b.x0 - pad, b.y0 - pad, b.x1 - b.x0 + 2 * pad, b.y1 - b.y0 + 2 * pad, 6 / z);
       else ctx.rect(b.x0 - pad, b.y0 - pad, b.x1 - b.x0 + 2 * pad, b.y1 - b.y0 + 2 * pad);
@@ -7930,6 +8621,7 @@ body.pipetting #canvas { cursor: crosshair; }
     if (s.tool === 'image' || s.tool === 'text' || s.tool === 'plot') g.rot = s.rot || 0;   // so putting it back also un-turns it
     if (s.points) g.points = s.points.slice();
     if (s.rings) g.rings = s.rings.map((r) => r.slice());
+    if (s.erase) g.erase = s.erase.map(plainEraser);
     return g;
   }
   /* Give object s (whose geometry was g) the shape it has when frame A becomes frame B. */
@@ -7941,6 +8633,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const flat = (p) => { const out = new Array(p.length); for (let i = 0; i < p.length; i += 2) { const q = pt(p[i], p[i + 1]); out[i] = q.x; out[i + 1] = q.y; } return out; };
     if (g.points) { s.points = flat(g.points); s.width = g.width * area; }
     if (g.rings) s.rings = g.rings.map(flat);
+    if (g.erase) s.erase = g.erase.map((e) => ({ ...e, width: e.width * area, points: flat(e.points) }));   // erasing is resized and turned with it
     if (s.tool === 'image' || s.tool === 'text' || s.tool === 'plot') {
       const r = g.rot || 0, u = vec(Math.cos(r), Math.sin(r)), v = vec(-Math.sin(r), Math.cos(r));
       const lu = hyp(u.x, u.y), lv = hyp(v.x, v.y);
@@ -7953,8 +8646,10 @@ body.pipetting #canvas { cursor: crosshair; }
         s.x = a.x; s.y = a.y; s.size = g.size * Math.sqrt(lu * lv);
       }
     }
-    delete s._path; delete s._opath; delete s._b; delete s._t;
+    delete s._path; delete s._opath; delete s._b; delete s._fb; delete s._t;
   }
+  /* An eraser stroke without its drawing caches, safe to copy and to store. */
+  const plainEraser = (e) => ({ tool: 'eraser', width: e.width, opacity: e.opacity, smooth: !!e.smooth, points: e.points.slice() });
   function beginXform(e, k) {
     const F = selFrame(), z = view.zoom;
     const px = (e.clientX - view.x) / z, py = (e.clientY - view.y) / z;
@@ -8033,12 +8728,15 @@ body.pipetting #canvas { cursor: crosshair; }
   let styleRun = null;   // { key, action }: the last style change, so a picker drag can keep extending it
   function showStyleBar() {
     refreshPlotBar();
-    const items = selItems(), lines = items.some((s) => s.tool === 'pen'), colors = items.some((s) => COLORED.has(s.tool));
-    const on = (lines || colors) && tools.tool === 'select' && !xf && !(selDrag && selDrag.moved);
+    const items = selItems(), lines = items.some((s) => s.tool === 'pen'), colors = items.some((s) => COLORED.has(s.tool)), g = groupAction();
+    const on = (lines || colors || !!g) && tools.tool === 'select' && !xf && !(selDrag && selDrag.moved);
     styleBar.classList.toggle('on', on);
     if (!on) return;
     styleBar.classList.toggle('no-line', !lines);
     styleBar.classList.toggle('no-color', !colors);
+    styleBar.classList.toggle('no-group', !g);
+    styleBar.classList.toggle('ungroup', g === 'ungroup');
+    $('#ss-group').setAttribute('aria-label', tr(g === 'ungroup' ? 'ungroup' : 'group'));
     refreshStyleBar();
     placeStyleBar();
   }
@@ -8114,7 +8812,56 @@ body.pipetting #canvas { cursor: crosshair; }
       b.addEventListener('click', () => restyle((s) => (s.tool === 'pen' ? { dash: k === 'solid' ? undefined : k } : null)));
       dashes.appendChild(b);
     }
+    $('#ss-group').addEventListener('click', () => { const g = groupAction(); if (g === 'group') groupSelection(); else if (g === 'ungroup') ungroupSelection(); });
     styleBar.addEventListener('pointerdown', (e) => e.stopPropagation());
+  }
+
+  /* ---- Groups -----------------------------------------------------------
+     Objects in a group carry s.group: the ids of the groups they are in, outermost first (whole
+     numbers, unique on the board). They stay ordinary objects in the drawing order, so drawing,
+     erasing and exporting need nothing new; selecting picks the whole outermost group, so a group
+     is moved, resized, turned, styled, copied and deleted as one. Grouping puts the selection
+     (loose objects and groups alike) into a new outer group, so groups can hold groups; ungrouping
+     takes that outer one away again, leaving the groups that were inside it. */
+  const outer = (s) => (s.group && s.group.length ? s.group[0] : 0);
+  function members(s) { const g = outer(s); return g ? doc.strokes.filter((o) => outer(o) === g) : [s]; }
+  /* The selection as what it is made of: each loose object alone, each group as its objects together. */
+  function units(items) {
+    const out = [], by = new Map();
+    for (const s of items) {
+      const g = outer(s);
+      if (!g) { out.push([s]); continue; }
+      if (!by.has(g)) { by.set(g, []); out.push(by.get(g)); }
+      by.get(g).push(s);
+    }
+    return out;
+  }
+  /* 'ungroup' when the selection is one group, 'group' when it is two or more things, else null. */
+  function groupAction() {
+    const items = selItems();
+    if (!items.length) return null;
+    if (units(items).length === 1) return outer(items[0]) ? 'ungroup' : null;
+    return 'group';
+  }
+  const nextGroupId = () => { let m = 0; for (const s of doc.strokes) if (s.group) for (const g of s.group) m = Math.max(m, g); return m + 1; };
+  function groupSelection() {
+    const id = nextGroupId();
+    styleRun = null;
+    restyle((s) => ({ group: [id].concat(s.group || []) }));
+    selectionChanged();
+  }
+  function ungroupSelection() {
+    styleRun = null;
+    restyle((s) => (s.group && s.group.length ? { group: s.group.length > 1 ? s.group.slice(1) : undefined } : null));
+    selectionChanged();
+  }
+  /* Copies put on the board (duplicates, stickers) get group ids of their own, so they are not
+     part of the groups they were copied from. Returns the next free id. */
+  function freshGroups(items) {
+    const map = new Map();
+    let id = nextGroupId();
+    for (const s of items) if (s.group) s.group = s.group.map((g) => (map.has(g) ? map.get(g) : (map.set(g, id), id++)));
+    return id;
   }
 
   /* ---- Stickers ---------------------------------------------------------
@@ -8131,16 +8878,19 @@ body.pipetting #canvas { cursor: crosshair; }
     const label = tr('sticker');
     WB.stickers.save(WB.serialize({ title: label, created: Date.now(), strokes: copies }, { x: 0, y: 0, zoom: 1 }), label);
   }
-  async function placeSticker(text) {
+  async function placeSticker(text, opt) {
     let d;
     try { d = WB.parse(text); } catch (e) { return toast(tr(e.message)); }
     const items = d.strokes, b = WB.contentBounds(items);
     if (!b) return toast(tr('tNothing'));
-    const z = view.zoom, k = Math.min(1, (0.6 * W) / z / Math.max(b.w, 1e-6), (0.6 * H) / z / Math.max(b.h, 1e-6));
+    // Shrunk to fit the screen if it is big; a built-in sticker keeps its size (it is drawn for 100 %).
+    const z = view.zoom, k = opt && opt.exact ? 1 : Math.min(1, (0.6 * W) / z / Math.max(b.w, 1e-6), (0.6 * H) / z / Math.max(b.h, 1e-6));
     const w = b.w * k, h = b.h * k, cx = (W / 2 - view.x) / z, cy = (H / 2 - view.y) / z;
     for (const s of items) mapObject(s, geometry(s), { x: b.x, y: b.y, w: b.w, h: b.h, rot: 0 }, { x: cx - w / 2, y: cy - h / 2, w, h, rot: 0 });
     await WB.loadImages(items);
     if (live) endStroke(true);
+    const id = freshGroups(items);
+    if (opt && opt.group && items.length > 1) for (const s of items) s.group = [id].concat(s.group || []);   // a built-in sticker comes as one group
     for (const s of items) doc.strokes.push(s);
     record({ type: 'batch', list: items.map((s) => ({ type: 'add', stroke: s })) });
     setTool('select');
@@ -8156,6 +8906,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const items = selItems().sort((a, b) => doc.strokes.indexOf(a) - doc.strokes.indexOf(b));
     if (!items.length) return;
     const copies = items.map(cloneObject), d = 16 / view.zoom;
+    freshGroups(copies);
     translate(copies, d, d);
     for (const c of copies) doc.strokes.push(c);
     record({ type: 'batch', list: copies.map((c) => ({ type: 'add', stroke: c })) });
@@ -8244,7 +8995,7 @@ body.pipetting #canvas { cursor: crosshair; }
     }
     invalidate(); updateChrome(); selectionChanged();
   }
-  function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; delete s._path; delete s._opath; }
+  function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; delete s._fb; delete s._path; delete s._opath; }
 
   /* Change the font, size or colour of the text being typed (and remember it for the next one). */
   function styleText(props) {
@@ -8488,8 +9239,12 @@ body.pipetting #canvas { cursor: crosshair; }
   /* ---- Pan and pinch ------------------------------------------------- */
   let panId = null, panSamples = [], pinch = null;
 
-  function beginPan(id, x, y) {
+  /* tap: the pan started with this press (not the finger left over from a pinch), so if it never
+     moves it counts as a tap on the board (see endPan). */
+  let panTap = null;
+  function beginPan(id, x, y, tap) {
     mode = 'pan'; panId = id; panSamples = [{ x, y, t: performance.now() }];
+    panTap = tap ? { x, y, t: performance.now(), far: 0 } : null;
     canvas.classList.add('panning');
   }
   /* Touchscreens now and then report a point far from where the finger really is (a missed
@@ -8504,6 +9259,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const l = panSamples[panSamples.length - 1], now = performance.now();
     if (isJump(x - l.x, y - l.y, now - l.t)) { panSamples = [{ x, y, t: now }]; return; }   // a glitch: re-anchor, don't move
     view.x += x - l.x; view.y += y - l.y;
+    if (panTap) panTap.far = Math.max(panTap.far, hyp(x - panTap.x, y - panTap.y));
     panSamples.push({ x, y, t: now });
     if (panSamples.length > 10) panSamples.shift();
     invalidate();
@@ -8511,6 +9267,16 @@ body.pipetting #canvas { cursor: crosshair; }
   function endPan() {
     mode = null; canvas.classList.remove('panning');
     const now = performance.now(), l = panSamples[panSamples.length - 1], f = panSamples.find((s) => now - s.t < 100);
+    // A tap that only started a pan (one finger moves the board, or the hand tool): with the select
+    // tool it selects what is under it; otherwise a tap on nothing lets go of the selection.
+    const t = panTap;
+    panTap = null;
+    if (t && t.far < 8 && now - t.t < 400 && tools.tool !== 'laser') {
+      if (tools.tool === 'select') return selectAt(t.x, t.y, false);
+      const z = view.zoom, wx = (t.x - view.x) / z, wy = (t.y - view.y) / z;
+      if (selection.size && !doc.strokes.some((o) => WB.hit(o, wx, wy, 6 / z))) clearSelection();
+      return;
+    }
     if (f && f !== l && now - l.t < 60 && !reduceMotion.matches) {
       const dt = l.t - f.t;
       let vx = (l.x - f.x) / dt, vy = (l.y - f.y) / dt;                  // hand the release velocity to the glide
@@ -8611,7 +9377,7 @@ body.pipetting #canvas { cursor: crosshair; }
         tap = { t: now, max: 1, moved: false, downs: [down] };
         if (doubleOnText(e, now)) return;
         if (tools.tool === 'laser' || (settings.fingerDraw && tools.tool !== 'hand')) beginTool(e, tools.tool);
-        else beginPan(e.pointerId, e.clientX, e.clientY);
+        else beginPan(e.pointerId, e.clientX, e.clientY, true);
         return;
       }
       if (tap) { tap.max = Math.max(tap.max, n); tap.downs.push(down); }
@@ -8632,11 +9398,11 @@ body.pipetting #canvas { cursor: crosshair; }
 
     if (e.pointerType === 'pen') {
       penDown = true; lastPen = now;
-      if (e.button === 2 || tools.tool === 'hand') return beginPan(e.pointerId, e.clientX, e.clientY);
+      if (e.button === 2 || tools.tool === 'hand') return beginPan(e.pointerId, e.clientX, e.clientY, true);
       const flipped = e.button === 5 || (e.buttons & 32);    // eraser end of the stylus
       return flipped ? beginStroke(e, 'eraser') : beginTool(e, tools.tool);
     }
-    if (e.button === 1 || spaceHeld || tools.tool === 'hand') beginPan(e.pointerId, e.clientX, e.clientY);
+    if (e.button === 1 || spaceHeld || tools.tool === 'hand') beginPan(e.pointerId, e.clientX, e.clientY, true);
     else if (e.button === 0) beginTool(e, tools.tool);
   });
 
@@ -8672,7 +9438,14 @@ body.pipetting #canvas { cursor: crosshair; }
       if (selDrag.move) finishFill();
     }
     else if (tool === 'text') { mode = 'text'; textDown = { id: e.pointerId, x: e.clientX, y: e.clientY }; }
-    else beginStroke(e, tool);
+    else {
+      // Something is selected and another tool presses the board: the selection goes. A mere tap
+      // only deselects (no dot is left); a real stroke is drawn as usual.
+      const had = selection.size > 0;
+      if (had) clearSelection();
+      beginStroke(e, tool);
+      if (had && live) live.deselect = true;
+    }
   }
 
   canvas.addEventListener('pointermove', (e) => {
@@ -8740,7 +9513,7 @@ body.pipetting #canvas { cursor: crosshair; }
       selDrag = null;
       if (d.moved) { record({ type: 'move', items: [...selection], dx: d.dx, dy: d.dy }); showStyleBar(); }
       else if (d.lasso) selectLasso(d.lasso, d.add);
-      else selectAt(d.x, d.y, d.add);
+      else { plotPointTap(d.x, d.y); selectAt(d.x, d.y, d.add); }
     } else if (mode === 'text' && textDown && e.pointerId === textDown.id) {
       const d = textDown;
       textDown = null; mode = null;
@@ -8920,6 +9693,7 @@ body.pipetting #canvas { cursor: crosshair; }
       const o = {};
       for (const k in s) if (k[0] !== '_') o[k] = s[k];
       if (s.tool === 'image') { delete o.src; o.img = imgKey(s); }         // pictures too are stored once (below)
+      if (s.erase) o.erase = s.erase.map(plainEraser);                       // without their drawing caches
       return o;
     });
     // A PDF's page pictures (and other pictures) are large and never change, so each is stored
@@ -9773,7 +10547,8 @@ body.pipetting #canvas { cursor: crosshair; }
     return { x, y, d: n > 1 ? d / n : 0 };
   }
   function beginPlotDrag(e) {
-    if (!plotDrag || mode !== 'plot') plotDrag = { pts: new Map() };
+    if (!plotDrag || mode !== 'plot') plotDrag = { pts: new Map(), start: { x: e.clientX, y: e.clientY }, far: 0, many: false };
+    else plotDrag.many = true;
     plotDrag.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     plotDrag.grip = plotGrip();
     mode = 'plot'; tap = null;
@@ -9783,6 +10558,8 @@ body.pipetting #canvas { cursor: crosshair; }
     const p = plotDrag && plotDrag.pts.get(e.pointerId), s = plotActive;
     if (!p || !s) return;
     p.x = e.clientX; p.y = e.clientY;
+    plotDrag.far = Math.max(plotDrag.far, hyp(p.x - plotDrag.start.x, p.y - plotDrag.start.y));
+    if (plotDrag.far < 4 && !plotDrag.many) return;      // not moving yet: may still be a tap on a point
     const g0 = plotDrag.grip, g1 = plotGrip(), d = plotVec(s, g1.x - g0.x, g1.y - g0.y);
     WB.plotPan(s, d.x, d.y);
     if (g0.d > 0 && g1.d > 0) { const L = plotLocal(s, g1.x, g1.y); WB.plotZoom(s, g0.d / g1.d, L.x, L.y); }
@@ -9793,8 +10570,22 @@ body.pipetting #canvas { cursor: crosshair; }
     if (!plotDrag) { mode = null; return; }
     plotDrag.pts.delete(e.pointerId);
     if (plotDrag.pts.size) { plotDrag.grip = plotGrip(); return; }
+    const d = plotDrag;
     plotDrag = null; mode = null;
     canvas.classList.remove('panning');
+    if (!d.many && d.far < 6) plotPointTap(d.start.x, d.start.y);   // a tap, not a drag: on a special point, show its coordinates
+  }
+  /* A tap at a screen point on a graph's special point shows or hides its coordinates. True if it was on one. */
+  function plotPointTap(cx, cy) {
+    for (let i = doc.strokes.length - 1; i >= 0; i--) {
+      const o = doc.strokes[i];
+      if (o.tool !== 'plot' || !inPlot(o, cx, cy)) continue;
+      const L = plotLocal(o, cx, cy), q = WB.plotPointAt(o, L.x, L.y, 12 / view.zoom);
+      if (!q) return false;
+      WB.plotTogglePin(o, q); invalidate();
+      return true;
+    }
+    return false;
   }
 
   /* The graph the bar is for: the one being explored, or a graph selected on its own. */
@@ -10123,7 +10914,7 @@ body.pipetting #canvas { cursor: crosshair; }
     load: (text, gref) => loadText(text, null, gref),
     retitle: (label) => { doc.title = label; titleEl.value = shownTitle(); updateChrome(); autosave(); },
     commit: commitPending,
-    placeSticker: (text) => placeSticker(text),
+    placeSticker: (text, opt) => placeSticker(text, opt),
     saved: () => { saveTarget = 'gallery'; markSaved(); },
     filesCopy: () => IOS && settings.filesCopy,
     canvasColor: () => canvasColor(),
@@ -10167,6 +10958,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const srcs = await dbGetMany(holders.map((h) => h.img));
     holders.forEach((h, i) => { h._key = h.img; delete h.img; if (srcs[i]) h.src = srcs[i]; else delete h.src; });
     saved.strokes = saved.strokes.filter((s) => s.tool !== 'image' || s.src);
+    WB.adoptErasers(saved.strokes);                             // an older board's separate eraser strokes
     if (docRev !== rev || doc.strokes.length) return;           // a board was opened meanwhile (from a file, say): keep that
     doc.title = saved.title || 'Untitled'; doc.created = saved.created || Date.now(); doc.strokes = saved.strokes;
     doc.pages = pages;

@@ -783,6 +783,15 @@
   };
   for (const code in SAVE_HERE) { D[code].gSaving = SAVE_HERE[code][0]; D[code].gSaveHere = SAVE_HERE[code][1]; }
 
+  /* Grouping the selection, on its style bar. */
+  const GROUPS = {
+    en: ['Group', 'Ungroup'], hu: ['Csoportosítás', 'Csoport bontása'], de: ['Gruppieren', 'Gruppierung aufheben'],
+    fr: ['Grouper', 'Dissocier'], it: ['Raggruppa', 'Separa'], es: ['Agrupar', 'Desagrupar'], pt: ['Agrupar', 'Desagrupar'],
+    ru: ['Сгруппировать', 'Разгруппировать'], uk: ['Згрупувати', 'Розгрупувати'], tr: ['Grupla', 'Grubu çöz'],
+    zh: ['组合', '取消组合'], ja: ['グループ化', 'グループ解除'], ar: ['تجميع', 'فك التجميع'], hi: ['समूह बनाएँ', 'समूह तोड़ें'],
+  };
+  for (const code in GROUPS) { D[code].group = GROUPS[code][0]; D[code].ungroup = GROUPS[code][1]; }
+
   /* Line types, the selection's style bar, duplicate and stickers. Keys in order:
      lineType, dash_solid, dash_dotted, dash_dashed, dash_long, dash_dashdot, thinner, thicker,
      duplicate, saveSticker, addSticker, mStickers, mStickersMenu, sticker, sSetup, sSaving,
@@ -1175,6 +1184,24 @@
     tAiPlotted: 'Grafikon hozzáadva. Dupla kattintással vagy koppintással fedezheted fel', tAiNoFn: 'Nem található ábrázolható x-függvény', tAiEmpty: 'Nem található írás',
     tAiModels: '{n} modell érhető el', tAiForgot: 'API-kulcsok törölve', aiCheckFail: 'ellenőrzés: ez a válasz nem elégíti ki a feladatot',
   });
+
+  /* Built-in stickers (a fixed folder in the sticker gallery). Other languages fall back to English. */
+  Object.assign(D.en, {
+    sBuiltIn: 'Built-in stickers', sBuiltInNote: 'Part of the app: always here, made to suit your canvas colour.', sBuiltInNoSave: 'Stickers can’t be saved into the built-in folder. Pick another folder.',
+    bGraphs: 'Graphs', bAxes: 'Coordinate systems', bVenn: 'Venn diagrams', bKarnaugh: 'Karnaugh maps', bVeitch: 'Veitch maps', bTruth: 'Truth tables',
+    bGraphEmpty: 'Empty graph', bGraphOf: 'Graph of {f}', bAllQuadrants: 'All four quadrants', bQuadrant: 'Quadrant {q}', bQuadrants: 'Quadrants {q}',
+    bVennTwo: 'Two sets', bVennThree: 'Three sets', bVennFour: 'Four sets', bVennTwoU: 'Two sets in a universe', bVennThreeU: 'Three sets in a universe',
+    bVennSubset: 'Subset', bVennDisjoint: 'Disjoint sets', bDisj: 'disjunctive', bConj: 'conjunctive', bTruthVars: '{n} variables',
+  });
+  Object.assign(D.hu, {
+    sBuiltIn: 'Beépített matricák', sBuiltInNote: 'Az app része: mindig itt van, és a vászon színéhez igazodik.', sBuiltInNoSave: 'A beépített mappába nem lehet matricát menteni. Válassz másik mappát.',
+    bGraphs: 'Grafikonok', bAxes: 'Koordináta-rendszerek', bVenn: 'Venn-diagramok', bKarnaugh: 'Karnaugh-táblák', bVeitch: 'Veitch-táblák', bTruth: 'Igazságtáblák',
+    bGraphEmpty: 'Üres grafikon', bGraphOf: '{f} grafikonja', bAllQuadrants: 'Mind a négy síknegyed', bQuadrant: '{q}. síknegyed', bQuadrants: '{q}. síknegyed',
+    bVennTwo: 'Két halmaz', bVennThree: 'Három halmaz', bVennFour: 'Négy halmaz', bVennTwoU: 'Két halmaz alaphalmazban', bVennThreeU: 'Három halmaz alaphalmazban',
+    bVennSubset: 'Részhalmaz', bVennDisjoint: 'Diszjunkt halmazok', bDisj: 'diszjunktív', bConj: 'konjunktív', bTruthVars: '{n} változó',
+  });
+  Object.assign(D.en, { plotEditNote: 'One per line, e.g. f(x) = sin(x) or y = x^2 − 1. While exploring, drag to move around and scroll or pinch to zoom. Tap a dot on a curve to see its coordinates.' });
+  Object.assign(D.hu, { plotEditNote: 'Soronként egy, pl. f(x) = sin(x) vagy y = x^2 − 1. Felfedezés közben húzással mozoghatsz, görgetéssel vagy csippentéssel nagyíthatsz. Egy görbe pontjára koppintva látod a koordinátáit.' });
 
   /* The best supported language for this device's preferences. */
   WB.systemLang = function () {

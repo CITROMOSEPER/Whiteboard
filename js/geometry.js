@@ -210,8 +210,86 @@
     return Promise.all(all.map((s) => WB.imageReady(WB.imageOf(s))));
   };
 
-  /* over: paint a highlighter normally instead of beneath (the live stroke is drawn under the ink layer instead). */
+  /* ---- Erasing ----------------------------------------------------------
+     Erasing belongs to the objects it passed over: each one keeps the eraser strokes that touched
+     it in s.erase ([{ tool:'eraser', width, opacity, smooth, points }], board coordinates). They
+     move, turn, scale and get copied along with it, and only ever hide that object. Painting
+     draws the object on its own layer, cuts the erasers out of that layer, and puts the layer down.
+     (Boards from before this kept erasers as separate strokes that hid everything drawn before
+     them; WB.adoptErasers hands those over to the objects they touch.) */
+  let layer = null;
   WB.paint = function (c, s, path, over) {
+    if (!(s.erase && s.erase.length && c.canvas && s.tool !== 'eraser')) return paintPlain(c, s, path, over);
+    const t = c.getTransform(), b = WB.fullBounds(s), cv = c.canvas;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1]]) {
+      const px = t.a * x + t.c * y + t.e, py = t.b * x + t.d * y + t.f;
+      x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+    }
+    x0 = Math.max(0, Math.floor(x0) - 2); y0 = Math.max(0, Math.floor(y0) - 2);
+    x1 = Math.min(cv.width, Math.ceil(x1) + 2); y1 = Math.min(cv.height, Math.ceil(y1) + 2);
+    const w = x1 - x0, h = y1 - y0;
+    if (w <= 0 || h <= 0) return;
+    if (!layer) layer = document.createElement('canvas');
+    if (layer.width < w || layer.height < h) { layer.width = Math.max(layer.width, w); layer.height = Math.max(layer.height, h); }
+    const g = layer.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    g.clearRect(0, 0, w, h);
+    g.setTransform(t.a, t.b, t.c, t.d, t.e - x0, t.f - y0);
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    paintPlain(g, s.tool === 'fill' && s.under ? { ...s, under: false } : s, path, true);
+    g.globalCompositeOperation = 'destination-out';
+    g.strokeStyle = '#000'; g.setLineDash(NO_DASH);
+    for (const e of s.erase) { g.globalAlpha = e.opacity; g.lineWidth = e.width; g.stroke(WB.pathOf(e)); }
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalAlpha = 1;
+    // Highlighters and "under" fills still slide beneath what is already there.
+    c.globalCompositeOperation = (s.hl && !over) || (s.tool === 'fill' && s.under) ? 'destination-over' : 'source-over';
+    c.drawImage(layer, 0, 0, w, h, x0, y0, w, h);
+    c.restore();
+  };
+  /* Is board point (x, y) erased on this object? (Erasers at least half strong count.) `shrink`
+     narrows each eraser, to ask whether a whole line width around the point is gone. */
+  WB.covered = function (s, x, y, shrink) {
+    if (!s.erase) return false;
+    mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.lineCap = 'round'; mctx.lineJoin = 'round';
+    for (const e of s.erase) {
+      if (e.opacity < 0.5) continue;
+      const w = e.width - (shrink || 0);
+      if (w <= 0) continue;
+      mctx.lineWidth = w;
+      if (mctx.isPointInStroke(WB.pathOf(e), x, y)) return true;
+    }
+    return false;
+  };
+  /* Old boards: separate eraser strokes become part of the objects drawn before them that they touch. */
+  WB.adoptErasers = function (strokes) {
+    if (!strokes.some((s) => s.tool === 'eraser')) return strokes;
+    const out = [];
+    for (const s of strokes) {
+      if (s.tool !== 'eraser') { out.push(s); continue; }
+      const b = WB.boundsOf(s), pts = WB.resampleFlat(s.points, Math.max(2, Math.min(200, Math.ceil(pathLength(s.points) / Math.max(1e-6, s.width / 2)))));
+      for (const o of out) {
+        const q = WB.fullBounds(o);
+        if (q.x1 < b.x0 || q.x0 > b.x1 || q.y1 < b.y0 || q.y0 > b.y1) continue;
+        let touch = false;
+        for (let k = 0; k < pts.length && !touch; k += 2) touch = WB.hit(o, pts[k], pts[k + 1], s.width / 2, true);
+        if (!touch) continue;
+        (o.erase || (o.erase = [])).push({ tool: 'eraser', width: s.width, opacity: s.opacity, smooth: !!s.smooth, points: s.points.slice() });
+        delete o._b;
+      }
+    }
+    strokes.length = 0;
+    for (const s of out) strokes.push(s);
+    return strokes;
+  };
+  function pathLength(p) { let l = 0; for (let i = 2; i < p.length; i += 2) l += hyp(p[i] - p[i - 2], p[i + 1] - p[i - 1]); return l; }
+  WB.pathLength = pathLength;
+
+  /* over: paint a highlighter normally instead of beneath (the live stroke is drawn under the ink layer instead). */
+  function paintPlain(c, s, path, over) {
     if (s.tool === 'plot') { WB.paintPlot(c, s); return; }
     if (s.tool === 'image') {
       const img = WB.imageOf(s);
@@ -267,7 +345,7 @@
     c.stroke(path || WB.pathOf(s));
     c.setLineDash(NO_DASH);
     if (s.hl) c.lineCap = 'round';
-  };
+  }
 
   /* ---- Sheets ------------------------------------------------------------
      A board may have pages: [{ x, y, w, h, src? }], fixed areas that exports are limited to (a paper
@@ -299,11 +377,28 @@
   WB.DASHES = { solid: null, dotted: [0, 2], dashed: [2, 2.5], long: [5, 3], dashdot: [4, 2.5, 0, 2.5] };
   WB.dashOf = (s) => { const d = s.dash && WB.DASHES[s.dash]; return d ? d.map((k) => k * s.width) : null; };
 
+  /* The bounds of what is still visible: an erased part of a line no longer counts (the selection
+     frame and what a lasso needs to take hug what is left). */
   WB.boundsOf = function (s) {
     if (s._b) return s._b;
+    if (s.erase && s.erase.length && s.points && !s.rings) {
+      const p = s.points;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let i = 0; i < p.length; i += 2) {
+        if (WB.covered(s, p[i], p[i + 1])) continue;
+        if (p[i] < x0) x0 = p[i]; if (p[i] > x1) x1 = p[i];
+        if (p[i + 1] < y0) y0 = p[i + 1]; if (p[i + 1] > y1) y1 = p[i + 1];
+      }
+      if (x0 !== Infinity) { const r = s.width * 0.75; return (s._b = { x0: x0 - r, y0: y0 - r, x1: x1 + r, y1: y1 + r }); }
+    }
+    return (s._b = WB.fullBounds(s));
+  };
+  /* The bounds of the whole object, erased parts included. */
+  WB.fullBounds = function (s) {
+    if (s._fb) return s._fb;
     if (s.tool === 'text' || s.tool === 'image' || s.tool === 'plot') {
       const q = WB.corners(s);
-      return (s._b = { x0: Math.min(q[0], q[2], q[4], q[6]), y0: Math.min(q[1], q[3], q[5], q[7]), x1: Math.max(q[0], q[2], q[4], q[6]), y1: Math.max(q[1], q[3], q[5], q[7]) });
+      return (s._fb = { x0: Math.min(q[0], q[2], q[4], q[6]), y0: Math.min(q[1], q[3], q[5], q[7]), x1: Math.max(q[0], q[2], q[4], q[6]), y1: Math.max(q[1], q[3], q[5], q[7]) });
     }
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const p of s.rings || [s.points]) {
@@ -313,7 +408,7 @@
       }
     }
     const r = s.rings ? 0 : s.width / 2;
-    return (s._b = { x0: x0 - r, y0: y0 - r, x1: x1 + r, y1: y1 + r });
+    return (s._fb = { x0: x0 - r, y0: y0 - r, x1: x1 + r, y1: y1 + r });
   };
 
   /* Bounds of everything visible (erasers never extend the drawing). */
@@ -330,9 +425,10 @@
 
   /* ---- Selection hit-testing ----------------------------------------- */
   /* Is world point (x, y) on this object, within `tol`? Erasers are not objects. */
-  WB.hit = function (s, x, y, tol) {
+  WB.hit = function (s, x, y, tol, ignoreErase) {
     if (s.tool === 'eraser') return false;
-    const b = WB.boundsOf(s);
+    if (!ignoreErase && s.erase && WB.covered(s, x, y)) return false;   // an erased part is not there any more
+    const b = WB.fullBounds(s);
     if (x < b.x0 - tol || x > b.x1 + tol || y < b.y0 - tol || y > b.y1 + tol) return false;
     if (s.tool === 'text' || s.tool === 'image' || s.tool === 'plot') { const F = WB.frameOf(s), p = WB.toLocal(F, x, y); return Math.abs(p.x) <= F.w / 2 + tol && Math.abs(p.y) <= F.h / 2 + tol; }
     mctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -351,6 +447,7 @@
     let inside = 0, total = 0;
     for (let i = 0; i < n; i += step) {
       const x = pts[2 * i], y = pts[2 * i + 1];
+      if (s.erase && WB.covered(s, x, y)) continue;   // only what is still visible has to be inside
       let c = false;
       for (let a = 0, b = m - 2; a < m; b = a, a += 2) {
         const ya = poly[a + 1], yb = poly[b + 1];

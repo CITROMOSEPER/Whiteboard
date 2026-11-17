@@ -428,6 +428,13 @@ body.pipetting #canvas { cursor: crosshair; }
 #ss-dashes { display: flex; gap: 2px; }
 #ss-dashes .ibtn svg { stroke-width: 2.4; }
 #ss-dashes .ibtn[aria-checked="true"] { background: var(--fill-strong); }
+#sel-style.no-group .ss-group { display: none; }
+#ss-group { height: 32px; }
+#ss-group span { display: inline; }
+#sel-style .ss-ungroup, #sel-style.ungroup .ss-grouped { display: none; }
+#sel-style.ungroup .ss-ungroup { display: inline; }
+.g-cat { grid-column: 1 / -1; margin: 6px 4px -8px !important; }
+.g-cat:first-child { margin-top: 0 !important; }
 
 /* ---------- Gallery ---------- */
 .sheet.wide { width: min(58rem, 100%); height: min(44rem, calc(100% - 16px)); display: flex; flex-direction: column; overflow: hidden; }

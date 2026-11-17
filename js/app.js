@@ -504,9 +504,14 @@
     live = null; mode = null;
     requestFrame();
     if (cancel || !L) return updateChrome();
+    if (L.deselect && performance.now() - L.t0 < 350) {          // the tap that deselected: not a dot
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let i = 0; i < L.points.length; i += 2) { x0 = Math.min(x0, L.points[i]); x1 = Math.max(x1, L.points[i]); y0 = Math.min(y0, L.points[i + 1]); y1 = Math.max(y1, L.points[i + 1]); }
+      if (Math.max(x1 - x0, y1 - y0) * view.zoom < 6) return updateChrome();
+    }
     if (L.final) applyFinal(L);
     else if (L.tau > 0 && !L.snapped) { L.points.push(L.tx, L.ty); if (L.press) L.press.push(L.tp); }   // smoothing lags the pen: finish at the pen (never on a snapped shape)
-    if (L.tool === 'eraser' && !doc.strokes.length) return updateChrome();
+    if (L.tool === 'eraser') { applyEraser(L); return updateChrome(); }
     const s = { tool: L.tool, color: L.color, width: L.width, opacity: L.opacity, points: L.points, smooth: L.smooth, closed: L.closed };
     if (L.shape) s.shape = L.shape;
     if (L.dash) s.dash = L.dash;
@@ -530,6 +535,43 @@
     if (settings.ink && s.tool === 'pen' && !s.shape && !s.hl) inkAdd(s);
     else if (s.tool === 'pen') inkConvert();
     else inkDrop();
+  }
+
+  /* ---- Erasing ------------------------------------------------------------
+     An eraser stroke becomes part of every object it passes over (see WB.paint), so it moves,
+     turns and gets copied with them. A line erased away completely is removed instead, and an
+     eraser that touched nothing leaves nothing behind. One undo step. */
+  function applyEraser(L) {
+    const E = { tool: 'eraser', width: L.width, opacity: L.opacity, smooth: !!L.smooth, points: L.points.slice() };
+    const len = WB.pathLength(E.points), eb = WB.boundsOf(E);
+    const pts = WB.resampleFlat(E.points, Math.max(2, Math.min(400, Math.ceil(len / Math.max(1e-6, E.width / 3)) + 1)));
+    const edits = [], gone = [];
+    doc.strokes.forEach((o, i) => {
+      if (o.tool === 'eraser') return;
+      const b = WB.boundsOf(o);
+      if (b.x1 < eb.x0 || b.x0 > eb.x1 || b.y1 < eb.y0 || b.y0 > eb.y1) return;
+      let touch = false;
+      for (let k = 0; k < pts.length && !touch; k += 2) touch = WB.hit(o, pts[k], pts[k + 1], E.width / 2);
+      if (!touch) return;
+      const after = (o.erase || []).map((e) => e).concat(plainEraser(E));
+      if (E.opacity >= 0.5 && erasedAway(o, after)) gone.push({ i, s: o });
+      else edits.push({ type: 'edit', s: o, before: { erase: o.erase }, after: { erase: after } });
+    });
+    inkDrop();
+    if (!edits.length && !gone.length) return;
+    for (const a of edits) retext(a.s, a.after);
+    for (let k = gone.length - 1; k >= 0; k--) { doc.strokes.splice(gone[k].i, 1); selection.delete(gone[k].s); }
+    record({ type: 'batch', list: edits.concat(gone.length ? [{ type: 'remove', items: gone }] : []) });
+    invalidate();
+    if (selection.size) selectionChanged();
+  }
+  /* Is all of this line covered by its erasing (its whole width, along its whole length)? */
+  function erasedAway(o, erase) {
+    if (!o.points || o.rings || o.tool !== 'pen') return false;
+    const test = { erase }, len = WB.pathLength(o.points);
+    const pts = o.points.length > 2 ? WB.resampleFlat(o.points, Math.max(2, Math.min(800, Math.ceil(len / Math.max(1e-6, o.width / 2)) + 1))) : o.points;
+    for (let k = 0; k < pts.length; k += 2) if (!WB.covered(test, pts[k], pts[k + 1], o.width * 0.8)) return false;
+    return true;
   }
 
   /* ---- Scratching out ---------------------------------------------------
@@ -725,8 +767,9 @@
       if (s.tool === 'fill' && s.under) under = under || s; else hit = s;
     }
     hit = hit || under;
-    if (add) { if (hit && !selection.delete(hit)) selection.add(hit); }
-    else { selection.clear(); if (hit) selection.add(hit); }
+    const all = hit ? members(hit) : [];                  // a group is picked (and let go) as a whole
+    if (add) { if (hit && selection.has(hit)) for (const m of all) selection.delete(m); else for (const m of all) selection.add(m); }
+    else { selection.clear(); for (const m of all) selection.add(m); }
     selectionChanged();
   }
   function selectLasso(poly, add) {
@@ -747,7 +790,8 @@
     for (const s of items) {
       if (s.tool === 'text' || s.tool === 'image' || s.tool === 'plot') { s.x += dx; s.y += dy; }
       else for (const p of s.rings || [s.points]) for (let i = 0; i < p.length; i += 2) { p[i] += dx; p[i + 1] += dy; }
-      delete s._path; delete s._opath; delete s._b;
+      if (s.erase) for (const e of s.erase) { const p = e.points; for (let i = 0; i < p.length; i += 2) { p[i] += dx; p[i + 1] += dy; } delete e._path; }   // its erasing goes with it
+      delete s._path; delete s._opath; delete s._b; delete s._fb;
     }
     invalidate();
   }
@@ -759,7 +803,8 @@
     requestFrame();
   }
   function selectionChanged() {
-    const n = selection.size;
+    for (const s of [...selection]) if (outer(s)) for (const m of members(s)) selection.add(m);   // never part of a group
+    const n = units(selection).length;
     $('#sel-bar').classList.toggle('on', n > 0);
     if (n) $('#sel-count').textContent = tr('selected', { n });
     showStyleBar();
@@ -782,9 +827,12 @@
     const pad = 5 / z, F = !(selDrag && selDrag.lasso) && selFrame();
     if (F) drawHandles(F, accent);
     placeStyleBar();
-    for (const s of selection) {
-      if (selection.size === 1) break;            // one object: its frame says it all
-      const b = WB.boundsOf(s);
+    const parts = units(selection);
+    for (const u of parts) {
+      if (parts.length === 1) break;              // one object or group: its frame says it all
+      const c = WB.contentBounds(u);
+      if (!c) continue;
+      const b = { x0: c.x, y0: c.y, x1: c.x + c.w, y1: c.y + c.h };
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(b.x0 - pad, b.y0 - pad, b.x1 - b.x0 + 2 * pad, b.y1 - b.y0 + 2 * pad, 6 / z);
       else ctx.rect(b.x0 - pad, b.y0 - pad, b.x1 - b.x0 + 2 * pad, b.y1 - b.y0 + 2 * pad);
@@ -883,6 +931,7 @@
     if (s.tool === 'image' || s.tool === 'text' || s.tool === 'plot') g.rot = s.rot || 0;   // so putting it back also un-turns it
     if (s.points) g.points = s.points.slice();
     if (s.rings) g.rings = s.rings.map((r) => r.slice());
+    if (s.erase) g.erase = s.erase.map(plainEraser);
     return g;
   }
   /* Give object s (whose geometry was g) the shape it has when frame A becomes frame B. */
@@ -894,6 +943,7 @@
     const flat = (p) => { const out = new Array(p.length); for (let i = 0; i < p.length; i += 2) { const q = pt(p[i], p[i + 1]); out[i] = q.x; out[i + 1] = q.y; } return out; };
     if (g.points) { s.points = flat(g.points); s.width = g.width * area; }
     if (g.rings) s.rings = g.rings.map(flat);
+    if (g.erase) s.erase = g.erase.map((e) => ({ ...e, width: e.width * area, points: flat(e.points) }));   // erasing is resized and turned with it
     if (s.tool === 'image' || s.tool === 'text' || s.tool === 'plot') {
       const r = g.rot || 0, u = vec(Math.cos(r), Math.sin(r)), v = vec(-Math.sin(r), Math.cos(r));
       const lu = hyp(u.x, u.y), lv = hyp(v.x, v.y);
@@ -906,8 +956,10 @@
         s.x = a.x; s.y = a.y; s.size = g.size * Math.sqrt(lu * lv);
       }
     }
-    delete s._path; delete s._opath; delete s._b; delete s._t;
+    delete s._path; delete s._opath; delete s._b; delete s._fb; delete s._t;
   }
+  /* An eraser stroke without its drawing caches, safe to copy and to store. */
+  const plainEraser = (e) => ({ tool: 'eraser', width: e.width, opacity: e.opacity, smooth: !!e.smooth, points: e.points.slice() });
   function beginXform(e, k) {
     const F = selFrame(), z = view.zoom;
     const px = (e.clientX - view.x) / z, py = (e.clientY - view.y) / z;
@@ -986,12 +1038,15 @@
   let styleRun = null;   // { key, action }: the last style change, so a picker drag can keep extending it
   function showStyleBar() {
     refreshPlotBar();
-    const items = selItems(), lines = items.some((s) => s.tool === 'pen'), colors = items.some((s) => COLORED.has(s.tool));
-    const on = (lines || colors) && tools.tool === 'select' && !xf && !(selDrag && selDrag.moved);
+    const items = selItems(), lines = items.some((s) => s.tool === 'pen'), colors = items.some((s) => COLORED.has(s.tool)), g = groupAction();
+    const on = (lines || colors || !!g) && tools.tool === 'select' && !xf && !(selDrag && selDrag.moved);
     styleBar.classList.toggle('on', on);
     if (!on) return;
     styleBar.classList.toggle('no-line', !lines);
     styleBar.classList.toggle('no-color', !colors);
+    styleBar.classList.toggle('no-group', !g);
+    styleBar.classList.toggle('ungroup', g === 'ungroup');
+    $('#ss-group').setAttribute('aria-label', tr(g === 'ungroup' ? 'ungroup' : 'group'));
     refreshStyleBar();
     placeStyleBar();
   }
@@ -1067,7 +1122,56 @@
       b.addEventListener('click', () => restyle((s) => (s.tool === 'pen' ? { dash: k === 'solid' ? undefined : k } : null)));
       dashes.appendChild(b);
     }
+    $('#ss-group').addEventListener('click', () => { const g = groupAction(); if (g === 'group') groupSelection(); else if (g === 'ungroup') ungroupSelection(); });
     styleBar.addEventListener('pointerdown', (e) => e.stopPropagation());
+  }
+
+  /* ---- Groups -----------------------------------------------------------
+     Objects in a group carry s.group: the ids of the groups they are in, outermost first (whole
+     numbers, unique on the board). They stay ordinary objects in the drawing order, so drawing,
+     erasing and exporting need nothing new; selecting picks the whole outermost group, so a group
+     is moved, resized, turned, styled, copied and deleted as one. Grouping puts the selection
+     (loose objects and groups alike) into a new outer group, so groups can hold groups; ungrouping
+     takes that outer one away again, leaving the groups that were inside it. */
+  const outer = (s) => (s.group && s.group.length ? s.group[0] : 0);
+  function members(s) { const g = outer(s); return g ? doc.strokes.filter((o) => outer(o) === g) : [s]; }
+  /* The selection as what it is made of: each loose object alone, each group as its objects together. */
+  function units(items) {
+    const out = [], by = new Map();
+    for (const s of items) {
+      const g = outer(s);
+      if (!g) { out.push([s]); continue; }
+      if (!by.has(g)) { by.set(g, []); out.push(by.get(g)); }
+      by.get(g).push(s);
+    }
+    return out;
+  }
+  /* 'ungroup' when the selection is one group, 'group' when it is two or more things, else null. */
+  function groupAction() {
+    const items = selItems();
+    if (!items.length) return null;
+    if (units(items).length === 1) return outer(items[0]) ? 'ungroup' : null;
+    return 'group';
+  }
+  const nextGroupId = () => { let m = 0; for (const s of doc.strokes) if (s.group) for (const g of s.group) m = Math.max(m, g); return m + 1; };
+  function groupSelection() {
+    const id = nextGroupId();
+    styleRun = null;
+    restyle((s) => ({ group: [id].concat(s.group || []) }));
+    selectionChanged();
+  }
+  function ungroupSelection() {
+    styleRun = null;
+    restyle((s) => (s.group && s.group.length ? { group: s.group.length > 1 ? s.group.slice(1) : undefined } : null));
+    selectionChanged();
+  }
+  /* Copies put on the board (duplicates, stickers) get group ids of their own, so they are not
+     part of the groups they were copied from. Returns the next free id. */
+  function freshGroups(items) {
+    const map = new Map();
+    let id = nextGroupId();
+    for (const s of items) if (s.group) s.group = s.group.map((g) => (map.has(g) ? map.get(g) : (map.set(g, id), id++)));
+    return id;
   }
 
   /* ---- Stickers ---------------------------------------------------------
@@ -1084,16 +1188,19 @@
     const label = tr('sticker');
     WB.stickers.save(WB.serialize({ title: label, created: Date.now(), strokes: copies }, { x: 0, y: 0, zoom: 1 }), label);
   }
-  async function placeSticker(text) {
+  async function placeSticker(text, opt) {
     let d;
     try { d = WB.parse(text); } catch (e) { return toast(tr(e.message)); }
     const items = d.strokes, b = WB.contentBounds(items);
     if (!b) return toast(tr('tNothing'));
-    const z = view.zoom, k = Math.min(1, (0.6 * W) / z / Math.max(b.w, 1e-6), (0.6 * H) / z / Math.max(b.h, 1e-6));
+    // Shrunk to fit the screen if it is big; a built-in sticker keeps its size (it is drawn for 100 %).
+    const z = view.zoom, k = opt && opt.exact ? 1 : Math.min(1, (0.6 * W) / z / Math.max(b.w, 1e-6), (0.6 * H) / z / Math.max(b.h, 1e-6));
     const w = b.w * k, h = b.h * k, cx = (W / 2 - view.x) / z, cy = (H / 2 - view.y) / z;
     for (const s of items) mapObject(s, geometry(s), { x: b.x, y: b.y, w: b.w, h: b.h, rot: 0 }, { x: cx - w / 2, y: cy - h / 2, w, h, rot: 0 });
     await WB.loadImages(items);
     if (live) endStroke(true);
+    const id = freshGroups(items);
+    if (opt && opt.group && items.length > 1) for (const s of items) s.group = [id].concat(s.group || []);   // a built-in sticker comes as one group
     for (const s of items) doc.strokes.push(s);
     record({ type: 'batch', list: items.map((s) => ({ type: 'add', stroke: s })) });
     setTool('select');
@@ -1109,6 +1216,7 @@
     const items = selItems().sort((a, b) => doc.strokes.indexOf(a) - doc.strokes.indexOf(b));
     if (!items.length) return;
     const copies = items.map(cloneObject), d = 16 / view.zoom;
+    freshGroups(copies);
     translate(copies, d, d);
     for (const c of copies) doc.strokes.push(c);
     record({ type: 'batch', list: copies.map((c) => ({ type: 'add', stroke: c })) });
@@ -1197,7 +1305,7 @@
     }
     invalidate(); updateChrome(); selectionChanged();
   }
-  function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; delete s._path; delete s._opath; }
+  function retext(s, props) { Object.assign(s, props); delete s._t; delete s._b; delete s._fb; delete s._path; delete s._opath; }
 
   /* Change the font, size or colour of the text being typed (and remember it for the next one). */
   function styleText(props) {
@@ -1441,8 +1549,12 @@
   /* ---- Pan and pinch ------------------------------------------------- */
   let panId = null, panSamples = [], pinch = null;
 
-  function beginPan(id, x, y) {
+  /* tap: the pan started with this press (not the finger left over from a pinch), so if it never
+     moves it counts as a tap on the board (see endPan). */
+  let panTap = null;
+  function beginPan(id, x, y, tap) {
     mode = 'pan'; panId = id; panSamples = [{ x, y, t: performance.now() }];
+    panTap = tap ? { x, y, t: performance.now(), far: 0 } : null;
     canvas.classList.add('panning');
   }
   /* Touchscreens now and then report a point far from where the finger really is (a missed
@@ -1457,6 +1569,7 @@
     const l = panSamples[panSamples.length - 1], now = performance.now();
     if (isJump(x - l.x, y - l.y, now - l.t)) { panSamples = [{ x, y, t: now }]; return; }   // a glitch: re-anchor, don't move
     view.x += x - l.x; view.y += y - l.y;
+    if (panTap) panTap.far = Math.max(panTap.far, hyp(x - panTap.x, y - panTap.y));
     panSamples.push({ x, y, t: now });
     if (panSamples.length > 10) panSamples.shift();
     invalidate();
@@ -1464,6 +1577,16 @@
   function endPan() {
     mode = null; canvas.classList.remove('panning');
     const now = performance.now(), l = panSamples[panSamples.length - 1], f = panSamples.find((s) => now - s.t < 100);
+    // A tap that only started a pan (one finger moves the board, or the hand tool): with the select
+    // tool it selects what is under it; otherwise a tap on nothing lets go of the selection.
+    const t = panTap;
+    panTap = null;
+    if (t && t.far < 8 && now - t.t < 400 && tools.tool !== 'laser') {
+      if (tools.tool === 'select') return selectAt(t.x, t.y, false);
+      const z = view.zoom, wx = (t.x - view.x) / z, wy = (t.y - view.y) / z;
+      if (selection.size && !doc.strokes.some((o) => WB.hit(o, wx, wy, 6 / z))) clearSelection();
+      return;
+    }
     if (f && f !== l && now - l.t < 60 && !reduceMotion.matches) {
       const dt = l.t - f.t;
       let vx = (l.x - f.x) / dt, vy = (l.y - f.y) / dt;                  // hand the release velocity to the glide
@@ -1564,7 +1687,7 @@
         tap = { t: now, max: 1, moved: false, downs: [down] };
         if (doubleOnText(e, now)) return;
         if (tools.tool === 'laser' || (settings.fingerDraw && tools.tool !== 'hand')) beginTool(e, tools.tool);
-        else beginPan(e.pointerId, e.clientX, e.clientY);
+        else beginPan(e.pointerId, e.clientX, e.clientY, true);
         return;
       }
       if (tap) { tap.max = Math.max(tap.max, n); tap.downs.push(down); }
@@ -1585,11 +1708,11 @@
 
     if (e.pointerType === 'pen') {
       penDown = true; lastPen = now;
-      if (e.button === 2 || tools.tool === 'hand') return beginPan(e.pointerId, e.clientX, e.clientY);
+      if (e.button === 2 || tools.tool === 'hand') return beginPan(e.pointerId, e.clientX, e.clientY, true);
       const flipped = e.button === 5 || (e.buttons & 32);    // eraser end of the stylus
       return flipped ? beginStroke(e, 'eraser') : beginTool(e, tools.tool);
     }
-    if (e.button === 1 || spaceHeld || tools.tool === 'hand') beginPan(e.pointerId, e.clientX, e.clientY);
+    if (e.button === 1 || spaceHeld || tools.tool === 'hand') beginPan(e.pointerId, e.clientX, e.clientY, true);
     else if (e.button === 0) beginTool(e, tools.tool);
   });
 
@@ -1625,7 +1748,14 @@
       if (selDrag.move) finishFill();
     }
     else if (tool === 'text') { mode = 'text'; textDown = { id: e.pointerId, x: e.clientX, y: e.clientY }; }
-    else beginStroke(e, tool);
+    else {
+      // Something is selected and another tool presses the board: the selection goes. A mere tap
+      // only deselects (no dot is left); a real stroke is drawn as usual.
+      const had = selection.size > 0;
+      if (had) clearSelection();
+      beginStroke(e, tool);
+      if (had && live) live.deselect = true;
+    }
   }
 
   canvas.addEventListener('pointermove', (e) => {
@@ -1693,7 +1823,7 @@
       selDrag = null;
       if (d.moved) { record({ type: 'move', items: [...selection], dx: d.dx, dy: d.dy }); showStyleBar(); }
       else if (d.lasso) selectLasso(d.lasso, d.add);
-      else selectAt(d.x, d.y, d.add);
+      else { plotPointTap(d.x, d.y); selectAt(d.x, d.y, d.add); }
     } else if (mode === 'text' && textDown && e.pointerId === textDown.id) {
       const d = textDown;
       textDown = null; mode = null;
@@ -1873,6 +2003,7 @@
       const o = {};
       for (const k in s) if (k[0] !== '_') o[k] = s[k];
       if (s.tool === 'image') { delete o.src; o.img = imgKey(s); }         // pictures too are stored once (below)
+      if (s.erase) o.erase = s.erase.map(plainEraser);                       // without their drawing caches
       return o;
     });
     // A PDF's page pictures (and other pictures) are large and never change, so each is stored
@@ -2726,7 +2857,8 @@
     return { x, y, d: n > 1 ? d / n : 0 };
   }
   function beginPlotDrag(e) {
-    if (!plotDrag || mode !== 'plot') plotDrag = { pts: new Map() };
+    if (!plotDrag || mode !== 'plot') plotDrag = { pts: new Map(), start: { x: e.clientX, y: e.clientY }, far: 0, many: false };
+    else plotDrag.many = true;
     plotDrag.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     plotDrag.grip = plotGrip();
     mode = 'plot'; tap = null;
@@ -2736,6 +2868,8 @@
     const p = plotDrag && plotDrag.pts.get(e.pointerId), s = plotActive;
     if (!p || !s) return;
     p.x = e.clientX; p.y = e.clientY;
+    plotDrag.far = Math.max(plotDrag.far, hyp(p.x - plotDrag.start.x, p.y - plotDrag.start.y));
+    if (plotDrag.far < 4 && !plotDrag.many) return;      // not moving yet: may still be a tap on a point
     const g0 = plotDrag.grip, g1 = plotGrip(), d = plotVec(s, g1.x - g0.x, g1.y - g0.y);
     WB.plotPan(s, d.x, d.y);
     if (g0.d > 0 && g1.d > 0) { const L = plotLocal(s, g1.x, g1.y); WB.plotZoom(s, g0.d / g1.d, L.x, L.y); }
@@ -2746,8 +2880,22 @@
     if (!plotDrag) { mode = null; return; }
     plotDrag.pts.delete(e.pointerId);
     if (plotDrag.pts.size) { plotDrag.grip = plotGrip(); return; }
+    const d = plotDrag;
     plotDrag = null; mode = null;
     canvas.classList.remove('panning');
+    if (!d.many && d.far < 6) plotPointTap(d.start.x, d.start.y);   // a tap, not a drag: on a special point, show its coordinates
+  }
+  /* A tap at a screen point on a graph's special point shows or hides its coordinates. True if it was on one. */
+  function plotPointTap(cx, cy) {
+    for (let i = doc.strokes.length - 1; i >= 0; i--) {
+      const o = doc.strokes[i];
+      if (o.tool !== 'plot' || !inPlot(o, cx, cy)) continue;
+      const L = plotLocal(o, cx, cy), q = WB.plotPointAt(o, L.x, L.y, 12 / view.zoom);
+      if (!q) return false;
+      WB.plotTogglePin(o, q); invalidate();
+      return true;
+    }
+    return false;
   }
 
   /* The graph the bar is for: the one being explored, or a graph selected on its own. */
@@ -3076,7 +3224,7 @@
     load: (text, gref) => loadText(text, null, gref),
     retitle: (label) => { doc.title = label; titleEl.value = shownTitle(); updateChrome(); autosave(); },
     commit: commitPending,
-    placeSticker: (text) => placeSticker(text),
+    placeSticker: (text, opt) => placeSticker(text, opt),
     saved: () => { saveTarget = 'gallery'; markSaved(); },
     filesCopy: () => IOS && settings.filesCopy,
     canvasColor: () => canvasColor(),
@@ -3120,6 +3268,7 @@
     const srcs = await dbGetMany(holders.map((h) => h.img));
     holders.forEach((h, i) => { h._key = h.img; delete h.img; if (srcs[i]) h.src = srcs[i]; else delete h.src; });
     saved.strokes = saved.strokes.filter((s) => s.tool !== 'image' || s.src);
+    WB.adoptErasers(saved.strokes);                             // an older board's separate eraser strokes
     if (docRev !== rev || doc.strokes.length) return;           // a board was opened meanwhile (from a file, say): keep that
     doc.title = saved.title || 'Untitled'; doc.created = saved.created || Date.now(); doc.strokes = saved.strokes;
     doc.pages = pages;

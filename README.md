@@ -35,6 +35,7 @@ It works on computers, tablets and phones, in 14 languages, and keeps working of
 The dock at the bottom holds the tools and colours; the panel on the left sets the brush.
 
 - **Pen and eraser.** Drag the left sliders to set **thickness** and **opacity**; a preview shows the result.
+- **Erasing stays with what you erased.** Erase part of a line and that part is gone from the line itself: move, resize, turn or duplicate the line and the erased part goes with it (a copy is erased the same way), and it never uncovers or hides anything else. Erase a line completely and it is removed. Selecting only needs the part that is left: tap it, or loop around just the visible part.
 - **Highlighter.** The tool after the pen draws wide, see-through strokes with a flat tip, in neon colours (the dock shows its own colour set while it is chosen). It always slides **under** what is already drawn, so the writing you mark stays crisp.
 - **Pressure.** Turn on **Settings → Pressure sensitivity** and pressing harder with a stylus makes thicker lines. It is off by default: then every line keeps the thickness you set. It only works with a stylus that reports pressure (Apple Pencil, most Windows pens); a mouse or finger always draws evenly.
 - **Laser pointer.** The tool at the end of the tools shows a glowing red dot with a short trail that follows your pen, finger or mouse, for presenting. Nothing is drawn; dragging moves the board, like the hand tool.
@@ -62,6 +63,8 @@ Choose the select tool (the arrow), then tap something, or drag a loop around se
 - **Two-finger tricks:** while resizing, put **another finger** on the screen and it grows from the middle instead of from the opposite side. While turning, another finger snaps the angle to 45° steps. With a mouse, hold **Alt** or **Shift** for the same.
 - **Change the style:** the bar under the selection sets the **colour**, **thickness** and **line type** of everything selected.
 - **Top bar:** **Duplicate** (copies appear slightly offset, already selected), **Save as sticker**, and **Delete**.
+- **Group:** with two or more things selected, **Group** in the style bar joins them, so they are selected, moved, resized, turned, styled, copied and deleted together. Groups can hold groups. With a group selected, the same button reads **Ungroup** and takes apart only the outermost group, leaving any groups inside it. Groups are kept in files, share links, stickers and backups.
+- **Let go:** tap or click an empty spot and everything is deselected, whatever tool is chosen (also when one finger moves the board).
 
 Everything can be undone: the arrows at the top right, or tap with **two fingers** to undo and **three fingers** to redo.
 
@@ -71,7 +74,8 @@ Select some handwriting, press **AI** in the bar at the top, and choose what to 
 
 - **Tidy up handwriting** turns it into typed text, with the maths typeset properly: fractions, exponents, roots, sums, Greek letters. It is a normal text object afterwards; double-click it to edit (maths is written as LaTeX between `$` signs, e.g. `$\frac{x}{2}$`).
 - **Solve, showing the steps** writes the working under the problem, in the handwritten font and your ink colour. The answer is then **checked on your device** by putting it back into the problem: a ✓ means it fits, a ⚠ warning means it does not and the steps need a second look.
-- **Plot as a graph** turns a written function (`f(x) = sin(x)`, `y = x² − 1`, several at once) into a graph that takes its place. Move, resize and turn it like a picture. **Double-click or double-tap** it (or press **Explore** in its bar) to drag around inside it and zoom with the wheel or a pinch; click outside it or press Esc to stop. **Functions** in its bar edits what is drawn, one per line, and the graph follows as you type. Typed functions are plotted straight away, without AI.
+- **Plot as a graph** turns a written function (`f(x) = sin(x)`, `y = x² − 1`, several at once) into a graph that takes its place. Move, resize and turn it like a picture. **Double-click or double-tap** it (or press **Explore** in its bar) to drag around inside it and zoom with the wheel or a pinch; click outside it or press Esc to stop. **Functions** in its bar edits what is drawn, one per line, and the graph follows as you type. Typed functions are plotted straight away, without AI. You can also start from an empty graph: **Stickers → Built-in stickers → Graphs**.
+- **Special points.** Small dots mark where each curve crosses the axes, its highest and lowest points, its inflection points, and where two curves meet. **Tap a dot** (while exploring, or with the select tool) to show its coordinates as (x; y); tap again to hide them.
 
 The AI only **reads** the handwriting. Graphs are drawn and answers checked by the app itself, on your device, so the numbers are exact.
 
@@ -122,6 +126,14 @@ Stickers are drawings you reuse: a logo, a symbol, a labelled diagram.
 - **Make one:** select what you drew and press **Save as sticker** in the top bar, choose a folder, then type a name.
 - **Use one:** press the sticker button in the dock (after the text tool; on phones it's only in the menu), or **Menu → Stickers…**, and tap a sticker. It is placed in the middle of the screen, selected, ready to move and resize.
 - The sticker gallery works exactly like the board gallery (folders, colours, renaming, backups), but is kept separately.
+
+**Built-in stickers.** The first folder in the sticker gallery comes with the app and is always there, even before you choose where your own stickers live. It is part of the app itself, so it can't be renamed, moved, copied or deleted, and nothing can be saved into it. They are listed under headings for their kinds. Everything in it is drawn with real lines and texts in the ink colour that suits your canvas, at the size that looks right at 100 % zoom. Placing one puts it on the board at that size as one group, ready to move, recolour or erase (ungroup it to edit its parts):
+
+- **Graphs:** an empty interactive graph, and ready ones for x² and sin x.
+- **Coordinate systems:** all four quadrants with the origin in the middle, each quadrant on its own, and every pair of quadrants, with a unit grid, arrows and tick marks, left unnumbered so you can set the scale.
+- **Venn diagrams:** two, three and four sets, two and three sets in a universe, a subset, and disjoint sets.
+- **Karnaugh maps** and **Veitch maps:** 2×2, 2×4, 4×2 and 4×4, each in a disjunctive version (cells numbered by minterm) and a conjunctive one (by maxterm, 2ⁿ−1−m). Karnaugh maps carry the Gray-code values along the sides; Veitch maps mark with a bracket where each variable is 1.
+- **Truth tables:** for 2, 3 and 4 variables, each row numbered both ways (disjunctively from 0, conjunctively from 2ⁿ−1), with every 0 and 1 filled in and an empty F column.
 
 ## Moving around
 

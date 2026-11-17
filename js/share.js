@@ -19,6 +19,8 @@
        u8 kind 3 fill:           uv colour · u8 opacity · u8 under · uv rings, each: points
        u8 kind 4 graph:          f x, y, w, h, rot · u8 opacity · f64 cx, cy, span · uv functions, each: uv colour · str source
        u8 kind 5 maths text:     as kind 2 (the text holds $…$ maths)
+       u8 kind 6 erasing:        of the object just before it: uv erasers, each: f width · u8 opacity · u8 smooth · points
+       u8 kind 7 groups:         of the object just before it: uv count, each: uv group number (1, 2, ... in order of appearance)
      points = u8 (grid exponent + 8) · uv count · sv x0, y0 (in grid steps) · sv dx, dy ...
    Pictures (and the page pictures of an opened PDF) are left out: they would make links far too long. */
 (function () {
@@ -145,7 +147,23 @@
     o.uv(colors.size);
     for (const c of colors.keys()) { const n = parseInt(c.slice(1), 16); o.u8(n >> 16); o.u8(n >> 8); o.u8(n); }
     o.uv(items.length);
+    const groupNo = new Map();
     for (const s of items) {
+      putObject(s);
+      if (s.group && s.group.length) {
+        o.u8(7); o.uv(s.group.length);
+        for (const g of s.group) { if (!groupNo.has(g)) groupNo.set(g, groupNo.size + 1); o.uv(groupNo.get(g)); }
+      }
+      if (s.erase && s.erase.length) {
+        o.u8(6); o.uv(s.erase.length);
+        for (const e of s.erase) {
+          o.f(e.width); o.u8(opacityByte(e.opacity)); o.u8(e.smooth ? 1 : 0);
+          const g = gridExp(Math.min(0.5, e.width / 4));
+          putPoints(o, e.points, simplify(e.points, Math.pow(2, -g) * 0.6, false), g);
+        }
+      }
+    }
+    function putObject(s) {
       if (s.tool === 'text') {
         o.u8(s.math ? 5 : 2); o.f(s.x); o.f(s.y); o.f(s.rot || 0); o.f(s.size);
         o.u8(Math.max(0, FONTS.indexOf(s.font))); o.uv(color(s.color)); o.u8(opacityByte(s.opacity)); o.str(s.text);
@@ -195,11 +213,23 @@
     for (let i = 0; i < nc; i++) colors.push('#' + [r.u8(), r.u8(), r.u8()].map((v) => v.toString(16).padStart(2, '0')).join(''));
     const col = (i) => colors[i] || '#000000';
     const n = r.uv();
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < n || (r.n < r.b.length && (r.b[r.n] === 6 || r.b[r.n] === 7)); i++) {   // (the last object's erasing and groups come after it)
       const kind = r.u8();
       if (kind === 2 || kind === 5) {
         const x = r.f(), y = r.f(), rot = r.f(), size = r.f(), font = FONTS[r.u8()] || 'sans', color = col(r.uv()), opacity = r.u8() / 255, t = r.str();
         strokes.push({ tool: 'text', x, y, rot: (rot * 180) / Math.PI, text: t, font, size, color, opacity, math: kind === 5 });
+      } else if (kind === 6) {
+        const ne = r.uv(), erase = [];
+        if (ne > r.b.length - r.n) throw new Error('the link is damaged');
+        for (let j = 0; j < ne; j++) { const width = r.f(), opacity = r.u8() / 255, smooth = !!r.u8(); erase.push({ width, opacity, smooth, points: getPoints(r) }); }
+        if (strokes.length) strokes[strokes.length - 1].erase = erase;
+        i--;                                   // part of the object before it, not an object of its own
+      } else if (kind === 7) {
+        const ng = r.uv(), group = [];
+        if (ng > r.b.length - r.n) throw new Error('the link is damaged');
+        for (let j = 0; j < ng; j++) group.push(r.uv());
+        if (strokes.length) strokes[strokes.length - 1].group = group;
+        i--;
       } else if (kind === 4) {
         const x = r.f(), y = r.f(), w = r.f(), h = r.f(), rot = r.f(), opacity = r.u8() / 255, cx = r.d(), cy = r.d(), span = r.d(), nf = r.uv(), fns = [];
         if (nf > r.b.length - r.n) throw new Error('the link is damaged');

@@ -128,6 +128,33 @@
     return new VDir(tree, DIR_NAME);
   }
 
+  /* ---- Built-in stickers ------------------------------------------------
+     A folder that is part of the app (js/builtins.js), shown first in the sticker gallery. It reads
+     like any folder but can't be changed: no new folders, saving, renaming, moving, copying or
+     deleting, and nothing can be dropped into it. It needs no sticker folder to be chosen first.
+     Its stickers are made when listed, in the ink colour of the current canvas. */
+  class BFile {
+    constructor(it, cat) { this.it = it; this.cat = cat; this.label = it.label; this.name = it.key + EXT; this.kind = 'file'; this.builtin = true; }
+    async getFile() { return new File([this.it.make()], this.name); }
+  }
+  class BDir {
+    constructor(name, kids) { this.name = name; this.kids = kids; this.kind = 'directory'; this.builtin = true; }
+    async *entries() { for (const k of this.kids()) yield [k.name, k]; }
+    async *keys() { for (const k of this.kids()) yield k.name; }
+    async *values() { for (const k of this.kids()) yield k; }
+    async getFileHandle(name) { const k = this.kids().find((h) => h.kind === 'file' && h.name === name); if (!k) throw missing(name); return k; }
+    async getDirectoryHandle(name) { throw Object.assign(new Error('the built-in stickers cannot be changed'), { name: 'NotAllowedError' }); }
+    async removeEntry() { throw Object.assign(new Error('the built-in stickers cannot be changed'), { name: 'NotAllowedError' }); }
+    async isSameEntry(o) { return o === this; }
+    async resolve() { return null; }
+  }
+  // One folder, its stickers listed under their categories' headings (like the sizes of a new sheet).
+  const BUILTIN = new BDir('builtin', () => WB.builtins.tree(WB.builtins.inkFor(host.canvasColor())).flatMap((c) => c.items.map((it) => new BFile(it, tr(c.key)))));
+  const isBuiltin = (h) => !!(h && h.builtin);
+  const inBuiltin = () => mode === 'stickers' && path.length > 0 && isBuiltin(path[0].handle);
+  const BUILTIN_ICON = '<svg viewBox="0 0 64 52" aria-hidden="true"><path d="M4 10a6 6 0 0 1 6-6h13.5a6 6 0 0 1 4.6 2.2L31 10h23a6 6 0 0 1 6 6v26a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6z" fill="currentColor"/><path d="M4 18h56v24a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6z" fill="#fff" fill-opacity="0.22"/><path d="M32 19.5l2.9 7.1 7.6.4-5.9 4.8 2 7.4L32 35l-6.6 4.2 2-7.4-5.9-4.8 7.6-.4z" fill="#fff"/></svg>';
+  const BUILTIN_COLOR = '#af52de';
+
   /* ---- Where the gallery lives ---------------------------------------- */
   /* A page opened straight from a local file may show the folder dialog, but the browser then
      refuses to let it change anything that already exists, so real folders are only offered
@@ -243,6 +270,11 @@
   }
   /* Entries of a folder: [{ kind: 'dir' | 'file', name, handle, label, color }], folders first. */
   async function list(dir) {
+    if (isBuiltin(dir)) {
+      const out = [];
+      for await (const [name, h] of dir.entries()) out.push({ kind: 'file', name, handle: h, label: h.label, cat: h.cat, builtin: true });
+      return out;
+    }
     const idx = await readIndex(dir), out = [];
     for await (const [name, handle] of dir.entries()) {
       if (handle.kind === 'directory') { const m = metaOf(idx, name); out.push({ kind: 'dir', name, handle, label: m.label || name, color: m.color || '' }); }
@@ -523,16 +555,19 @@
   async function show(ask) {
     const my = ++token, grid = $('#g-grid'), msg = $('#g-msg');
     let state;
-    try { state = await connect(!!ask); } catch (e) { state = 'setup'; }
+    if (inBuiltin()) state = 'ready';                       // part of the app: nothing to connect to
+    else { try { state = await connect(!!ask); } catch (e) { state = 'setup'; } }
     if (my !== token) return;
-    const browsing = state === 'ready';
-    grid.hidden = !browsing; msg.hidden = browsing;
-    $('#g-crumbs').hidden = $('#g-new').hidden = !browsing;
+    const browsing = state === 'ready', builtinTile = !browsing && mode === 'stickers';
+    grid.hidden = !browsing && !builtinTile; msg.hidden = browsing;
+    $('#g-crumbs').hidden = !browsing;
+    $('#g-new').hidden = !browsing || inBuiltin();
     $('#g-new-board').hidden = !browsing || mode !== 'boards';
     $('#gallery-title').textContent = tr(cfg.title);
     const back = $('#g-back');
     back.disabled = !browsing || !path.length;
     back._dir = browsing && path.length ? (path.length > 1 ? path[path.length - 2].handle : root) : null;   // also a drop target
+    if (isBuiltin(back._dir)) back._dir = null;                 // nothing is dropped into the built-in stickers
     renderBar(); renderFoot(browsing);
     if (!browsing) {
       msg.textContent = '';
@@ -544,6 +579,7 @@
       if (state === 'setup' && canUseBrowser()) row.appendChild(button(tr('gPrivate'), 'pill-btn quiet', async () => { try { await useBrowser(); afterConnect(); } catch (e) { fail(e); } }));
       msg.appendChild(row);
       if (lastError) msg.appendChild(el('p', 'g-error', lastError));
+      if (builtinTile) { grid.textContent = ''; grid.appendChild(builtinTileEl()); }   // usable before a sticker folder is chosen
       return;
     }
     // Breadcrumbs
@@ -552,7 +588,7 @@
     [{ label: tr(cfg.title) }, ...path].forEach((p, i) => {
       if (i) crumbs.appendChild(el('span', 'g-sep', '›'));
       const b = el('button', i === path.length ? 'g-crumb here' : 'g-crumb', p.label);
-      b._dir = p.handle || root;
+      b._dir = isBuiltin(p.handle) ? null : p.handle || root;     // nothing can be dropped into the built-in stickers
       b.addEventListener('click', () => { path = path.slice(0, i); show(); });
       crumbs.appendChild(b);
     });
@@ -568,9 +604,13 @@
     }
     if (my !== token) return;
     grid.textContent = '';
-    if (!items.length) grid.appendChild(el('p', 'g-empty', tr('gEmpty')));
+    if (mode === 'stickers' && !path.length) grid.appendChild(builtinTileEl());
+    if (!items.length && !(mode === 'stickers' && !path.length)) grid.appendChild(el('p', 'g-empty', tr('gEmpty')));
     const files = [];
+    let cat = null;
     for (const item of items) {
+      if (item.cat && item.cat !== cat) { cat = item.cat; grid.appendChild(el('h3', 'g-cat', cat)); }
+      if (item.builtin) { const t = builtinTileEl(item); grid.appendChild(t); if (item.kind === 'file') files.push({ item, icon: t.firstChild, name: t.lastChild }); continue; }
       const tile = el('div', 'g-tile'), icon = el('button', 'g-icon'), more = el('button', 'g-more', '⋯'), name = el('button', 'g-name', item.label);
       if (item.kind === 'dir') { icon.innerHTML = FOLDER_ICON; if (item.color) icon.style.color = item.color; tile._dir = item.handle; }
       else files.push({ item, icon, name });
@@ -601,6 +641,17 @@
     }
   }
   function button(text, cls, fn) { const b = el('button', cls, text); b.addEventListener('click', fn); return b; }
+  /* A tile of the built-in stickers (the folder itself when no item is given): it opens, and that is all. */
+  function builtinTileEl(item) {
+    item = item || { kind: 'dir', name: 'builtin', handle: BUILTIN, label: tr('sBuiltIn'), builtin: true, top: true };
+    const tile = el('div', 'g-tile builtin'), icon = el('button', 'g-icon'), name = el('span', 'g-name', item.label);
+    if (item.kind === 'dir') { icon.innerHTML = item.top ? BUILTIN_ICON : FOLDER_ICON; icon.style.color = BUILTIN_COLOR; }
+    icon.setAttribute('aria-label', tr('gOpen') + ': ' + item.label);
+    icon.title = item.label;
+    icon.addEventListener('click', () => openItem(item));
+    tile.append(icon, name);
+    return tile;
+  }
 
   function preview(strokes, pages) {
     const b = WB.contentBounds(strokes), bg = host.canvasColor();
@@ -625,7 +676,7 @@
     const dir = here();
     item.handle.getFile().then((f) => f.text()).then((text) => {
       host.closeSheets();
-      if (mode === 'stickers') host.placeSticker(text);
+      if (mode === 'stickers') host.placeSticker(text, { exact: !!item.builtin, group: !!item.builtin });   // built-in ones at the size they were drawn for, as one group
       else host.load(text, { dir, name: item.name });
     }).catch(fail);
   }
@@ -692,9 +743,9 @@
       bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => renderBar()));
       bar.appendChild(button(confirm.yes, 'pill-btn' + (confirm.danger ? ' danger' : ''), () => { renderBar(); confirm.run(); }));
     } else if (saving && mode === 'stickers' && sticker) {
-      bar.appendChild(el('span', '', tr('sSaving')));
+      bar.appendChild(el('span', '', tr(inBuiltin() ? 'sBuiltInNoSave' : 'sSaving')));
       bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => { saving = false; sticker = null; host.closeSheets(); }));
-      bar.appendChild(button(tr('gSaveHere'), 'pill-btn', () => writeSticker(here())));
+      if (!inBuiltin()) bar.appendChild(button(tr('gSaveHere'), 'pill-btn', () => writeSticker(here())));
     } else if (saving) {
       bar.appendChild(el('span', '', tr('gSaving', { t: host.title() })));
       bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => { saving = false; host.closeSheets(); }));
@@ -707,7 +758,7 @@
     } else if (moving) {
       bar.appendChild(el('span', '', tr('gMoving', { t: moving.item.label })));
       bar.appendChild(button(tr('cancel'), 'pill-btn quiet', () => { moving = null; renderBar(); }));
-      bar.appendChild(button(tr('gMoveHere'), 'pill-btn', async () => {
+      if (!inBuiltin()) bar.appendChild(button(tr('gMoveHere'), 'pill-btn', async () => {
         const m = moving; moving = null;
         try { await move(m.item, m.from, here()); } catch (e) { fail(e); }
         show();
@@ -719,6 +770,7 @@
     const foot = $('#g-foot');
     foot.textContent = '';
     if (!browsing) return;
+    if (inBuiltin()) { foot.appendChild(el('span', '', tr('sBuiltInNote'))); return; }
     foot.appendChild(el('span', '', kind === 'browser' ? tr(fromLocalFile ? 'gLocalNote' : 'gBrowserNote') + (canDrop() ? ' ' + tr('gDropShort') : '') : parentName));
     const links = el('div', 'g-links');
     links.append(button(tr('gBackup'), 'g-link', () => backup(false)), button(tr('gRestore'), 'g-link', () => $('#restore-input').click()));
