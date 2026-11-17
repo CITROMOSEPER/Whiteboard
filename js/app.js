@@ -266,7 +266,9 @@
     laser.el.classList.add('on');
     if (WB.live.on()) {
       laser.el.style.setProperty('--lc', WB.live.myColor());
-      WB.live.pointer({ x: (x - view.x) / view.zoom, y: (y - view.y) / view.zoom });
+      const g = plotActive && doc.strokes.includes(plotActive) && inPlot(plotActive, x, y) ? plotActive : null;
+      if (g) { const L = plotLocal(g, x, y), u = g.w / g.span; WB.live.pointer({ g, mx: g.cx + L.x / u, my: g.cy - L.y / u }); }
+      else WB.live.pointer({ x: (x - view.x) / view.zoom, y: (y - view.y) / view.zoom });
     }
     // Dragging the board: the dot is held still over the board, so it leaves no streak.
     if (mode === 'pan') { laser.trail.length = 0; requestFrame(); return; }
@@ -287,16 +289,32 @@
       laser.el.after(q.el);
       pointers.set(id, q);
     }
-    q.color = p.color; q.x = p.x; q.y = p.y;
+    if ((p.plot || null) !== (q.plot || null)) q.trail = [];   // moved onto a graph or off it
+    q.color = p.color; q.plot = p.plot || null;
+    if (q.plot) { q.x = p.mx; q.y = p.my; } else { q.x = p.x; q.y = p.y; }
     q.el.style.setProperty('--lc', p.color);
+    if (p.name) q.el.dataset.name = p.name; else delete q.el.dataset.name;
     const l = q.trail[q.trail.length - 1];
-    if (!l || l.x !== p.x || l.y !== p.y) q.trail.push({ x: p.x, y: p.y, t: performance.now() });
+    if (!l || l.x !== q.x || l.y !== q.y) q.trail.push({ x: q.x, y: q.y, t: performance.now() });
     requestFrame();
+  }
+  /* A point of a pointer -> screen, or null where it can't be seen (off its graph's view). */
+  function pointerScreen(q, p) {
+    if (!q.plot) return { x: p.x * view.zoom + view.x, y: p.y * view.zoom + view.y, t: p.t };
+    const s = q.plot;
+    if (!doc.strokes.includes(s)) return null;
+    const u = s.w / s.span, lx = (p.x - s.cx) * u, ly = -(p.y - s.cy) * u;
+    if (Math.abs(lx) > s.w / 2 || Math.abs(ly) > s.h / 2) return null;
+    const w = WB.toWorld(s, lx, ly);
+    return { x: w.x * view.zoom + view.x, y: w.y * view.zoom + view.y, t: p.t };
   }
   function drawPointers(now) {
     for (const q of pointers.values()) {
-      q.el.style.transform = `translate3d(${q.x * view.zoom + view.x}px, ${q.y * view.zoom + view.y}px, 0)`;
-      if (q.trail.length) drawTrail(q.trail, q.color, now, (p) => ({ x: p.x * view.zoom + view.x, y: p.y * view.zoom + view.y, t: p.t }));
+      const at = pointerScreen(q, q);
+      q.el.classList.toggle('on', !!at);
+      if (!at) continue;
+      q.el.style.transform = `translate3d(${at.x}px, ${at.y}px, 0)`;
+      if (q.trail.length) drawTrail(q.trail, q.color, now, (p) => pointerScreen(q, p));
     }
   }
   function clearPointers() { for (const id of [...pointers.keys()]) remotePointer(id, null); }
@@ -307,7 +325,7 @@
     const T = 175;
     while (tr0.length && now - tr0[0].t > T) tr0.shift();
     const P = [];
-    for (const p0 of tr0) { const p = toScreen ? toScreen(p0) : p0, l = P[P.length - 1]; if (!l || Math.hypot(p.x - l.x, p.y - l.y) > 0.75) P.push(p); }
+    for (const p0 of tr0) { const p = toScreen ? toScreen(p0) : p0, l = P[P.length - 1]; if (p && (!l || Math.hypot(p.x - l.x, p.y - l.y) > 0.75)) P.push(p); }
     if (P.length < 2) { if (tr0.length) requestFrame(); return; }
     const n = P.length, L = [], Rt = [];
     for (let i = 0; i < n; i++) {
@@ -2473,7 +2491,7 @@
   }
   $('#toast-action').addEventListener('click', () => { $('#toast').classList.remove('on'); if (toastFn) toastFn(); });
 
-  const POPS = [['#menu', '#btn-menu'], ['#zoom-menu', '#btn-zoom'], ['#dash-menu', '#btn-dash'], ['#ai-menu', '#sel-ai']];
+  const POPS = [['#menu', '#btn-menu'], ['#zoom-menu', '#btn-zoom'], ['#dash-menu', '#btn-dash'], ['#ai-menu', '#sel-ai'], ['#people-menu', '#live-pill']];
   function closePopovers(except) {
     for (const [m, b] of POPS) if (m !== except) { $(m).classList.remove('open'); $(b).setAttribute('aria-expanded', 'false'); }
     $('#font-menu').classList.remove('open'); $('#lang-menu').classList.remove('open'); closeModelMenu();
@@ -2495,7 +2513,7 @@
     });
   }
   document.addEventListener('pointerdown', (e) => {
-    if (!e.target.closest('.menu, #btn-menu, #btn-zoom, #tb-font, #lang-btn, #sel-ai, #ai-list, #ai-model')) closePopovers();
+    if (!e.target.closest('.menu, #btn-menu, #btn-zoom, #tb-font, #lang-btn, #sel-ai, #ai-list, #ai-model, #live-pill')) closePopovers();
   }, true);
 
   function openSheet(id) { closePopovers(); closeSheets(); $(id).classList.add('open'); const f = $('[data-close]', $(id)); if (f) f.focus({ preventScroll: true }); }
@@ -2615,7 +2633,7 @@
   /* ---- Live boards ---------------------------------------------------------
      See js/live.js and js/p2p.js. While a board is live, the address ends in #r=<room>, so a
      reload joins again (with the board from the autosave, which remembers its room). */
-  let savedRoom = null, savedColor = null, liveBlockedSaid = false;
+  let savedRoom = null, savedColor = null, liveBlockedSaid = false, loadingMsg = '', loadTimer = 0;
   const turnStore = { get: () => store.get('wb.turn', {}), set: (v) => store.set('wb.turn', v) };
   WB.live.init({
     doc,
@@ -2624,7 +2642,7 @@
     unselect: (s) => selection.delete(s),
     remoteChanged() { docRev++; unsaved = true; updateChrome(); autosave(); invalidate(); if (selection.size) selectionChanged(); },
     metaChanged() { docRev++; unsaved = true; titleEl.value = shownTitle(); updateChrome(); autosave(); invalidate(); },
-    peerJoined() { toast(tr('tLiveJoined')); refreshLive(); },
+    peerJoined() { if (!loadingMsg) toast(tr('tLiveJoined')); refreshLive(); },   // (the loading message stays until the board is here)
     pointer: remotePointer,
     exploring: (s) => s === plotActive,
     translate: (list, dx, dy) => { if (list.length && (dx || dy)) translate(list, dx, dy); },
@@ -2639,6 +2657,18 @@
       toast(tr('tLiveBusy'));
     },
     colorChanged(c) { savedColor = c; autosave(); if (laser.el.classList.contains('on')) laser.el.style.setProperty('--lc', WB.live.myColor()); },
+    nickname: () => store.get('wb.nick', { name: '' }).name,
+    peopleChanged() { refreshLive(); if ($('#people-menu').classList.contains('open')) renderPeople(); },
+    /* Joined, and the board is on its way: say so at the bottom until it is here (k: how much of it, 0-1). */
+    loading(k) {
+      clearTimeout(loadTimer);
+      const el = $('#toast'), shown = el.classList.contains('on') && loadingMsg && $('#toast-text').textContent === loadingMsg;
+      if (k == null) { if (shown) el.classList.remove('on'); loadingMsg = ''; return; }
+      loadingMsg = k > 0.02 && k < 1 ? tr('tLiveLoadingPct', { p: Math.round(k * 100) }) : tr('tLiveLoading');
+      toast(loadingMsg, null, null, 600000);
+      // Nobody with the board there after a while: say that instead of loading forever.
+      loadTimer = setTimeout(() => { if (WB.live.on() && !WB.live.status().peers) { loadingMsg = tr('tLiveNobody'); toast(loadingMsg, null, null, 600000); } }, 20000);
+    },
     peerLeft() { toast(tr('tLiveLeft')); refreshLive(); },
     status(st) {
       refreshLive();
@@ -2692,7 +2722,48 @@
     $('#live-box').classList.toggle('alone', !st.peers);
     pill.title = text;
   }
-  $('#live-pill').addEventListener('click', () => openShare());
+  /* ---- Who is here ----
+     The Live badge opens a list of everyone on the board, each with their pointer colour and name.
+     Tapping your own name lets you type a nickname, which the others see in the list and by your
+     pointer. It is kept on this device for the next live board. */
+  function renderPeople() {
+    const list = $('#people-list');
+    list.textContent = '';
+    for (const p of WB.live.people()) {
+      const li = document.createElement('li');
+      const dot = document.createElement('i'); dot.style.background = p.color;
+      const name = document.createElement(p.me ? 'button' : 'span');
+      name.className = 'pp-name';
+      name.textContent = p.name || tr('peopleGuest', { n: p.index + 1 });
+      li.append(dot, name);
+      if (p.me) {
+        const you = document.createElement('small'); you.textContent = tr('peopleYou') + (p.name ? '' : ' · ' + tr('peopleSetName'));
+        li.append(you);
+        li.classList.add('me');
+        name.title = tr('peopleSetName');
+        name.addEventListener('click', () => editNickname(li, name));
+      }
+      list.appendChild(li);
+    }
+  }
+  function editNickname(li, name) {
+    const input = document.createElement('input');
+    input.className = 'field pp-edit'; input.maxLength = 24; input.value = WB.live.myName(); input.placeholder = tr('peopleNamePh');
+    input.spellcheck = false; input.autocomplete = 'off';
+    name.replaceWith(input);
+    input.focus();
+    let done = false;
+    const finish = (save) => {
+      if (done) return;
+      done = true;
+      if (save) { store.set('wb.nick', { name: input.value.trim().slice(0, 24) }); WB.live.setName(input.value); }
+      renderPeople();
+    };
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') { e.stopPropagation(); finish(false); } });
+    input.addEventListener('blur', () => finish(true));
+  }
+  $('#people-share').addEventListener('click', () => { closePopovers(); openShare(); });
+  $('#live-pill').addEventListener('click', () => { if ($('#people-menu').classList.contains('open')) renderPeople(); });
   $('#live-stop').addEventListener('click', () => { stopLive(tr('tLiveStopped')); });
   function initTurn() {
     const t = turnStore.get(), f = { url: $('#turn-url'), username: $('#turn-user'), credential: $('#turn-pass') };
@@ -2730,12 +2801,12 @@
   /* A link with only the room (the address of a live board, after a reload or copied from the
      address bar): the board comes from the others. This board joins only if it is that board. */
   async function joinRoom(room) {
-    if (savedRoom === room) return startLive(room, { seeded: false, color: savedColor });
+    if (savedRoom === room) return startLive(room, { seeded: false, color: savedColor, joining: true });
     const overUnsaved = doc.strokes.length && unsaved, overPdf = doc.pages.some((p) => p.src);
     if ((overUnsaved || overPdf) && !(await ask(tr(overUnsaved ? 'confirmShared' : 'confirmSharedPdf'), tr('openSharedBtn')))) return;
     replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], pages: [], handle: null, gref: null }, '');
     saveTarget = 'gallery'; markSaved();
-    startLive(room, { seeded: false });
+    startLive(room, { seeded: false, joining: true });
   }
   /* A board drawn but not saved anywhere would be lost to the autosave of the shared one, so that
      case asks first (as opening a PDF does). Undo still brings the old board back. */
@@ -2749,7 +2820,7 @@
     saveTarget = 'gallery'; markSaved();
     toast(tr('tSharedOpened'), tr('undo'), undo, 6000);
     fitView(true);
-    if (room) startLive(room, { seeded: true });           // the link's copy shows at once; the live board replaces it when it arrives
+    if (room) startLive(room, { seeded: true, joining: true });           // the link's copy shows at once; the live board replaces it when it arrives
   }
   /* "Open share link…": for when there's no address bar to paste into (the installed app). */
   function openLink() {
@@ -3066,6 +3137,7 @@
     else plotDrag.many = true;
     plotDrag.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     plotDrag.grip = plotGrip();
+    if (tools.tool === 'laser' && plotDrag.pts.size === 1) laserAt(e.clientX, e.clientY);
     mode = 'plot'; tap = null;
     canvas.classList.add('panning');
   }
@@ -3073,6 +3145,7 @@
     const p = plotDrag && plotDrag.pts.get(e.pointerId), s = plotActive;
     if (!p || !s) return;
     p.x = e.clientX; p.y = e.clientY;
+    if (tools.tool === 'laser' && plotDrag.pts.size === 1) laserAt(e.clientX, e.clientY);
     plotDrag.far = Math.max(plotDrag.far, hyp(p.x - plotDrag.start.x, p.y - plotDrag.start.y));
     if (plotDrag.far < 4 && !plotDrag.many) return;      // not moving yet: may still be a tap on a point
     const g0 = plotDrag.grip, g1 = plotGrip(), d = plotVec(s, g1.x - g0.x, g1.y - g0.y);
@@ -3088,6 +3161,7 @@
     const d = plotDrag;
     plotDrag = null; mode = null;
     canvas.classList.remove('panning');
+    if (tools.tool === 'laser' && e.pointerType === 'touch') laserOff();
     if (!d.many && d.far < 6) plotPointTap(d.start.x, d.start.y);   // a tap, not a drag: on a special point, show its coordinates
   }
   /* A tap at a screen point on a graph's special point shows or hides its coordinates. True if it was on one. */

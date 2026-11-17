@@ -242,6 +242,18 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
 .menu.open { opacity: 1; visibility: visible; transform: none; transition: transform 240ms var(--ease-out), opacity 140ms ease, visibility 0s; }
 #menu { left: var(--pad); top: calc(var(--top) + 56px); transform-origin: 20px -20px; }
 #zoom-menu { right: max(12px, env(safe-area-inset-right)); top: calc(var(--top) + 56px); transform-origin: calc(100% - 32px) -20px; }
+/* Who is on a live board: the badge's list. */
+#people-menu { left: var(--pad); top: calc(var(--top) + 56px); transform-origin: 120px -20px; min-width: 240px; max-width: calc(100vw - 24px); }
+#people-title { margin: 6px 10px 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink-2); }
+#people-list { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow-y: auto; }
+#people-list li { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 9px; }
+#people-list i { width: 12px; height: 12px; border-radius: 50%; flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 0%, transparent); }
+#people-list .pp-name { flex: 1; min-width: 0; text-align: start; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#people-list button.pp-name { padding: 6px 0; text-decoration: underline dotted; text-underline-offset: 3px; }
+#people-list small { color: var(--ink-2); font-size: 0.75rem; white-space: nowrap; }
+#people-list .pp-edit { flex: 1; min-width: 0; height: 32px; padding: 0 8px; }
+/* A name beside someone else's laser pointer, in their colour. */
+.laser[data-name]::after { content: attr(data-name); position: absolute; left: 14px; top: 10px; padding: 2px 7px; border-radius: 8px; background: var(--lc, #ff3b30); color: #fff; font: 600 12px/1.3 var(--font, system-ui); white-space: nowrap; }
 .mi {
   display: flex; align-items: center; justify-content: space-between; gap: 24px; width: 100%;
   height: 36px; padding: 0 10px; border-radius: 9px; text-align: left; font-size: 0.875rem;
@@ -862,6 +874,12 @@ body.pipetting #canvas { cursor: crosshair; }
   <button class="mi dash-mi" role="menuitemradio" data-dash="long"><svg viewBox="0 0 48 12"><path d="M5 6h38" stroke-dasharray="13 6"/></svg><span data-i18n="dash_long"></span></button>
   <button class="mi dash-mi" role="menuitemradio" data-dash="dashdot"><svg viewBox="0 0 48 12"><path d="M5 6h38" stroke-dasharray="10 5 0 5"/></svg><span data-i18n="dash_dashdot"></span></button>
 </div>
+<div class="glass menu" id="people-menu" role="dialog" aria-labelledby="people-title">
+  <p id="people-title" data-i18n="peopleTitle"></p>
+  <ul id="people-list"></ul>
+  <hr>
+  <button class="mi" id="people-share"><span data-i18n="mShare"></span></button>
+</div>
 <div class="glass menu" id="menu" role="menu">
   <button class="mi" role="menuitem" data-act="new"><span data-i18n="mNew"></span></button>
   <button class="mi" role="menuitem" data-act="sheet"><span data-i18n="mNewSheet"></span></button>
@@ -1043,7 +1061,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.17.05.</p>
+      <p id="app-version">version: 2026.11.17.06.</p>
       <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
@@ -2496,6 +2514,22 @@ body.pipetting #canvas { cursor: crosshair; }
   D.ja.liveQrNote = "スマートフォンのカメラで読み取って参加するか、別のデバイスの「{m}」でこのコードを入力してください。"; D.ja.openLinkNoteLive = "共有されたリンクを貼り付けるか、ライブボードのコード（例: K7QM-4XHC）を入力して参加します。";
   D.ar.liveQrNote = "امسح الرمز بكاميرا الهاتف للانضمام، أو اكتب هذا الرمز في «{m}» على جهاز آخر."; D.ar.openLinkNoteLive = "الصق رابطًا شاركه أحدهم معك، أو اكتب رمز لوح مباشر (مثل K7QM-4XHC) للانضمام إليه.";
   D.hi.liveQrNote = "जुड़ने के लिए फ़ोन के कैमरे से स्कैन करें, या किसी दूसरे डिवाइस पर “{m}” में यह कोड डालें।"; D.hi.openLinkNoteLive = "किसी का साझा किया लिंक चिपकाएँ, या जुड़ने के लिए किसी लाइव बोर्ड का कोड (जैसे K7QM-4XHC) लिखें।";
+
+  /* Live boards: who is here (the badge's list, nicknames) and the board loading after joining. */
+  Object.assign(D.en, {"peopleTitle": "On this board", "peopleYou": "you", "peopleGuest": "Guest {n}", "peopleSetName": "tap to set your name", "peopleNamePh": "Your name", "tLiveLoading": "Loading the board…", "tLiveLoadingPct": "Loading the board… {p} %", "tLiveNobody": "Nobody with this board is here yet. It loads as soon as someone who has it opens it."});
+  Object.assign(D.hu, {"peopleTitle": "A táblán", "peopleYou": "te", "peopleGuest": "Vendég {n}", "peopleSetName": "koppints a neved megadásához", "peopleNamePh": "A neved", "tLiveLoading": "A tábla betöltése…", "tLiveLoadingPct": "A tábla betöltése… {p} %", "tLiveNobody": "Még senki sincs itt, akinél megvan a tábla. Betöltődik, amint valaki megnyitja, akinél megvan."});
+  Object.assign(D.de, {"peopleTitle": "Auf dieser Tafel", "peopleYou": "du", "peopleGuest": "Gast {n}", "peopleSetName": "tippen, um deinen Namen festzulegen", "peopleNamePh": "Dein Name", "tLiveLoading": "Tafel wird geladen…", "tLiveLoadingPct": "Tafel wird geladen… {p} %", "tLiveNobody": "Noch ist niemand mit dieser Tafel hier. Sie lädt, sobald jemand, der sie hat, sie öffnet."});
+  Object.assign(D.fr, {"peopleTitle": "Sur ce tableau", "peopleYou": "vous", "peopleGuest": "Invité {n}", "peopleSetName": "touchez pour indiquer votre nom", "peopleNamePh": "Votre nom", "tLiveLoading": "Chargement du tableau…", "tLiveLoadingPct": "Chargement du tableau… {p} %", "tLiveNobody": "Personne ayant ce tableau n’est encore là. Il se charge dès que quelqu’un qui l’a l’ouvre."});
+  Object.assign(D.it, {"peopleTitle": "Su questa lavagna", "peopleYou": "tu", "peopleGuest": "Ospite {n}", "peopleSetName": "tocca per impostare il tuo nome", "peopleNamePh": "Il tuo nome", "tLiveLoading": "Caricamento della lavagna…", "tLiveLoadingPct": "Caricamento della lavagna… {p} %", "tLiveNobody": "Non c’è ancora nessuno con questa lavagna. Si carica appena qualcuno che ce l’ha la apre."});
+  Object.assign(D.es, {"peopleTitle": "En esta pizarra", "peopleYou": "tú", "peopleGuest": "Invitado {n}", "peopleSetName": "toca para poner tu nombre", "peopleNamePh": "Tu nombre", "tLiveLoading": "Cargando la pizarra…", "tLiveLoadingPct": "Cargando la pizarra… {p} %", "tLiveNobody": "Todavía no hay nadie con esta pizarra. Se carga en cuanto alguien que la tenga la abra."});
+  Object.assign(D.pt, {"peopleTitle": "Neste quadro", "peopleYou": "você", "peopleGuest": "Convidado {n}", "peopleSetName": "toque para definir seu nome", "peopleNamePh": "Seu nome", "tLiveLoading": "Carregando o quadro…", "tLiveLoadingPct": "Carregando o quadro… {p} %", "tLiveNobody": "Ainda não há ninguém com este quadro. Ele carrega assim que alguém que o tenha o abrir."});
+  Object.assign(D.ru, {"peopleTitle": "На этой доске", "peopleYou": "вы", "peopleGuest": "Гость {n}", "peopleSetName": "нажмите, чтобы указать имя", "peopleNamePh": "Ваше имя", "tLiveLoading": "Загрузка доски…", "tLiveLoadingPct": "Загрузка доски… {p} %", "tLiveNobody": "Здесь пока нет никого с этой доской. Она загрузится, как только её откроет тот, у кого она есть."});
+  Object.assign(D.uk, {"peopleTitle": "На цій дошці", "peopleYou": "ви", "peopleGuest": "Гість {n}", "peopleSetName": "торкніться, щоб указати ім’я", "peopleNamePh": "Ваше ім’я", "tLiveLoading": "Завантаження дошки…", "tLiveLoadingPct": "Завантаження дошки… {p} %", "tLiveNobody": "Тут поки немає нікого з цією дошкою. Вона завантажиться, щойно її відкриє той, у кого вона є."});
+  Object.assign(D.tr, {"peopleTitle": "Bu tahtada", "peopleYou": "siz", "peopleGuest": "Misafir {n}", "peopleSetName": "adınızı yazmak için dokunun", "peopleNamePh": "Adınız", "tLiveLoading": "Tahta yükleniyor…", "tLiveLoadingPct": "Tahta yükleniyor… %{p}", "tLiveNobody": "Bu tahtaya sahip kimse henüz burada değil. Ona sahip biri açar açmaz yüklenir."});
+  Object.assign(D.zh, {"peopleTitle": "在此白板上", "peopleYou": "你", "peopleGuest": "访客 {n}", "peopleSetName": "点按以设置名字", "peopleNamePh": "你的名字", "tLiveLoading": "正在加载白板…", "tLiveLoadingPct": "正在加载白板… {p}%", "tLiveNobody": "拥有此白板的人还没有在线。一旦有人打开它，就会开始加载。"});
+  Object.assign(D.ja, {"peopleTitle": "このボードにいる人", "peopleYou": "あなた", "peopleGuest": "ゲスト {n}", "peopleSetName": "タップして名前を設定", "peopleNamePh": "あなたの名前", "tLiveLoading": "ボードを読み込み中…", "tLiveLoadingPct": "ボードを読み込み中… {p}%", "tLiveNobody": "このボードを持っている人はまだいません。持っている人が開くとすぐに読み込まれます。"});
+  Object.assign(D.ar, {"peopleTitle": "على هذا اللوح", "peopleYou": "أنت", "peopleGuest": "ضيف {n}", "peopleSetName": "المس لتعيين اسمك", "peopleNamePh": "اسمك", "tLiveLoading": "جارٍ تحميل اللوح…", "tLiveLoadingPct": "جارٍ تحميل اللوح… ‎{p}‎%", "tLiveNobody": "لا يوجد هنا بعد أحد لديه هذا اللوح. سيُحمَّل فور أن يفتحه شخص لديه."});
+  Object.assign(D.hi, {"peopleTitle": "इस बोर्ड पर", "peopleYou": "आप", "peopleGuest": "मेहमान {n}", "peopleSetName": "अपना नाम डालने के लिए टैप करें", "peopleNamePh": "आपका नाम", "tLiveLoading": "बोर्ड लोड हो रहा है…", "tLiveLoadingPct": "बोर्ड लोड हो रहा है… {p}%", "tLiveNobody": "इस बोर्ड वाला कोई अभी यहाँ नहीं है। जैसे ही कोई इसे खोलेगा, यह लोड हो जाएगा।"});
 
   /* The best supported language for this device's preferences. */
   WB.systemLang = function () {
@@ -8052,6 +8086,7 @@ body.pipetting #canvas { cursor: crosshair; }
         let m = p.parts.get(tag);
         if (!m) { if (p.parts.size > 8) return; m = { n, got: 0, list: new Array(n) }; p.parts.set(tag, m); }
         if (m.list[i] == null) { m.list[i] = data.slice(c + 1); m.got++; }
+        if (m.n >= 4 && h.onProgress) h.onProgress(id, m.got, m.n);    // a big message on its way (a whole board, a picture)
         if (m.got < m.n) return;
         p.parts.delete(tag);
         data = m.list.join('');
@@ -8216,6 +8251,9 @@ body.pipetting #canvas { cursor: crosshair; }
      sees each pointer, their own too, in the same colour. */
   const COLORS = ['#ff3b30', '#34c759', '#007aff', '#ff9500', '#af52de', '#ff2d55', '#30b0c7', '#ffcc00', '#5856d6', '#a2845e', '#00c7be', '#8e8e93', '#ff6482'];
   let myColor = null, me = '';
+  let myName = '';                 // my nickname, shown to the others
+  const names = new Map();         // peer -> nickname
+  let loading = false;             // joined, and the board hasn't arrived yet
   const colors = new Map();      // peer -> colour number
   let ptr = null, ptrSent = 0, ptrTimer = 0;
 
@@ -8238,6 +8276,9 @@ body.pipetting #canvas { cursor: crosshair; }
     n = 0; clock = 0; vers = new Map(); objs = new Map(); dirty = new Map(); ghosts.clear(); asked.clear(); waiting.clear();
     seeds = opt && opt.seeded ? new Set(doc().strokes) : null;
     myColor = opt && Number.isInteger(opt.color) && opt.color >= 0 && opt.color < COLORS.length ? opt.color : null;
+    myName = cleanName(host.nickname()); names.clear();
+    loading = !!(opt && opt.joining);
+    host.loading(loading ? 0 : null);
     colors.clear(); ptr = null;
     for (const s of doc().strokes) if (!seeds) { ensureId(s); vers.set(s.id, { t: 0, p: '' }); }
     known = new Set(doc().strokes);
@@ -8251,10 +8292,11 @@ body.pipetting #canvas { cursor: crosshair; }
     try {
       rm = await WB.p2p.join(r, {
         ice,
-        onPeer: (id) => { send({ k: 'hello', c: myColor }, id); if (ptr) send({ k: 'ptr', x: ptr.x, y: ptr.y }, id); sendState(id); if (mine.size) send({ k: 'lock', ids: [...mine.keys()] }, id); if (myView) send({ k: 'view', id: myView }, id); host.peerJoined(); },
-        onLeave: (id) => { ghosts.delete(id); colors.delete(id); dropLocks(id, true); host.pointer(id, null); host.peerLeft(); host.requestFrame(); },
+        onPeer: (id) => { send({ k: 'hello', c: myColor, name: myName }, id); if (ptr) send(ptrMsg(), id); sendState(id); if (mine.size) send({ k: 'lock', ids: [...mine.keys()] }, id); if (myView) send({ k: 'view', id: myView }, id); host.peerJoined(); },
+        onLeave: (id) => { ghosts.delete(id); colors.delete(id); names.delete(id); host.peopleChanged(); dropLocks(id, true); host.pointer(id, null); host.peerLeft(); host.requestFrame(); },
         onMessage: (id, m) => { if (room === rm) handle(id, m); },
         onStatus: (s) => { if (room === rm) { st = s; host.status(st); } },
+        onProgress: (id, got, n) => { if (room === rm && loading) host.loading(got / n); },
       });
     } catch (e) { if (room === my) room = null; throw e; }
     if (room !== my) { rm.leave(); return; }
@@ -8267,6 +8309,8 @@ body.pipetting #canvas { cursor: crosshair; }
     room = null; code = ''; seeds = null;
     clearTimeout(flushTimer); dirty.clear(); ghosts.clear(); ink = null;
     locks.clear(); mine.clear(); drags.clear(); typed.clear(); viewers.clear(); myView = null; clearTimeout(dragTimer); dragTimer = 0;
+    colors.clear(); names.clear();
+    if (loading) { loading = false; host.loading(null); }
   }
   const on = () => !!room;
 
@@ -8361,13 +8405,14 @@ body.pipetting #canvas { cursor: crosshair; }
       if (seeds) settleSeeds(m);
       applyOps(from, m.items);
       if (m.meta) applyMeta(from, m.meta);
+      if (loading && !waiting.size) { loading = false; host.loading(null); }      // (else when its pictures are here)
     } else if (m.k === 'meta') applyMeta(from, m);
     else if (m.k === 'need' && Array.isArray(m.keys)) {
       for (const k of m.keys.slice(0, 500)) { const src = findImage(k); if (src) send({ k: 'img', key: k, src }, from); }
     } else if (m.k === 'img' && typeof m.key === 'string' && typeof m.src === 'string') gotImage(m.key, m.src);
     else if (m.k === 'ink') gotInk(from, m);
     else if (m.k === 'inkEnd') { const g = ghosts.get(from); if (g) g.end = Date.now(); host.requestFrame(); }
-    else if (m.k === 'hello') gotColor(from, m.c);
+    else if (m.k === 'hello') { names.set(from, cleanName(m.name)); gotColor(from, m.c); host.peopleChanged(); }
     else if (m.k === 'lock' && Array.isArray(m.ids)) gotLock(from, m.ids.slice(0, 100000));
     else if (m.k === 'unlock') dropLocks(from, false);
     else if (m.k === 'drag') gotDrag(from, m);
@@ -8376,7 +8421,11 @@ body.pipetting #canvas { cursor: crosshair; }
     else if (m.k === 'unview') gotView(from, null);
     else if (m.k === 'ptr') {
       if (m.off) host.pointer(from, null);
-      else if (isFinite(m.x) && isFinite(m.y) && Math.abs(m.x) < 1e9 && Math.abs(m.y) < 1e9) host.pointer(from, { x: +m.x, y: +m.y, color: colorOf(from) });
+      else if (typeof m.g === 'string' && isFinite(m.mx) && isFinite(m.my)) {
+        const s = objs.get(m.g);
+        if (s && s.tool === 'plot') host.pointer(from, { plot: s, mx: +m.mx, my: +m.my, color: colorOf(from), name: nameOf(from) });
+        else host.pointer(from, null);
+      } else if (isFinite(m.x) && isFinite(m.y) && Math.abs(m.x) < 1e9 && Math.abs(m.y) < 1e9) host.pointer(from, { x: +m.x, y: +m.y, color: colorOf(from), name: nameOf(from) });
     }
   }
   /* The share link's own copy of the board was only there to show something at once. When the
@@ -8472,6 +8521,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const list = waiting.get(k);
     waiting.delete(k);
     for (const w of list) { if (w.op.meta) applyMeta(w.from, w.op.meta); else applyOps(w.from, [w.op]); }
+    if (loading && !waiting.size) { loading = false; host.loading(null); }
   }
   function findImage(k) {
     if (images.has(k)) return images.get(k);
@@ -8663,34 +8713,54 @@ body.pipetting #canvas { cursor: crosshair; }
   /* ---- Pointer colours ---- */
   function gotColor(from, c) {
     colors.set(from, Number.isInteger(c) && c >= 0 && c < COLORS.length ? c : null);
-    const clash = myColor != null && myColor !== 0 && colors.get(from) === myColor && from < me;
+    const clash = myColor != null && colors.get(from) === myColor && from < me;   // (red too: two can't both have started it)
     if (myColor == null || clash) pickColor();
   }
   function pickColor() {
     const used = new Set(colors.values());
-    let c = 1;
+    let c = myColor === 0 && !used.has(0) ? 0 : 1;
     while (used.has(c) && c < COLORS.length - 1) c++;
     myColor = c;
-    send({ k: 'hello', c });
+    send({ k: 'hello', c, name: myName });
     host.colorChanged(c);
+    host.peopleChanged();
+  }
+  /* ---- Names ---- */
+  const cleanName = (n) => (typeof n === 'string' ? n.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 24) : '');
+  const nameOf = (id) => names.get(id) || '';
+  function setName(n) {
+    myName = cleanName(n);
+    if (room) send({ k: 'hello', c: myColor, name: myName });
+    host.peopleChanged();
+  }
+  /* Everyone here (me first), with their colour and name, in colour order (red, who started it, first). */
+  function people() {
+    const list = [{ me: true, color: COLORS[myColor == null ? 0 : myColor], index: myColor == null ? 0 : myColor, name: myName }];
+    for (const [id, c] of colors) list.push({ id, color: COLORS[c == null ? 0 : c], index: c == null ? 0 : c, name: nameOf(id) });
+    return list.sort((a, b) => a.index - b.index || (a.me ? -1 : b.me ? 1 : 0));
   }
   const colorOf = (id) => { const c = colors.get(id); return COLORS[c == null ? 0 : c]; };
   /* My laser pointer, in board coordinates (null when I'm not pointing), ~30 times a second at most. */
+  /* On a graph I'm exploring, p is { g: the graph, mx, my } in its maths coordinates: the others see
+     the pointer on the same spot of the curve, whatever part of the graph they are looking at. */
   function pointer(p) {
     if (!room) return;
     if (!p) {
       if (ptr) { ptr = null; clearTimeout(ptrTimer); ptrTimer = 0; send({ k: 'ptr', off: 1 }); }
       return;
     }
-    ptr = { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
+    ptr = p.g ? { g: ensureId(p.g), mx: +p.mx.toPrecision(9), my: +p.my.toPrecision(9) } : { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
     if (ptrTimer) return;
-    const go = () => { ptrTimer = 0; if (ptr) { ptrSent = performance.now(); send({ k: 'ptr', x: ptr.x, y: ptr.y }); } };
+    const go = () => { ptrTimer = 0; if (ptr) { ptrSent = performance.now(); send(ptrMsg()); } };
     const wait = 33 - (performance.now() - ptrSent);
     if (wait <= 0) go(); else ptrTimer = setTimeout(go, wait);
   }
 
+  const ptrMsg = () => (ptr.g ? { k: 'ptr', g: ptr.g, mx: ptr.mx, my: ptr.my } : { k: 'ptr', x: ptr.x, y: ptr.y });
+
   WB.live = {
     init(h) { host = h; },
+    people, setName, myName: () => myName,
     start, stop, on, touch, changed, streamInk, inkGhosts, pointer,
     hold, release, heldByOther, moveHeld, editHeld, typing, held, view,
     /* My pointer colour on the live board (red until I have one). */
@@ -9038,7 +9108,9 @@ body.pipetting #canvas { cursor: crosshair; }
     laser.el.classList.add('on');
     if (WB.live.on()) {
       laser.el.style.setProperty('--lc', WB.live.myColor());
-      WB.live.pointer({ x: (x - view.x) / view.zoom, y: (y - view.y) / view.zoom });
+      const g = plotActive && doc.strokes.includes(plotActive) && inPlot(plotActive, x, y) ? plotActive : null;
+      if (g) { const L = plotLocal(g, x, y), u = g.w / g.span; WB.live.pointer({ g, mx: g.cx + L.x / u, my: g.cy - L.y / u }); }
+      else WB.live.pointer({ x: (x - view.x) / view.zoom, y: (y - view.y) / view.zoom });
     }
     // Dragging the board: the dot is held still over the board, so it leaves no streak.
     if (mode === 'pan') { laser.trail.length = 0; requestFrame(); return; }
@@ -9059,16 +9131,32 @@ body.pipetting #canvas { cursor: crosshair; }
       laser.el.after(q.el);
       pointers.set(id, q);
     }
-    q.color = p.color; q.x = p.x; q.y = p.y;
+    if ((p.plot || null) !== (q.plot || null)) q.trail = [];   // moved onto a graph or off it
+    q.color = p.color; q.plot = p.plot || null;
+    if (q.plot) { q.x = p.mx; q.y = p.my; } else { q.x = p.x; q.y = p.y; }
     q.el.style.setProperty('--lc', p.color);
+    if (p.name) q.el.dataset.name = p.name; else delete q.el.dataset.name;
     const l = q.trail[q.trail.length - 1];
-    if (!l || l.x !== p.x || l.y !== p.y) q.trail.push({ x: p.x, y: p.y, t: performance.now() });
+    if (!l || l.x !== q.x || l.y !== q.y) q.trail.push({ x: q.x, y: q.y, t: performance.now() });
     requestFrame();
+  }
+  /* A point of a pointer -> screen, or null where it can't be seen (off its graph's view). */
+  function pointerScreen(q, p) {
+    if (!q.plot) return { x: p.x * view.zoom + view.x, y: p.y * view.zoom + view.y, t: p.t };
+    const s = q.plot;
+    if (!doc.strokes.includes(s)) return null;
+    const u = s.w / s.span, lx = (p.x - s.cx) * u, ly = -(p.y - s.cy) * u;
+    if (Math.abs(lx) > s.w / 2 || Math.abs(ly) > s.h / 2) return null;
+    const w = WB.toWorld(s, lx, ly);
+    return { x: w.x * view.zoom + view.x, y: w.y * view.zoom + view.y, t: p.t };
   }
   function drawPointers(now) {
     for (const q of pointers.values()) {
-      q.el.style.transform = `translate3d(${q.x * view.zoom + view.x}px, ${q.y * view.zoom + view.y}px, 0)`;
-      if (q.trail.length) drawTrail(q.trail, q.color, now, (p) => ({ x: p.x * view.zoom + view.x, y: p.y * view.zoom + view.y, t: p.t }));
+      const at = pointerScreen(q, q);
+      q.el.classList.toggle('on', !!at);
+      if (!at) continue;
+      q.el.style.transform = `translate3d(${at.x}px, ${at.y}px, 0)`;
+      if (q.trail.length) drawTrail(q.trail, q.color, now, (p) => pointerScreen(q, p));
     }
   }
   function clearPointers() { for (const id of [...pointers.keys()]) remotePointer(id, null); }
@@ -9079,7 +9167,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const T = 175;
     while (tr0.length && now - tr0[0].t > T) tr0.shift();
     const P = [];
-    for (const p0 of tr0) { const p = toScreen ? toScreen(p0) : p0, l = P[P.length - 1]; if (!l || Math.hypot(p.x - l.x, p.y - l.y) > 0.75) P.push(p); }
+    for (const p0 of tr0) { const p = toScreen ? toScreen(p0) : p0, l = P[P.length - 1]; if (p && (!l || Math.hypot(p.x - l.x, p.y - l.y) > 0.75)) P.push(p); }
     if (P.length < 2) { if (tr0.length) requestFrame(); return; }
     const n = P.length, L = [], Rt = [];
     for (let i = 0; i < n; i++) {
@@ -11245,7 +11333,7 @@ body.pipetting #canvas { cursor: crosshair; }
   }
   $('#toast-action').addEventListener('click', () => { $('#toast').classList.remove('on'); if (toastFn) toastFn(); });
 
-  const POPS = [['#menu', '#btn-menu'], ['#zoom-menu', '#btn-zoom'], ['#dash-menu', '#btn-dash'], ['#ai-menu', '#sel-ai']];
+  const POPS = [['#menu', '#btn-menu'], ['#zoom-menu', '#btn-zoom'], ['#dash-menu', '#btn-dash'], ['#ai-menu', '#sel-ai'], ['#people-menu', '#live-pill']];
   function closePopovers(except) {
     for (const [m, b] of POPS) if (m !== except) { $(m).classList.remove('open'); $(b).setAttribute('aria-expanded', 'false'); }
     $('#font-menu').classList.remove('open'); $('#lang-menu').classList.remove('open'); closeModelMenu();
@@ -11267,7 +11355,7 @@ body.pipetting #canvas { cursor: crosshair; }
     });
   }
   document.addEventListener('pointerdown', (e) => {
-    if (!e.target.closest('.menu, #btn-menu, #btn-zoom, #tb-font, #lang-btn, #sel-ai, #ai-list, #ai-model')) closePopovers();
+    if (!e.target.closest('.menu, #btn-menu, #btn-zoom, #tb-font, #lang-btn, #sel-ai, #ai-list, #ai-model, #live-pill')) closePopovers();
   }, true);
 
   function openSheet(id) { closePopovers(); closeSheets(); $(id).classList.add('open'); const f = $('[data-close]', $(id)); if (f) f.focus({ preventScroll: true }); }
@@ -11387,7 +11475,7 @@ body.pipetting #canvas { cursor: crosshair; }
   /* ---- Live boards ---------------------------------------------------------
      See js/live.js and js/p2p.js. While a board is live, the address ends in #r=<room>, so a
      reload joins again (with the board from the autosave, which remembers its room). */
-  let savedRoom = null, savedColor = null, liveBlockedSaid = false;
+  let savedRoom = null, savedColor = null, liveBlockedSaid = false, loadingMsg = '', loadTimer = 0;
   const turnStore = { get: () => store.get('wb.turn', {}), set: (v) => store.set('wb.turn', v) };
   WB.live.init({
     doc,
@@ -11396,7 +11484,7 @@ body.pipetting #canvas { cursor: crosshair; }
     unselect: (s) => selection.delete(s),
     remoteChanged() { docRev++; unsaved = true; updateChrome(); autosave(); invalidate(); if (selection.size) selectionChanged(); },
     metaChanged() { docRev++; unsaved = true; titleEl.value = shownTitle(); updateChrome(); autosave(); invalidate(); },
-    peerJoined() { toast(tr('tLiveJoined')); refreshLive(); },
+    peerJoined() { if (!loadingMsg) toast(tr('tLiveJoined')); refreshLive(); },   // (the loading message stays until the board is here)
     pointer: remotePointer,
     exploring: (s) => s === plotActive,
     translate: (list, dx, dy) => { if (list.length && (dx || dy)) translate(list, dx, dy); },
@@ -11411,6 +11499,18 @@ body.pipetting #canvas { cursor: crosshair; }
       toast(tr('tLiveBusy'));
     },
     colorChanged(c) { savedColor = c; autosave(); if (laser.el.classList.contains('on')) laser.el.style.setProperty('--lc', WB.live.myColor()); },
+    nickname: () => store.get('wb.nick', { name: '' }).name,
+    peopleChanged() { refreshLive(); if ($('#people-menu').classList.contains('open')) renderPeople(); },
+    /* Joined, and the board is on its way: say so at the bottom until it is here (k: how much of it, 0-1). */
+    loading(k) {
+      clearTimeout(loadTimer);
+      const el = $('#toast'), shown = el.classList.contains('on') && loadingMsg && $('#toast-text').textContent === loadingMsg;
+      if (k == null) { if (shown) el.classList.remove('on'); loadingMsg = ''; return; }
+      loadingMsg = k > 0.02 && k < 1 ? tr('tLiveLoadingPct', { p: Math.round(k * 100) }) : tr('tLiveLoading');
+      toast(loadingMsg, null, null, 600000);
+      // Nobody with the board there after a while: say that instead of loading forever.
+      loadTimer = setTimeout(() => { if (WB.live.on() && !WB.live.status().peers) { loadingMsg = tr('tLiveNobody'); toast(loadingMsg, null, null, 600000); } }, 20000);
+    },
     peerLeft() { toast(tr('tLiveLeft')); refreshLive(); },
     status(st) {
       refreshLive();
@@ -11464,7 +11564,48 @@ body.pipetting #canvas { cursor: crosshair; }
     $('#live-box').classList.toggle('alone', !st.peers);
     pill.title = text;
   }
-  $('#live-pill').addEventListener('click', () => openShare());
+  /* ---- Who is here ----
+     The Live badge opens a list of everyone on the board, each with their pointer colour and name.
+     Tapping your own name lets you type a nickname, which the others see in the list and by your
+     pointer. It is kept on this device for the next live board. */
+  function renderPeople() {
+    const list = $('#people-list');
+    list.textContent = '';
+    for (const p of WB.live.people()) {
+      const li = document.createElement('li');
+      const dot = document.createElement('i'); dot.style.background = p.color;
+      const name = document.createElement(p.me ? 'button' : 'span');
+      name.className = 'pp-name';
+      name.textContent = p.name || tr('peopleGuest', { n: p.index + 1 });
+      li.append(dot, name);
+      if (p.me) {
+        const you = document.createElement('small'); you.textContent = tr('peopleYou') + (p.name ? '' : ' · ' + tr('peopleSetName'));
+        li.append(you);
+        li.classList.add('me');
+        name.title = tr('peopleSetName');
+        name.addEventListener('click', () => editNickname(li, name));
+      }
+      list.appendChild(li);
+    }
+  }
+  function editNickname(li, name) {
+    const input = document.createElement('input');
+    input.className = 'field pp-edit'; input.maxLength = 24; input.value = WB.live.myName(); input.placeholder = tr('peopleNamePh');
+    input.spellcheck = false; input.autocomplete = 'off';
+    name.replaceWith(input);
+    input.focus();
+    let done = false;
+    const finish = (save) => {
+      if (done) return;
+      done = true;
+      if (save) { store.set('wb.nick', { name: input.value.trim().slice(0, 24) }); WB.live.setName(input.value); }
+      renderPeople();
+    };
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') { e.stopPropagation(); finish(false); } });
+    input.addEventListener('blur', () => finish(true));
+  }
+  $('#people-share').addEventListener('click', () => { closePopovers(); openShare(); });
+  $('#live-pill').addEventListener('click', () => { if ($('#people-menu').classList.contains('open')) renderPeople(); });
   $('#live-stop').addEventListener('click', () => { stopLive(tr('tLiveStopped')); });
   function initTurn() {
     const t = turnStore.get(), f = { url: $('#turn-url'), username: $('#turn-user'), credential: $('#turn-pass') };
@@ -11502,12 +11643,12 @@ body.pipetting #canvas { cursor: crosshair; }
   /* A link with only the room (the address of a live board, after a reload or copied from the
      address bar): the board comes from the others. This board joins only if it is that board. */
   async function joinRoom(room) {
-    if (savedRoom === room) return startLive(room, { seeded: false, color: savedColor });
+    if (savedRoom === room) return startLive(room, { seeded: false, color: savedColor, joining: true });
     const overUnsaved = doc.strokes.length && unsaved, overPdf = doc.pages.some((p) => p.src);
     if ((overUnsaved || overPdf) && !(await ask(tr(overUnsaved ? 'confirmShared' : 'confirmSharedPdf'), tr('openSharedBtn')))) return;
     replaceBoard({ title: 'Untitled', created: Date.now(), strokes: [], pages: [], handle: null, gref: null }, '');
     saveTarget = 'gallery'; markSaved();
-    startLive(room, { seeded: false });
+    startLive(room, { seeded: false, joining: true });
   }
   /* A board drawn but not saved anywhere would be lost to the autosave of the shared one, so that
      case asks first (as opening a PDF does). Undo still brings the old board back. */
@@ -11521,7 +11662,7 @@ body.pipetting #canvas { cursor: crosshair; }
     saveTarget = 'gallery'; markSaved();
     toast(tr('tSharedOpened'), tr('undo'), undo, 6000);
     fitView(true);
-    if (room) startLive(room, { seeded: true });           // the link's copy shows at once; the live board replaces it when it arrives
+    if (room) startLive(room, { seeded: true, joining: true });           // the link's copy shows at once; the live board replaces it when it arrives
   }
   /* "Open share link…": for when there's no address bar to paste into (the installed app). */
   function openLink() {
@@ -11838,6 +11979,7 @@ body.pipetting #canvas { cursor: crosshair; }
     else plotDrag.many = true;
     plotDrag.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     plotDrag.grip = plotGrip();
+    if (tools.tool === 'laser' && plotDrag.pts.size === 1) laserAt(e.clientX, e.clientY);
     mode = 'plot'; tap = null;
     canvas.classList.add('panning');
   }
@@ -11845,6 +11987,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const p = plotDrag && plotDrag.pts.get(e.pointerId), s = plotActive;
     if (!p || !s) return;
     p.x = e.clientX; p.y = e.clientY;
+    if (tools.tool === 'laser' && plotDrag.pts.size === 1) laserAt(e.clientX, e.clientY);
     plotDrag.far = Math.max(plotDrag.far, hyp(p.x - plotDrag.start.x, p.y - plotDrag.start.y));
     if (plotDrag.far < 4 && !plotDrag.many) return;      // not moving yet: may still be a tap on a point
     const g0 = plotDrag.grip, g1 = plotGrip(), d = plotVec(s, g1.x - g0.x, g1.y - g0.y);
@@ -11860,6 +12003,7 @@ body.pipetting #canvas { cursor: crosshair; }
     const d = plotDrag;
     plotDrag = null; mode = null;
     canvas.classList.remove('panning');
+    if (tools.tool === 'laser' && e.pointerType === 'touch') laserOff();
     if (!d.many && d.far < 6) plotPointTap(d.start.x, d.start.y);   // a tap, not a drag: on a special point, show its coordinates
   }
   /* A tap at a screen point on a graph's special point shows or hides its coordinates. True if it was on one. */

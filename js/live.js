@@ -36,6 +36,9 @@
      sees each pointer, their own too, in the same colour. */
   const COLORS = ['#ff3b30', '#34c759', '#007aff', '#ff9500', '#af52de', '#ff2d55', '#30b0c7', '#ffcc00', '#5856d6', '#a2845e', '#00c7be', '#8e8e93', '#ff6482'];
   let myColor = null, me = '';
+  let myName = '';                 // my nickname, shown to the others
+  const names = new Map();         // peer -> nickname
+  let loading = false;             // joined, and the board hasn't arrived yet
   const colors = new Map();      // peer -> colour number
   let ptr = null, ptrSent = 0, ptrTimer = 0;
 
@@ -58,6 +61,9 @@
     n = 0; clock = 0; vers = new Map(); objs = new Map(); dirty = new Map(); ghosts.clear(); asked.clear(); waiting.clear();
     seeds = opt && opt.seeded ? new Set(doc().strokes) : null;
     myColor = opt && Number.isInteger(opt.color) && opt.color >= 0 && opt.color < COLORS.length ? opt.color : null;
+    myName = cleanName(host.nickname()); names.clear();
+    loading = !!(opt && opt.joining);
+    host.loading(loading ? 0 : null);
     colors.clear(); ptr = null;
     for (const s of doc().strokes) if (!seeds) { ensureId(s); vers.set(s.id, { t: 0, p: '' }); }
     known = new Set(doc().strokes);
@@ -71,10 +77,11 @@
     try {
       rm = await WB.p2p.join(r, {
         ice,
-        onPeer: (id) => { send({ k: 'hello', c: myColor }, id); if (ptr) send({ k: 'ptr', x: ptr.x, y: ptr.y }, id); sendState(id); if (mine.size) send({ k: 'lock', ids: [...mine.keys()] }, id); if (myView) send({ k: 'view', id: myView }, id); host.peerJoined(); },
-        onLeave: (id) => { ghosts.delete(id); colors.delete(id); dropLocks(id, true); host.pointer(id, null); host.peerLeft(); host.requestFrame(); },
+        onPeer: (id) => { send({ k: 'hello', c: myColor, name: myName }, id); if (ptr) send(ptrMsg(), id); sendState(id); if (mine.size) send({ k: 'lock', ids: [...mine.keys()] }, id); if (myView) send({ k: 'view', id: myView }, id); host.peerJoined(); },
+        onLeave: (id) => { ghosts.delete(id); colors.delete(id); names.delete(id); host.peopleChanged(); dropLocks(id, true); host.pointer(id, null); host.peerLeft(); host.requestFrame(); },
         onMessage: (id, m) => { if (room === rm) handle(id, m); },
         onStatus: (s) => { if (room === rm) { st = s; host.status(st); } },
+        onProgress: (id, got, n) => { if (room === rm && loading) host.loading(got / n); },
       });
     } catch (e) { if (room === my) room = null; throw e; }
     if (room !== my) { rm.leave(); return; }
@@ -87,6 +94,8 @@
     room = null; code = ''; seeds = null;
     clearTimeout(flushTimer); dirty.clear(); ghosts.clear(); ink = null;
     locks.clear(); mine.clear(); drags.clear(); typed.clear(); viewers.clear(); myView = null; clearTimeout(dragTimer); dragTimer = 0;
+    colors.clear(); names.clear();
+    if (loading) { loading = false; host.loading(null); }
   }
   const on = () => !!room;
 
@@ -181,13 +190,14 @@
       if (seeds) settleSeeds(m);
       applyOps(from, m.items);
       if (m.meta) applyMeta(from, m.meta);
+      if (loading && !waiting.size) { loading = false; host.loading(null); }      // (else when its pictures are here)
     } else if (m.k === 'meta') applyMeta(from, m);
     else if (m.k === 'need' && Array.isArray(m.keys)) {
       for (const k of m.keys.slice(0, 500)) { const src = findImage(k); if (src) send({ k: 'img', key: k, src }, from); }
     } else if (m.k === 'img' && typeof m.key === 'string' && typeof m.src === 'string') gotImage(m.key, m.src);
     else if (m.k === 'ink') gotInk(from, m);
     else if (m.k === 'inkEnd') { const g = ghosts.get(from); if (g) g.end = Date.now(); host.requestFrame(); }
-    else if (m.k === 'hello') gotColor(from, m.c);
+    else if (m.k === 'hello') { names.set(from, cleanName(m.name)); gotColor(from, m.c); host.peopleChanged(); }
     else if (m.k === 'lock' && Array.isArray(m.ids)) gotLock(from, m.ids.slice(0, 100000));
     else if (m.k === 'unlock') dropLocks(from, false);
     else if (m.k === 'drag') gotDrag(from, m);
@@ -196,7 +206,11 @@
     else if (m.k === 'unview') gotView(from, null);
     else if (m.k === 'ptr') {
       if (m.off) host.pointer(from, null);
-      else if (isFinite(m.x) && isFinite(m.y) && Math.abs(m.x) < 1e9 && Math.abs(m.y) < 1e9) host.pointer(from, { x: +m.x, y: +m.y, color: colorOf(from) });
+      else if (typeof m.g === 'string' && isFinite(m.mx) && isFinite(m.my)) {
+        const s = objs.get(m.g);
+        if (s && s.tool === 'plot') host.pointer(from, { plot: s, mx: +m.mx, my: +m.my, color: colorOf(from), name: nameOf(from) });
+        else host.pointer(from, null);
+      } else if (isFinite(m.x) && isFinite(m.y) && Math.abs(m.x) < 1e9 && Math.abs(m.y) < 1e9) host.pointer(from, { x: +m.x, y: +m.y, color: colorOf(from), name: nameOf(from) });
     }
   }
   /* The share link's own copy of the board was only there to show something at once. When the
@@ -292,6 +306,7 @@
     const list = waiting.get(k);
     waiting.delete(k);
     for (const w of list) { if (w.op.meta) applyMeta(w.from, w.op.meta); else applyOps(w.from, [w.op]); }
+    if (loading && !waiting.size) { loading = false; host.loading(null); }
   }
   function findImage(k) {
     if (images.has(k)) return images.get(k);
@@ -483,34 +498,54 @@
   /* ---- Pointer colours ---- */
   function gotColor(from, c) {
     colors.set(from, Number.isInteger(c) && c >= 0 && c < COLORS.length ? c : null);
-    const clash = myColor != null && myColor !== 0 && colors.get(from) === myColor && from < me;
+    const clash = myColor != null && colors.get(from) === myColor && from < me;   // (red too: two can't both have started it)
     if (myColor == null || clash) pickColor();
   }
   function pickColor() {
     const used = new Set(colors.values());
-    let c = 1;
+    let c = myColor === 0 && !used.has(0) ? 0 : 1;
     while (used.has(c) && c < COLORS.length - 1) c++;
     myColor = c;
-    send({ k: 'hello', c });
+    send({ k: 'hello', c, name: myName });
     host.colorChanged(c);
+    host.peopleChanged();
+  }
+  /* ---- Names ---- */
+  const cleanName = (n) => (typeof n === 'string' ? n.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 24) : '');
+  const nameOf = (id) => names.get(id) || '';
+  function setName(n) {
+    myName = cleanName(n);
+    if (room) send({ k: 'hello', c: myColor, name: myName });
+    host.peopleChanged();
+  }
+  /* Everyone here (me first), with their colour and name, in colour order (red, who started it, first). */
+  function people() {
+    const list = [{ me: true, color: COLORS[myColor == null ? 0 : myColor], index: myColor == null ? 0 : myColor, name: myName }];
+    for (const [id, c] of colors) list.push({ id, color: COLORS[c == null ? 0 : c], index: c == null ? 0 : c, name: nameOf(id) });
+    return list.sort((a, b) => a.index - b.index || (a.me ? -1 : b.me ? 1 : 0));
   }
   const colorOf = (id) => { const c = colors.get(id); return COLORS[c == null ? 0 : c]; };
   /* My laser pointer, in board coordinates (null when I'm not pointing), ~30 times a second at most. */
+  /* On a graph I'm exploring, p is { g: the graph, mx, my } in its maths coordinates: the others see
+     the pointer on the same spot of the curve, whatever part of the graph they are looking at. */
   function pointer(p) {
     if (!room) return;
     if (!p) {
       if (ptr) { ptr = null; clearTimeout(ptrTimer); ptrTimer = 0; send({ k: 'ptr', off: 1 }); }
       return;
     }
-    ptr = { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
+    ptr = p.g ? { g: ensureId(p.g), mx: +p.mx.toPrecision(9), my: +p.my.toPrecision(9) } : { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
     if (ptrTimer) return;
-    const go = () => { ptrTimer = 0; if (ptr) { ptrSent = performance.now(); send({ k: 'ptr', x: ptr.x, y: ptr.y }); } };
+    const go = () => { ptrTimer = 0; if (ptr) { ptrSent = performance.now(); send(ptrMsg()); } };
     const wait = 33 - (performance.now() - ptrSent);
     if (wait <= 0) go(); else ptrTimer = setTimeout(go, wait);
   }
 
+  const ptrMsg = () => (ptr.g ? { k: 'ptr', g: ptr.g, mx: ptr.mx, my: ptr.my } : { k: 'ptr', x: ptr.x, y: ptr.y });
+
   WB.live = {
     init(h) { host = h; },
+    people, setName, myName: () => myName,
     start, stop, on, touch, changed, streamInk, inkGhosts, pointer,
     hold, release, heldByOther, moveHeld, editHeld, typing, held, view,
     /* My pointer colour on the live board (red until I have one). */

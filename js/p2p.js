@@ -141,6 +141,7 @@
         let m = p.parts.get(tag);
         if (!m) { if (p.parts.size > 8) return; m = { n, got: 0, list: new Array(n) }; p.parts.set(tag, m); }
         if (m.list[i] == null) { m.list[i] = data.slice(c + 1); m.got++; }
+        if (m.n >= 4 && h.onProgress) h.onProgress(id, m.got, m.n);    // a big message on its way (a whole board, a picture)
         if (m.got < m.n) return;
         p.parts.delete(tag);
         data = m.list.join('');
