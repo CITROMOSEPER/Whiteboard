@@ -51,7 +51,7 @@ The dock at the bottom holds the tools and colours; the panel on the left sets t
 
 - **Type.** Choose the text tool and tap where the text should go. A small bar sets font, size and colour.
 - **Edit a text.** Double-click or double-tap it, with any tool.
-- **Write by hand.** Turn on **Settings → Convert handwriting to text** and letters, digits and maths symbols you write become typed text. Tap a suggestion in the small bar that appears if a character was read wrong. Choose **Latin** or **Cyrillic** letters in the same section.
+- **Turn handwriting into text.** Select what you wrote and choose **AI → Tidy up handwriting** (see [AI: tidy up, solve, plot](#ai-tidy-up-solve-plot)): it becomes typed text, with maths typeset properly.
 
 ## Selecting and changing things
 
@@ -314,6 +314,6 @@ Then share a board and ask Claude what's on it. The skill needs Python with Play
 
 ## About
 
-Made by Nemes Dániel. The app is open source under the [MIT License](LICENSE). The handwriting recognition model has its own licence ([MODEL-LICENSE.md](MODEL-LICENSE.md)), and the data it was trained on is credited in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+Made by Nemes Dániel. The app is open source under the [MIT License](LICENSE). The one piece of third-party code it contains, pdf.js (for reading PDFs), is credited in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 Issues and suggestions are welcome on GitHub.

@@ -30,7 +30,6 @@
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
   };
   const settings = store.get('wb.settings', { theme: 'system', smoothing: 0, snap: true, fingerDraw: true, scratch: true, pressure: false, filesCopy: false, grid: 'dots', canvas: 'theme', canvasCustom: '#f4f1e8', snapDelay: 1,
-    ink: false, inkDelay: 1, inkScript: null,   // handwriting to text (alphabet null = follow the language)
     lang: null });                              // interface language (null = follow the system)
   const tr = WB.t;
   WB.setLang(settings.lang || WB.systemLang());
@@ -420,7 +419,6 @@
   let holdTimer = 0;
 
   function beginStroke(e, tool) {
-    clearTimeout(inkTimer); hideAlts();     // still writing: don't convert yet
     mode = 'draw';
     const t = tools[tool], z = view.zoom, now = performance.now();
     const x = (e.clientX - view.x) / z, y = (e.clientY - view.y) / z;
@@ -610,10 +608,6 @@
     doc.strokes.push(s);
     if (!baseDirty) { worldTransform(bctx); WB.paint(bctx, s); }
     record({ type: 'add', stroke: s });
-    // Handwriting: plain pen strokes wait to be read; a snapped shape ends the word; erasing abandons it.
-    if (settings.ink && s.tool === 'pen' && !s.shape && !s.hl) inkAdd(s);
-    else if (s.tool === 'pen') inkConvert();
-    else inkDrop();
   }
 
   /* ---- Erasing ------------------------------------------------------------
@@ -636,7 +630,6 @@
       if (E.opacity >= 0.5 && erasedAway(o, after)) gone.push({ i, s: o });
       else edits.push({ type: 'edit', s: o, before: { erase: o.erase }, after: { erase: after } });
     });
-    inkDrop();
     if (!edits.length && !gone.length) return;
     for (const a of edits) retext(a.s, a.after);
     for (let k = gone.length - 1; k >= 0; k--) { doc.strokes.splice(gone[k].i, 1); selection.delete(gone[k].s); }
@@ -698,7 +691,6 @@
     if (!victims.length) return false;
     for (let k = victims.length - 1; k >= 0; k--) { doc.strokes.splice(victims[k].i, 1); selection.delete(victims[k].s); }
     record({ type: 'remove', items: victims });
-    inkDrop();
     invalidate(); selectionChanged();
     toast(tr('tScratched'), tr('undo'), undo);
     try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {}
@@ -710,7 +702,6 @@
      the fill is cancelled rather than flooding the canvas. */
   function fillAt(cx, cy, color) {
     if (live) return;
-    inkDrop();
     const z = view.zoom, wx = (cx - view.x) / z, wy = (cy - view.y) / z;
     // Dropped on a line, a text or an earlier fill: that object takes the colour (and a dashed
     // line stays dashed), rather than a filled copy of its shape being laid over it.
@@ -1112,7 +1103,7 @@
   }
 
   /* ---- Style of the selection ------------------------------------------
-     A small bar under the selection (like the handwriting alternatives) changes the colour of
+     A small bar under the selection changes the colour of
      everything selected that has one (lines, texts, fills), and the thickness and line type of
      the lines. Each change is one undo step; dragging around the colour mixer stays one step. */
   const styleBar = $('#sel-style');
@@ -1334,7 +1325,7 @@
     const z = view.zoom, wx = (cx - view.x) / z, wy = (cy - view.y) / z, T = tools.text;
     const s = textUnder(cx, cy);
     if (s && !WB.live.hold([s])) return toast(tr('tLiveBusy'));   // someone else is editing it
-    clearSelection(); inkDrop();
+    clearSelection();
     edit = s ? { s, x: s.x, y: s.y, rot: s.rot || 0, font: s.font, size: s.size, color: s.color }
       : { s: null, x: wx, y: wy - (T.size / z) * WB.LINE / 2, rot: 0, font: T.font, size: T.size / z, color: T.color };
     ta.value = s ? s.text : '';
@@ -1436,160 +1427,8 @@
     });
   }
 
-  /* ---- Handwriting to text -------------------------------------------
-     With the setting on, pen strokes are collected while the user keeps writing. After a
-     pause they are split into characters, recognised, and replaced by text: appended to a
-     text object on the same row if one is close by, otherwise started as a new one (lined
-     up with any text already on that row). The whole swap is a single undo step, and undo
-     brings the handwriting back. */
-  let inkPending = [], inkTimer = 0, inkLast = null, inkSize = 0, altTimer = 0;
-  const inkDelayMs = () => clamp(+settings.inkDelay || 1, 0.2, 10) * 1000;
-  const inkScript = () => settings.inkScript || (['ru', 'uk'].includes(WB.lang()) ? 'cyrillic' : 'latin');
-
-  function ptsBox(strokes) {
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const s of strokes) {
-      const p = s.points;
-      for (let i = 0; i < p.length; i += 2) { if (p[i] < x0) x0 = p[i]; if (p[i] > x1) x1 = p[i]; if (p[i + 1] < y0) y0 = p[i + 1]; if (p[i + 1] > y1) y1 = p[i + 1]; }
-    }
-    return { x0, y0, x1, y1 };
-  }
-  function inkAdd(s) {
-    if (inkPending.length) {
-      const g = ptsBox(inkPending), b = ptsBox([s]), h = Math.max(g.y1 - g.y0, 14 / view.zoom);
-      if (b.x0 > g.x1 + 1.6 * h || b.x1 < g.x0 - 1.6 * h || b.y0 > g.y1 + 0.9 * h || b.y1 < g.y0 - 0.9 * h) inkConvert();   // writing moved elsewhere
-    }
-    inkPending.push(s);
-    clearTimeout(inkTimer); inkTimer = setTimeout(inkConvert, inkDelayMs());
-    WB.ink.prepare();
-  }
-  function inkDrop() { clearTimeout(inkTimer); inkPending = []; inkLast = null; hideAlts(); }
-
-  function inkConvert() {
-    clearTimeout(inkTimer);
-    const strokes = inkPending.filter((s) => doc.strokes.includes(s));
-    inkPending = [];
-    if (!strokes.length) return;
-    if (live || edit) { inkPending = strokes; inkTimer = setTimeout(inkConvert, 300); return; }
-    if (!WB.ink.ready) WB.ink.prepare();
-    if (!WB.ink.ready) return;                  // no recognition model available: the ink simply stays
-    const z = view.zoom, script = inkScript(), list = [];
-    const segs = WB.ink.segment(strokes, script);
-    let last = null, chain = null, lineH = 0;
-    for (const seg of segs) { const b = ptsBox(seg); lineH = Math.max(lineH, b.y1 - b.y0); }
-    for (const seg of segs) {
-      const b = ptsBox(seg), px = Math.max(b.x1 - b.x0, b.y1 - b.y0) * z;
-      if (px > 0.5 * Math.min(W, H)) continue;                       // far too big to be writing
-      // Characters written in one go stay together in one text, in the order written; whether a
-      // space goes between two of them is judged from the gap in the handwriting itself (typed
-      // text is more compact than writing, so measuring against it would see gaps everywhere).
-      let row;
-      if (chain) {
-        const o = chain.o, L = WB.textLayout(o);
-        row = { o, L, line: chain.line, kind: 'append', gap: b.x0 - chain.box.x1 > 0.5 * lineH ? o.size : 0, size: o.size, top: o.y + chain.line * L.lh };
-      } else row = findRow(b);
-      const opts = { script, px };
-      if (row) {
-        opts.relH = (b.y1 - b.y0) / row.size;
-        opts.relBelow = (b.y1 - (row.top + row.L.base)) / row.size;
-        opts.relMid = ((b.y0 + b.y1) / 2 - row.top) / row.L.lh;
-        opts.prev = row.kind === 'append' ? row.L.lines[row.line].trimEnd().slice(-1) : '';
-        opts.rowText = row.L.lines[row.line];
-      }
-      const r = WB.ink.recognize(seg, opts);
-      if (!r) continue;                                              // not a character: leave the ink as drawn
-      const items = seg.map((s) => ({ i: doc.strokes.indexOf(s), s })).sort((a, c) => a.i - c.i);
-      for (let k = items.length - 1; k >= 0; k--) doc.strokes.splice(items[k].i, 1);
-      list.push({ type: 'remove', items });
-      const placed = placeChar(r.ch, b, row, seg[0].color);
-      list.push(placed.action);
-      last = { s: placed.s, index: placed.index, len: r.ch.length, r, box: b };
-      chain = row && row.kind === 'prepend' ? null : { o: placed.s, line: row && row.kind === 'append' ? row.line : 0, box: b };
-    }
-    if (!list.length) return;
-    finishFill();
-    record({ type: 'batch', list });
-    invalidate();
-    showAlts(last);
-  }
-
-  /* The text row this ink belongs to, if any: { o, L, line, kind: 'append' | 'prepend' | 'align', gap, size, top }. */
-  function findRow(b) {
-    const cy = (b.y0 + b.y1) / 2;
-    let best = null;
-    for (const o of doc.strokes) {
-      if (o.tool !== 'text' || o.math) continue;      // typeset maths is not appended to by hand
-      const L = WB.textLayout(o), size = o.size;
-      if (cy < o.y - 0.15 * L.lh || cy > o.y + L.h + 0.15 * L.lh) continue;         // not level with this text
-      const line = clamp(Math.floor((cy - o.y) / L.lh), 0, L.lines.length - 1);
-      const gapR = b.x0 - (o.x + L.widths[line]), gapL = o.x - b.x1;
-      let kind = null, d = 0;
-      if (gapR > -0.35 * size && gapR < 2.2 * size) { kind = 'append'; d = Math.abs(gapR); }
-      else if (L.lines.length === 1 && gapL > -0.35 * size && gapL < 2.2 * size) { kind = 'prepend'; d = Math.abs(gapL) + size; }
-      else if (Math.min(Math.abs(gapR), Math.abs(gapL)) < 40 * size) { kind = 'align'; d = 1e6 + Math.min(Math.abs(gapR), Math.abs(gapL)); }
-      if (kind && (!best || d < best.d)) best = { o, L, line, kind, d, gap: kind === 'prepend' ? gapL : gapR, size, top: o.y + line * L.lh };
-    }
-    return best;
-  }
-
-  /* Put a recognised character on the board. Returns { s, index, action } (action is the history step). */
-  function placeChar(ch, b, row, color) {
-    if (row && row.kind !== 'align') {
-      const o = row.o, lines = row.L.lines.slice(), space = row.gap > 0.55 * row.size ? ' ' : '';
-      const before = { text: o.text, x: o.x };
-      let index = 0;
-      if (row.kind === 'append') {
-        index = lines.slice(0, row.line + 1).join('\n').length + space.length;
-        lines[row.line] += space + ch;
-        retext(o, { text: lines.join('\n') });
-      } else {
-        const add = ch + space;
-        retext(o, { text: add + o.text, x: o.x - WB.textLayout({ text: add, font: o.font, size: o.size }).w });
-      }
-      return { s: o, index, action: { type: 'edit', s: o, before, after: { text: o.text, x: o.x } } };
-    }
-    // A new text object. Its size comes from the row it lines up with, or from how big the character was written.
-    const font = tools.text.font, g = WB.glyphBox(ch, font), inkH = g.asc + g.desc, z = view.zoom;
-    let size = row ? row.size : inkH > 0.3 ? (b.y1 - b.y0) / inkH : inkSize || 28 / z;
-    size = clamp(size, 9 / z, 400 / z);
-    if (!row && inkH > 0.3) inkSize = size;
-    const base = WB.textLayout({ text: ch, font, size }).base;
-    const s = { tool: 'text', x: b.x0 + g.left * size, y: row ? row.top : b.y0 - (base - g.asc * size), text: ch, font, size, color, opacity: 1, width: 0 };
-    doc.strokes.push(s);
-    return { s, index: 0, action: { type: 'add', stroke: s } };
-  }
-
-  /* Other readings of the last converted character. Picking one fixes the text and teaches the recogniser. */
-  function showAlts(p) {
-    inkLast = p;
-    const bar = $('#ink-alts');
-    if (!p || !p.r.alts.length) return hideAlts();
-    bar.textContent = '';
-    for (const a of p.r.alts) {
-      const btn = document.createElement('button');
-      btn.textContent = a;
-      btn.addEventListener('click', () => pickAlt(a));
-      bar.appendChild(btn);
-    }
-    bar.classList.add('on');
-    const z = view.zoom, x = p.box.x0 * z + view.x, y = p.box.y1 * z + view.y + 16;
-    bar.style.transform = `translate(${clamp(x, 8, Math.max(8, W - bar.offsetWidth - 8))}px, ${clamp(y, 70, Math.max(70, H - 130))}px)`;
-    clearTimeout(altTimer); altTimer = setTimeout(hideAlts, 6000);
-  }
-  function hideAlts() { clearTimeout(altTimer); $('#ink-alts').classList.remove('on'); }
-  function pickAlt(a) {
-    const p = inkLast;
-    hideAlts(); inkLast = null;
-    if (!p || !doc.strokes.includes(p.s)) return;
-    const o = p.s, before = { text: o.text };
-    retext(o, { text: o.text.slice(0, p.index) + a + o.text.slice(p.index + p.len) });
-    record({ type: 'edit', s: o, before, after: { text: o.text } });
-    WB.ink.learn(p.r.cloud, a);
-    invalidate();
-  }
-
   /* ---- Language ------------------------------------------------------ */
-  let smSync = () => {}, scriptSync = () => {};
+  let smSync = () => {};
   function applyLang() {
     WB.setLang(settings.lang || WB.systemLang());
     WB.localize();
@@ -1599,7 +1438,7 @@
     $('#lang-btn').textContent = en ? 'English' : cur[1] + ' · ' + cur[2];
     $$('#lang-menu .mi').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.lang === cur[0])));
     titleEl.value = shownTitle();
-    smSync(); scriptSync(); syncExport(); updateChrome(); selectionChanged();
+    smSync(); syncExport(); updateChrome(); selectionChanged();
     buildSheets();
     $('#btn-export').textContent = tr('export');
     if (edit) layoutEdit();
@@ -2010,7 +1849,7 @@
     if (edit) commitText();
     const a = undoStack.pop();
     if (!a) return;
-    fillAnim = null; clearSelection(); inkDrop();
+    fillAnim = null; clearSelection();
     applyUndo(a);
     redoStack.push(a); invalidate(); WB.live.touch(touchedBy(a)); changed();
   }
@@ -2019,7 +1858,7 @@
     if (edit) commitText();
     const a = redoStack.pop();
     if (!a) return;
-    clearSelection(); inkDrop();
+    clearSelection();
     applyRedo(a);
     undoStack.push(a); invalidate(); WB.live.touch(touchedBy(a)); changed();
   }
@@ -2046,7 +1885,7 @@
     if (WB.live.on()) stopLive(tr('tLiveLeftBoard'));          // another board: the live one stays with the others
     if (live) endStroke(true);
     if (edit) commitText();
-    fillAnim = null; clearSelection(); inkDrop();
+    fillAnim = null; clearSelection();
     const before = snapshot();
     applySnapshot(next);
     record({ type: 'replace', before, after: snapshot() });
@@ -2192,7 +2031,7 @@
   const BOARD_TYPES = [{ description: 'Whiteboard', accept: { 'application/x-whtbd': ['.whtbd'] } }];
   const OPEN_TYPES = [{ description: 'Whiteboard, PDF', accept: { 'application/x-whtbd': ['.whtbd'], 'application/pdf': ['.pdf'] } }];
   const canUseFiles = () => typeof window.showSaveFilePicker === 'function' && location.protocol !== 'file:';
-  const commitPending = () => { if (edit) commitText(); inkConvert(); };
+  const commitPending = () => { if (edit) commitText(); };
 
   /* Write the board into a file the page already has, then read it back to prove it arrived.
      Comparing the text (not just the size) catches a write that silently left the old file in place. */
@@ -2848,7 +2687,6 @@
   const curColor = () => (tools.tool === 'highlighter' ? tools.highlighter.color : tools.pen.color);
   function setTool(t) {
     if (edit) commitText();
-    if (t !== tools.tool) inkConvert();          // finish reading what was written before switching tools
     if (t !== 'select') clearSelection();
     tools.tool = t; store.set('wb.tools', tools); refreshTools();
   }
@@ -3062,15 +2900,6 @@
     smSync = () => { smOut.textContent = settings.smoothing > 0 ? settings.smoothing + '%' : tr('off'); };
     sm.value = settings.smoothing; smSync();
 
-    const idl = $('#ink-delay');
-    idl.value = settings.inkDelay;
-    idl.addEventListener('change', () => {
-      const v = clamp(Math.round((+idl.value || 1) * 10) / 10, 0.2, 10);
-      settings.inkDelay = v; idl.value = v; saveSettings();
-    });
-    scriptSync = seg('inkScript', inkScript, (v) => { settings.inkScript = v; saveSettings(); inkDrop(); });
-    if (settings.ink) WB.ink.prepare();
-    $('#ink-alts').addEventListener('pointerdown', (e) => e.preventDefault());
     initLang();
     // The thumb glides freely; the stored value still lands on steps of 5.
     sm.addEventListener('input', () => { settings.smoothing = Math.round(+sm.value / 5) * 5; smSync(); saveSettings(); });
@@ -3080,7 +2909,6 @@
       b.setAttribute('aria-checked', String(!!settings[k]));
       b.addEventListener('click', () => {
         settings[k] = !settings[k]; b.setAttribute('aria-checked', String(settings[k])); saveSettings();
-        if (k === 'ink') { if (settings.ink) WB.ink.prepare(); else inkDrop(); }
       });
     });
 

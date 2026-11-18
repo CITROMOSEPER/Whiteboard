@@ -154,13 +154,6 @@
     return (s._t = { lines, widths, w: Math.max(0, ...widths), h: lines.length * lh, lh, base: (lh - asc - desc) / 2 + asc });
   };
 
-  /* Ink extents of one character at font size 1: { asc, desc (above / below the baseline), left, w (advance) }. */
-  WB.glyphBox = function (ch, font) {
-    mctx.font = '100px ' + (WB.FONTS[font] || WB.FONTS.sans);
-    const m = mctx.measureText(ch);
-    return { asc: m.actualBoundingBoxAscent / 100, desc: m.actualBoundingBoxDescent / 100, left: m.actualBoundingBoxLeft / 100, w: m.width / 100 };
-  };
-
   /* ---- Pictures -------------------------------------------------------
      A picture is { tool:'image', x, y, w, h, rot, opacity, src } with src a data: URL. (x, y, w, h)
      is the picture's box before rotation; rot (radians, clockwise) turns it about the box centre. The decoded image is cached on the object.

@@ -1,6 +1,3 @@
-# Downloaded training datasets and intermediate files (large; not part of the project)
-training/data/
-training/work/
 __pycache__/
 .claude/
 Whiteboard gallery/

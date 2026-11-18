@@ -41,13 +41,9 @@ for name in ("manifest.webmanifest", "sw.js"):
     shutil.copy(root / name, web / name)
 for icon in (root / "icons").iterdir():
     shutil.copy(icon, web / "icons" / icon.name)
-# Licence notices travel with the recognition model that is embedded in the page.
-for name in ("THIRD-PARTY-NOTICES.md", "MODEL-LICENSE.md"):
-    if (root / name).exists():
-        shutil.copy(root / name, web / name)
-        shutil.copy(root / name, dist / name)
-if (root / "licenses").exists():
-    shutil.copytree(root / "licenses", web / "licenses")
+# The notice for pdf.js (the one piece of third-party code) travels with the built app.
+shutil.copy(root / "THIRD-PARTY-NOTICES.md", web / "THIRD-PARTY-NOTICES.md")
+shutil.copy(root / "THIRD-PARTY-NOTICES.md", dist / "THIRD-PARTY-NOTICES.md")
 # pdf.js is loaded only when a PDF is opened, from js/vendor/ next to the page (too big to inline).
 shutil.copytree(root / "js" / "vendor", web / "js" / "vendor")
 

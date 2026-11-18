@@ -550,16 +550,6 @@ body.pipetting #canvas { cursor: crosshair; }
 #lang-menu .mi[aria-checked="true"]::after { content: "✓"; font-weight: 600; }
 #lang-btn { max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ---------- Handwriting alternatives ---------- */
-#ink-alts {
-  position: fixed; left: 0; top: 0; z-index: 12; display: flex; gap: 2px; padding: 4px; border-radius: 14px;
-  opacity: 0; visibility: hidden; transition: opacity 160ms ease, visibility 0s linear 160ms;
-}
-#ink-alts.on { opacity: 1; visibility: visible; transition: opacity 160ms ease, visibility 0s; }
-#ink-alts button { min-width: 38px; height: 38px; padding: 0 8px; border-radius: 10px; font-size: 1.1875rem; transition: transform 120ms ease-out, background-color 150ms ease; }
-#ink-alts button:hover { background: var(--fill); }
-#ink-alts button:active { transform: scale(0.92); background: var(--fill-strong); }
-
 /* ---------- Number field ---------- */
 .num { flex: none; display: flex; align-items: center; gap: 4px; height: 32px; padding: 0 10px 0 4px; border-radius: 9px; background: var(--fill); }
 .num:focus-within { outline: 2px solid var(--accent); }

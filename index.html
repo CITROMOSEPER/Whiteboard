@@ -177,9 +177,6 @@
   </div>
 </div>
 
-<!-- Other readings of the character that was just converted from handwriting -->
-<div class="glass" id="ink-alts" role="toolbar"></div>
-
 <!-- Popovers -->
 <div class="glass menu" id="dash-menu" role="menu">
   <button class="mi dash-mi" role="menuitemradio" data-dash="solid"><svg viewBox="0 0 48 12"><path d="M5 6h38"/></svg><span data-i18n="dash_solid"></span></button>
@@ -257,6 +254,16 @@
       </div>
     </div>
 
+    <h3 data-i18n="canvas"></h3>
+    <div class="group">
+      <div class="seg" data-seg="grid" role="radiogroup">
+        <button role="radio" data-value="none" data-i18n="plain"></button>
+        <button role="radio" data-value="dots" data-i18n="dots"></button>
+        <button role="radio" data-value="ruled" data-i18n="lined"></button>
+        <button role="radio" data-value="lines" data-i18n="grid"></button>
+      </div>
+    </div>
+
     <h3 id="lang-title"></h3>
     <div class="group">
       <div class="row">
@@ -295,25 +302,6 @@
       <div class="row" id="files-copy-row" hidden>
         <div><span id="lbl-files-copy" data-i18n="filesCopy"></span><p class="note" data-i18n="filesCopyNote"></p></div>
         <button class="switch" role="switch" data-switch="filesCopy" aria-labelledby="lbl-files-copy"></button>
-      </div>
-    </div>
-
-    <h3 data-i18n="handwriting"></h3>
-    <div class="group">
-      <div class="row">
-        <div><span id="lbl-ink" data-i18n="ink"></span><p class="note" data-i18n="inkNote"></p></div>
-        <button class="switch" role="switch" data-switch="ink" aria-labelledby="lbl-ink"></button>
-      </div>
-      <div class="row">
-        <div><label for="ink-delay" data-i18n="inkDelay"></label><p class="note" data-i18n="inkDelayNote"></p></div>
-        <span class="num"><input type="number" id="ink-delay" min="0.2" max="10" step="0.1" value="1" inputmode="decimal"><i>s</i></span>
-      </div>
-      <div class="row col">
-        <span id="lbl-alpha" data-i18n="alphabet"></span>
-        <div class="seg" data-seg="inkScript" role="radiogroup" aria-labelledby="lbl-alpha">
-          <button role="radio" data-value="latin" data-i18n="latin"></button>
-          <button role="radio" data-value="cyrillic" data-i18n="cyrillic"></button>
-        </div>
       </div>
     </div>
 
@@ -362,20 +350,10 @@
       </div>
     </div>
 
-    <h3 data-i18n="canvas"></h3>
-    <div class="group">
-      <div class="seg" data-seg="grid" role="radiogroup">
-        <button role="radio" data-value="none" data-i18n="plain"></button>
-        <button role="radio" data-value="dots" data-i18n="dots"></button>
-        <button role="radio" data-value="ruled" data-i18n="lined"></button>
-        <button role="radio" data-value="lines" data-i18n="grid"></button>
-      </div>
-    </div>
-
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.17.06.</p>
+      <p id="app-version">version: 2026.11.18.01.</p>
       <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
@@ -557,8 +535,6 @@
 <script src="js/io.js"></script>
 <script src="js/fill.js"></script>
 <script src="js/picker.js"></script>
-<script src="js/ink-model.js"></script>
-<script src="js/ink.js"></script>
 <script src="js/gallery.js"></script>
 <script src="js/share.js"></script>
 <script src="js/qr.js"></script>
