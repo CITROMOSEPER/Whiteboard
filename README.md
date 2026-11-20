@@ -104,9 +104,9 @@ The provider may charge your key for each use. Gemini has a free tier.
 
 **Menu → Import…** brings a picture onto the board (PNG, JPEG, WebP, BMP or SVG). It arrives selected, so you can move, resize and turn it straight away. You can draw and erase over it, and the fill tool pours paint over pictures rather than treating them as walls.
 
-Files exported from Whiteboard are special: every export carries the board it was made from. Importing such a PNG, PDF or other export gives you back the **editable board**, not just a picture of it.
+Importing a **PDF** puts each of its pages on the board as a picture, one under the other, all selected so you can move them together. To work on a PDF as paper instead, make a sheet from it (below).
 
-Importing a **PDF from another program** puts each of its pages on the board as a picture, one under the other, all selected so you can move them together. To work on a PDF as paper instead, open it as a sheet (below).
+Import always brings a file in as it looks, even one exported from Whiteboard. Every export (PNG, JPEG, WebP, BMP, SVG or PDF) also carries the board it was made from: to get that **editable board** back, open the export with **Open from…** instead.
 
 ## Sheets and PDFs
 
@@ -116,7 +116,7 @@ The board is normally endless. A **sheet** is a board with a fixed page size, fo
 - **Add pages** with the **+** buttons just above the top page and below the bottom one: each adds a page of the same size there (undoable). While the top or bottom page is empty, a **bin** button appears next to its **+** and deletes that page.
 - Pages are placed so the canvas pattern falls the same way on each: a line of the grid or the lined pattern runs along every page's top edge, and a grid line along its left edge.
 - The page has a clear edge, and everything around it is slightly tinted. You can still draw out there, as scrap space: it stays on the board and in share links, but **exports contain only the page**. A PDF export has the page's real paper size, so it prints at the right scale.
-- **Open from…** also opens **PDF files**: lecture slides, handouts, forms. After you confirm, the PDF replaces the current board (undo brings it back) and becomes a sheet with one page per PDF page. Highlight, write and draw on it with every tool; the PDF itself can't be erased or moved by accident. Exporting as PDF gives you the annotated document back, page by page.
+- **Write on a PDF:** in **New sheet…**, press **Choose PDF…** and pick a PDF: lecture slides, handouts, forms. After you confirm, it replaces the current board (undo brings it back) and becomes a sheet with one page per PDF page. Highlight, write and draw on it with every tool; the PDF itself can't be erased or moved by accident. Exporting as PDF gives you the annotated document back, page by page.
 - PDFs are read by Mozilla's pdf.js, which comes with the app and works offline. A few PDFs that rely on fonts they don't include need an internet connection the first time.
 
 ## Stickers
@@ -150,15 +150,15 @@ The **menu** (top left) holds everything about files.
 | Menu item | What it does |
 | --- | --- |
 | **New board** | Starts an empty board (undoable). |
-| **New sheet…** | Starts a board with a fixed paper size (see [Sheets and PDFs](#sheets-and-pdfs)). |
+| **New sheet…** | Starts a board with a fixed paper size, or a sheet from a PDF to write on (see [Sheets and PDFs](#sheets-and-pdfs)). |
 | **Gallery** | Your boards, in folders, with previews. |
 | **Save to gallery** | Saves the board into the gallery. Saving again updates the same entry. |
 | **Save to "name.whtbd"** | Appears once a board was saved to, or opened from, a file on your device: saves straight back into that file. |
 | **Save as…** | Saves a copy as a new `.whtbd` file wherever you choose. |
-| **Open from…** | Opens a `.whtbd` file, or a PDF as a sheet, from your device. You can also drag a file onto the window. |
+| **Open from…** | Opens a board from your device: a `.whtbd` file, or the board inside any export of one (PNG, JPEG, WebP, BMP, SVG or PDF made by Whiteboard). A file with no board inside isn't opened; the app says so. You can also drag a file onto the window. |
 | **Stickers…** | The sticker gallery. |
 | **Export…** | PNG, JPEG, WebP, BMP, SVG or PDF, at 1×, 2× or 4×, on the board's colour, white, or transparent, with or without the canvas pattern (dots, lines or grid). |
-| **Import…** | Brings in a picture or a PDF's pages, or restores a board from one of its exports. |
+| **Import…** | Brings a picture, or a PDF's pages as pictures, onto the board, as they look (exports of a board too). |
 | **Share link…** | Makes a link that opens a copy of the board (see below). |
 | **Open share link…** | Opens a link someone sent you by pasting it, handy in the installed app, which has no address bar. |
 

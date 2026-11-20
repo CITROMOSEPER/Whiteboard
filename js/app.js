@@ -2029,7 +2029,8 @@
      or the gallery ('gallery'). Whichever was used last wins. */
   let saveTarget = 'gallery';
   const BOARD_TYPES = [{ description: 'Whiteboard', accept: { 'application/x-whtbd': ['.whtbd'] } }];
-  const OPEN_TYPES = [{ description: 'Whiteboard, PDF', accept: { 'application/x-whtbd': ['.whtbd'], 'application/pdf': ['.pdf'] } }];
+  // Open: a board file, or any export of one (they all carry their board).
+  const OPEN_TYPES = [{ description: 'Whiteboard', accept: { 'application/x-whtbd': ['.whtbd'], 'application/pdf': ['.pdf'], 'image/png': ['.png'], 'image/jpeg': ['.jpg', '.jpeg'], 'image/webp': ['.webp'], 'image/bmp': ['.bmp'], 'image/svg+xml': ['.svg'] } }];
   const canUseFiles = () => typeof window.showSaveFilePicker === 'function' && location.protocol !== 'file:';
   const commitPending = () => { if (edit) commitText(); };
 
@@ -2131,17 +2132,19 @@
     try { await openFile(file); } catch (err) { toast(tr('eInvalid')); }
   });
 
-  /* A board file opens as it is. A PDF this app exported opens the board inside it; any other PDF
-     becomes a sheet: a board the size of the PDF's pages, with the pages beneath the ink. */
+  /* Opening a file opens a board: a .whtbd file as it is, or the board inside an export of one
+     (PNG, JPEG, WebP, BMP, SVG or PDF made by this app all carry it). A file with no board inside
+     is not opened; a picture or a PDF from elsewhere is brought in with Import…, and a PDF to
+     write on becomes a sheet from the New sheet window. */
   const pdfProgress = (i, n) => toast(tr('tPdfReading', { n: i, t: n }), null, null, 60000);
   const isPdfBytes = (buf) => buf.byteLength > 4 && String.fromCharCode(...new Uint8Array(buf, 0, 5)) === '%PDF-';
   async function openFile(file, handle) {
     const buf = await file.arrayBuffer();
-    if (isPdfBytes(buf)) {
-      const text = await WB.extractBoard(buf, pdfProgress);
-      return text ? loadText(text) : openPdf(buf, file.name);
-    }
-    loadText(new TextDecoder().decode(buf), handle);
+    const head = new TextDecoder().decode(buf.slice(0, 64)).trimStart();
+    if (head.startsWith('{')) return loadText(new TextDecoder().decode(buf), handle);    // a board file
+    const text = await WB.extractBoard(buf, isPdfBytes(buf) ? pdfProgress : null);
+    if (text) return loadText(text);                       // (an export is never saved over: no handle)
+    toast(tr('tNoBoardInFile', { m: tr('mImport').replace(/…$/, '') }), null, null, 8000);
   }
   async function readPdfPages(buf) {
     try {
@@ -2268,9 +2271,9 @@
     e.target.value = '';
     if (!file) return;
     try {
+      // Import always brings the file in as it looks (an export of a board too: to get its board
+      // back, use Open from… instead): a PDF's pages as pictures, or the picture itself.
       const buf = await file.arrayBuffer();
-      const text = await WB.extractBoard(buf, pdfProgress);
-      if (text) return loadText(text);
       if (isPdfBytes(buf)) { const pages = await readPdfPages(buf); if (pages) await placePages(pages); return; }
       const pic = await WB.pictureFromFile(file);
       if (!pic) return toast(tr('tImportFail'), null, null, 9000);
@@ -2411,6 +2414,18 @@
     ['catScreen', 'px', [['szSlide169', 1080, 1920], ['szSlide43', 768, 1024], ['szSquare', 1080, 1080]]],
   ];
   const UNIT = { mm: 96 / 25.4, in: 96, px: 1 };
+  $('#sheet-pdf').addEventListener('click', () => $('#pdf-input').click());
+  $('#pdf-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    closeSheets();
+    try {
+      const buf = await file.arrayBuffer();
+      if (!isPdfBytes(buf)) return toast(tr('tPdfFail'), null, null, 6000);
+      await openPdf(buf, file.name);
+    } catch (err) { report(tr('tPdfFail'), 'reading "' + file.name + '"', err); }
+  });
   function buildSheets() {
     const list = $('#sz-list'), land = settings.sheetOrient === 'landscape';
     list.textContent = '';

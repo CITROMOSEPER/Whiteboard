@@ -1029,7 +1029,7 @@ body.pipetting #canvas { cursor: crosshair; }
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.18.01.</p>
+      <p id="app-version">version: 2026.11.20.01.</p>
       <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
@@ -1122,6 +1122,13 @@ body.pipetting #canvas { cursor: crosshair; }
       <button class="pill-btn quiet" data-close data-i18n="cancel"></button>
     </div>
     <p class="note" data-i18n="sheetNote"></p>
+    <h3 data-i18n="sheetFromPdf"></h3>
+    <div class="group">
+      <div class="row">
+        <div><span data-i18n="sheetPdfTitle"></span><p class="note" data-i18n="sheetPdfNote"></p></div>
+        <button class="pill-btn" id="sheet-pdf" data-i18n="sheetPdfBtn"></button>
+      </div>
+    </div>
     <h3 data-i18n="orientation"></h3>
     <div class="group">
       <div class="seg" data-seg="orient" role="radiogroup">
@@ -1196,7 +1203,8 @@ body.pipetting #canvas { cursor: crosshair; }
 
 <div class="glass" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button id="toast-action" hidden></button></div>
 <div id="drop-blob" aria-hidden="true"><i></i></div>
-<input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json,.pdf,application/pdf" hidden>
+<input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json,.pdf,application/pdf,.png,.jpg,.jpeg,.webp,.bmp,.svg,image/png,image/jpeg,image/webp,image/bmp,image/svg+xml" hidden>
+<input type="file" id="pdf-input" accept=".pdf,application/pdf" hidden>
 <input type="file" id="addboards-input" accept=".whtbd,.WHTBD,.json,application/json" multiple hidden>
 <input type="file" id="restore-input" accept=".wbgallery,.wbstickers,.json,application/json" hidden>
 <input type="file" id="import-input" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml,application/pdf,.png,.jpg,.jpeg,.webp,.bmp,.svg,.pdf" hidden>
@@ -2470,6 +2478,22 @@ body.pipetting #canvas { cursor: crosshair; }
   Object.assign(D.ja, {"peopleTitle": "このボードにいる人", "peopleYou": "あなた", "peopleGuest": "ゲスト {n}", "peopleSetName": "タップして名前を設定", "peopleNamePh": "あなたの名前", "tLiveLoading": "ボードを読み込み中…", "tLiveLoadingPct": "ボードを読み込み中… {p}%", "tLiveNobody": "このボードを持っている人はまだいません。持っている人が開くとすぐに読み込まれます。"});
   Object.assign(D.ar, {"peopleTitle": "على هذا اللوح", "peopleYou": "أنت", "peopleGuest": "ضيف {n}", "peopleSetName": "المس لتعيين اسمك", "peopleNamePh": "اسمك", "tLiveLoading": "جارٍ تحميل اللوح…", "tLiveLoadingPct": "جارٍ تحميل اللوح… ‎{p}‎%", "tLiveNobody": "لا يوجد هنا بعد أحد لديه هذا اللوح. سيُحمَّل فور أن يفتحه شخص لديه."});
   Object.assign(D.hi, {"peopleTitle": "इस बोर्ड पर", "peopleYou": "आप", "peopleGuest": "मेहमान {n}", "peopleSetName": "अपना नाम डालने के लिए टैप करें", "peopleNamePh": "आपका नाम", "tLiveLoading": "बोर्ड लोड हो रहा है…", "tLiveLoadingPct": "बोर्ड लोड हो रहा है… {p}%", "tLiveNobody": "इस बोर्ड वाला कोई अभी यहाँ नहीं है। जैसे ही कोई इसे खोलेगा, यह लोड हो जाएगा।"});
+
+  /* Open from… opens only files with a board inside; a PDF to write on starts from the New sheet window. */
+  Object.assign(D.en, {"tNoBoardInFile": "This file has no Whiteboard board inside, so it can’t be opened. To put it on the board, use “{m}”.", "sheetFromPdf": "From a PDF", "sheetPdfTitle": "Write on a PDF", "sheetPdfNote": "Each page of the PDF becomes a page of the sheet, to highlight, write and draw on.", "sheetPdfBtn": "Choose PDF…"});
+  Object.assign(D.hu, {"tNoBoardInFile": "Ebben a fájlban nincs Whiteboard tábla, ezért nem nyitható meg. Ha a táblára tennéd, használd ezt: „{m}”.", "sheetFromPdf": "PDF-ből", "sheetPdfTitle": "Írás egy PDF-re", "sheetPdfNote": "A PDF minden oldala a lap egy oldala lesz, amin kiemelhetsz, írhatsz és rajzolhatsz.", "sheetPdfBtn": "PDF kiválasztása…"});
+  Object.assign(D.de, {"tNoBoardInFile": "Diese Datei enthält keine Whiteboard-Tafel und kann daher nicht geöffnet werden. Um sie auf die Tafel zu bringen, nutze „{m}“.", "sheetFromPdf": "Aus einem PDF", "sheetPdfTitle": "Auf ein PDF schreiben", "sheetPdfNote": "Jede Seite des PDFs wird eine Seite des Blatts, zum Markieren, Schreiben und Zeichnen.", "sheetPdfBtn": "PDF auswählen…"});
+  Object.assign(D.fr, {"tNoBoardInFile": "Ce fichier ne contient pas de tableau Whiteboard, il ne peut donc pas être ouvert. Pour le placer sur le tableau, utilisez « {m} ».", "sheetFromPdf": "À partir d’un PDF", "sheetPdfTitle": "Écrire sur un PDF", "sheetPdfNote": "Chaque page du PDF devient une page de la feuille, pour surligner, écrire et dessiner.", "sheetPdfBtn": "Choisir un PDF…"});
+  Object.assign(D.it, {"tNoBoardInFile": "Questo file non contiene una lavagna di Whiteboard, quindi non si può aprire. Per metterlo sulla lavagna, usa “{m}”.", "sheetFromPdf": "Da un PDF", "sheetPdfTitle": "Scrivi su un PDF", "sheetPdfNote": "Ogni pagina del PDF diventa una pagina del foglio, da evidenziare, scrivere e disegnare.", "sheetPdfBtn": "Scegli PDF…"});
+  Object.assign(D.es, {"tNoBoardInFile": "Este archivo no contiene una pizarra de Whiteboard, así que no se puede abrir. Para ponerlo en la pizarra, usa «{m}».", "sheetFromPdf": "Desde un PDF", "sheetPdfTitle": "Escribir sobre un PDF", "sheetPdfNote": "Cada página del PDF se convierte en una página de la hoja, para resaltar, escribir y dibujar.", "sheetPdfBtn": "Elegir PDF…"});
+  Object.assign(D.pt, {"tNoBoardInFile": "Este arquivo não contém um quadro do Whiteboard, por isso não pode ser aberto. Para colocá-lo no quadro, use “{m}”.", "sheetFromPdf": "A partir de um PDF", "sheetPdfTitle": "Escrever sobre um PDF", "sheetPdfNote": "Cada página do PDF vira uma página da folha, para destacar, escrever e desenhar.", "sheetPdfBtn": "Escolher PDF…"});
+  Object.assign(D.ru, {"tNoBoardInFile": "В этом файле нет доски Whiteboard, поэтому его нельзя открыть. Чтобы поместить его на доску, используйте «{m}».", "sheetFromPdf": "Из PDF", "sheetPdfTitle": "Писать поверх PDF", "sheetPdfNote": "Каждая страница PDF становится страницей листа: выделяйте, пишите и рисуйте на ней.", "sheetPdfBtn": "Выбрать PDF…"});
+  Object.assign(D.uk, {"tNoBoardInFile": "У цьому файлі немає дошки Whiteboard, тому його не можна відкрити. Щоб додати його на дошку, скористайтеся «{m}».", "sheetFromPdf": "З PDF", "sheetPdfTitle": "Писати поверх PDF", "sheetPdfNote": "Кожна сторінка PDF стає сторінкою аркуша: виділяйте, пишіть і малюйте на ній.", "sheetPdfBtn": "Вибрати PDF…"});
+  Object.assign(D.tr, {"tNoBoardInFile": "Bu dosyada bir Whiteboard tahtası yok, bu yüzden açılamıyor. Tahtaya koymak için “{m}” kullanın.", "sheetFromPdf": "Bir PDF’ten", "sheetPdfTitle": "Bir PDF’in üzerine yazın", "sheetPdfNote": "PDF’in her sayfası, vurgulayıp yazıp çizebileceğiniz bir sayfaya dönüşür.", "sheetPdfBtn": "PDF seç…"});
+  Object.assign(D.zh, {"tNoBoardInFile": "此文件中没有 Whiteboard 白板，因此无法打开。要把它放到白板上，请使用“{m}”。", "sheetFromPdf": "从 PDF", "sheetPdfTitle": "在 PDF 上书写", "sheetPdfNote": "PDF 的每一页都会成为纸张的一页，可在上面标注、书写和绘画。", "sheetPdfBtn": "选择 PDF…"});
+  Object.assign(D.ja, {"tNoBoardInFile": "このファイルには Whiteboard のボードが含まれていないため開けません。ボードに載せるには「{m}」を使ってください。", "sheetFromPdf": "PDF から", "sheetPdfTitle": "PDF に書き込む", "sheetPdfNote": "PDF の各ページが用紙のページになり、マーカーを引いたり書き込んだり描いたりできます。", "sheetPdfBtn": "PDF を選択…"});
+  Object.assign(D.ar, {"tNoBoardInFile": "لا يحتوي هذا الملف على لوح Whiteboard، لذا لا يمكن فتحه. لوضعه على اللوح استخدم «{m}».", "sheetFromPdf": "من ملف PDF", "sheetPdfTitle": "اكتب على ملف PDF", "sheetPdfNote": "تصبح كل صفحة من ملف PDF صفحة من الورقة، لتظلل وتكتب وترسم عليها.", "sheetPdfBtn": "اختر ملف PDF…"});
+  Object.assign(D.hi, {"tNoBoardInFile": "इस फ़ाइल में कोई Whiteboard बोर्ड नहीं है, इसलिए इसे खोला नहीं जा सकता। इसे बोर्ड पर रखने के लिए “{m}” का उपयोग करें।", "sheetFromPdf": "PDF से", "sheetPdfTitle": "PDF पर लिखें", "sheetPdfNote": "PDF का हर पेज शीट का एक पेज बन जाता है, जिस पर हाइलाइट करें, लिखें और बनाएँ।", "sheetPdfBtn": "PDF चुनें…"});
 
   /* The best supported language for this device's preferences. */
   WB.systemLang = function () {
@@ -10219,7 +10243,8 @@ body.pipetting #canvas { cursor: crosshair; }
      or the gallery ('gallery'). Whichever was used last wins. */
   let saveTarget = 'gallery';
   const BOARD_TYPES = [{ description: 'Whiteboard', accept: { 'application/x-whtbd': ['.whtbd'] } }];
-  const OPEN_TYPES = [{ description: 'Whiteboard, PDF', accept: { 'application/x-whtbd': ['.whtbd'], 'application/pdf': ['.pdf'] } }];
+  // Open: a board file, or any export of one (they all carry their board).
+  const OPEN_TYPES = [{ description: 'Whiteboard', accept: { 'application/x-whtbd': ['.whtbd'], 'application/pdf': ['.pdf'], 'image/png': ['.png'], 'image/jpeg': ['.jpg', '.jpeg'], 'image/webp': ['.webp'], 'image/bmp': ['.bmp'], 'image/svg+xml': ['.svg'] } }];
   const canUseFiles = () => typeof window.showSaveFilePicker === 'function' && location.protocol !== 'file:';
   const commitPending = () => { if (edit) commitText(); };
 
@@ -10321,17 +10346,19 @@ body.pipetting #canvas { cursor: crosshair; }
     try { await openFile(file); } catch (err) { toast(tr('eInvalid')); }
   });
 
-  /* A board file opens as it is. A PDF this app exported opens the board inside it; any other PDF
-     becomes a sheet: a board the size of the PDF's pages, with the pages beneath the ink. */
+  /* Opening a file opens a board: a .whtbd file as it is, or the board inside an export of one
+     (PNG, JPEG, WebP, BMP, SVG or PDF made by this app all carry it). A file with no board inside
+     is not opened; a picture or a PDF from elsewhere is brought in with Import…, and a PDF to
+     write on becomes a sheet from the New sheet window. */
   const pdfProgress = (i, n) => toast(tr('tPdfReading', { n: i, t: n }), null, null, 60000);
   const isPdfBytes = (buf) => buf.byteLength > 4 && String.fromCharCode(...new Uint8Array(buf, 0, 5)) === '%PDF-';
   async function openFile(file, handle) {
     const buf = await file.arrayBuffer();
-    if (isPdfBytes(buf)) {
-      const text = await WB.extractBoard(buf, pdfProgress);
-      return text ? loadText(text) : openPdf(buf, file.name);
-    }
-    loadText(new TextDecoder().decode(buf), handle);
+    const head = new TextDecoder().decode(buf.slice(0, 64)).trimStart();
+    if (head.startsWith('{')) return loadText(new TextDecoder().decode(buf), handle);    // a board file
+    const text = await WB.extractBoard(buf, isPdfBytes(buf) ? pdfProgress : null);
+    if (text) return loadText(text);                       // (an export is never saved over: no handle)
+    toast(tr('tNoBoardInFile', { m: tr('mImport').replace(/…$/, '') }), null, null, 8000);
   }
   async function readPdfPages(buf) {
     try {
@@ -10458,9 +10485,9 @@ body.pipetting #canvas { cursor: crosshair; }
     e.target.value = '';
     if (!file) return;
     try {
+      // Import always brings the file in as it looks (an export of a board too: to get its board
+      // back, use Open from… instead): a PDF's pages as pictures, or the picture itself.
       const buf = await file.arrayBuffer();
-      const text = await WB.extractBoard(buf, pdfProgress);
-      if (text) return loadText(text);
       if (isPdfBytes(buf)) { const pages = await readPdfPages(buf); if (pages) await placePages(pages); return; }
       const pic = await WB.pictureFromFile(file);
       if (!pic) return toast(tr('tImportFail'), null, null, 9000);
@@ -10601,6 +10628,18 @@ body.pipetting #canvas { cursor: crosshair; }
     ['catScreen', 'px', [['szSlide169', 1080, 1920], ['szSlide43', 768, 1024], ['szSquare', 1080, 1080]]],
   ];
   const UNIT = { mm: 96 / 25.4, in: 96, px: 1 };
+  $('#sheet-pdf').addEventListener('click', () => $('#pdf-input').click());
+  $('#pdf-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    closeSheets();
+    try {
+      const buf = await file.arrayBuffer();
+      if (!isPdfBytes(buf)) return toast(tr('tPdfFail'), null, null, 6000);
+      await openPdf(buf, file.name);
+    } catch (err) { report(tr('tPdfFail'), 'reading "' + file.name + '"', err); }
+  });
   function buildSheets() {
     const list = $('#sz-list'), land = settings.sheetOrient === 'landscape';
     list.textContent = '';

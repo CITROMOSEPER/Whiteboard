@@ -353,7 +353,7 @@
     <!-- Credits and version. VERSION RULE (see CLAUDE.md): YYYY.MM.DD.NN, NN = that day's release count. -->
     <footer class="credits">
       <p>Nemes Dániel © 2026-now</p>
-      <p id="app-version">version: 2026.11.18.01.</p>
+      <p id="app-version">version: 2026.11.20.01.</p>
       <p class="credit-links"><a href="https://citromoseper.github.io/Whiteboard-site/" target="_blank" rel="noopener" data-i18n="website">Website</a> · <a href="https://github.com/CITROMOSEPER/Whiteboard" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
   </div>
@@ -446,6 +446,13 @@
       <button class="pill-btn quiet" data-close data-i18n="cancel"></button>
     </div>
     <p class="note" data-i18n="sheetNote"></p>
+    <h3 data-i18n="sheetFromPdf"></h3>
+    <div class="group">
+      <div class="row">
+        <div><span data-i18n="sheetPdfTitle"></span><p class="note" data-i18n="sheetPdfNote"></p></div>
+        <button class="pill-btn" id="sheet-pdf" data-i18n="sheetPdfBtn"></button>
+      </div>
+    </div>
     <h3 data-i18n="orientation"></h3>
     <div class="group">
       <div class="seg" data-seg="orient" role="radiogroup">
@@ -520,7 +527,8 @@
 
 <div class="glass" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button id="toast-action" hidden></button></div>
 <div id="drop-blob" aria-hidden="true"><i></i></div>
-<input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json,.pdf,application/pdf" hidden>
+<input type="file" id="file-input" accept=".whtbd,.WHTBD,.json,application/json,.pdf,application/pdf,.png,.jpg,.jpeg,.webp,.bmp,.svg,image/png,image/jpeg,image/webp,image/bmp,image/svg+xml" hidden>
+<input type="file" id="pdf-input" accept=".pdf,application/pdf" hidden>
 <input type="file" id="addboards-input" accept=".whtbd,.WHTBD,.json,application/json" multiple hidden>
 <input type="file" id="restore-input" accept=".wbgallery,.wbstickers,.json,application/json" hidden>
 <input type="file" id="import-input" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml,application/pdf,.png,.jpg,.jpeg,.webp,.bmp,.svg,.pdf" hidden>
